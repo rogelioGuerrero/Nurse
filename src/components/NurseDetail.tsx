@@ -6,21 +6,20 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import AvailabilityCalendar from './AvailabilityCalendar';
-import { 
-  Star, Clock, ChevronLeft, ChevronRight, MapPin, Award, ShieldCheck, 
-  MessageSquare, Calendar, Stethoscope, AlertCircle, Heart, CheckCircle2 
+import {
+  Star, Clock, ChevronLeft, ChevronRight, MapPin, Award, ShieldCheck,
+  Calendar, Stethoscope, AlertCircle, Heart, CheckCircle2, MessageCircle
 } from 'lucide-react';
 
 export const NurseDetail: React.FC = () => {
-  const { 
-    nurses, 
-    profiles, 
+  const {
+    nurses,
+    profiles,
     bookings,
-    selectedNurseId, 
-    setSelectedNurseId, 
-    createBooking, 
-    setActiveTab, 
-    getOrCreateChatRoom 
+    selectedNurseId,
+    setSelectedNurseId,
+    createBooking,
+    setActiveTab
   } = useApp();
 
   // Find nurse and linked profile
@@ -233,11 +232,6 @@ export const NurseDetail: React.FC = () => {
     }
   };
 
-  const handleStartChat = async () => {
-    const room = await getOrCreateChatRoom('00000000-0000-0000-0000-000000000001', nurse.id);
-    setActiveTab('chat');
-  };
-
   const daysInMonthList = getDaysInMonth(calendarMonth);
 
   return (
@@ -330,14 +324,17 @@ export const NurseDetail: React.FC = () => {
                 </div>
 
                 <div className="pt-3 border-t border-slate-100 flex flex-wrap justify-center sm:justify-start gap-3">
-                  <button 
-                    onClick={handleStartChat}
-                    className="flex items-center justify-center gap-2 bg-indigo-50 hover:bg-indigo-100/80 active:bg-indigo-200 text-indigo-700 font-bold px-4 py-2 rounded-xl transition text-xs cursor-pointer"
-                    id="btn-chat-direct"
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                    <span>Chat para Consultas</span>
-                  </button>
+                  {profile.phone && (
+                    <a
+                      href={`https://wa.me/503${profile.phone.replace(/[^0-9]/g, '').replace(/^503/, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-4 py-2 rounded-xl transition text-xs"
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      <span>Contactar por WhatsApp</span>
+                    </a>
+                  )}
                   <span className="text-xs text-slate-400 self-center">Responde normalmente en menos de 15 min</span>
                 </div>
               </div>
