@@ -37,8 +37,8 @@ netlify deploy --prod
 - CRUD completo (crear, leer, actualizar, eliminar)
 - Calendario visual mensual
 - Colores por estado:
-  - Verde: completamente disponible
-  - Amarillo: parcialmente disponible
-  - Rojo: no disponible
+  - Esmeralda: completamente disponible
+  - Ambar: parcialmente disponible
+  - Rosa: no disponible
 - Integrado en NurseDetail
 - Políticas RLS configuradas
