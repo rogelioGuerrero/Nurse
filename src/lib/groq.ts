@@ -44,7 +44,7 @@ export async function generateDailyCareTip(): Promise<CareTip> {
   const apiKey = localStorage.getItem('groq_api_key');
   
   if (!apiKey) {
-    throw new Error('Groq API key not configured. Please set it in localStorage with key: groq_api_key');
+    throw new Error('Groq API key not configured');
   }
 
   const systemPrompt = `Eres un experto en cuidado de adultos mayores y geriatría. Genera un consejo práctico y útil para familiares que cuidan a adultos mayores en casa.
@@ -71,34 +71,43 @@ Solo devuelve el JSON, sin texto adicional.`;
     { role: 'user', content: 'Genera un consejo práctico de cuidado de adultos mayores para hoy.' }
   ];
 
-  const response = await fetch(GROQ_API_URL, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'llama-3.3-70b-versatile',
-      messages,
-      temperature: 0.7,
-      max_tokens: 500,
-      response_format: { type: 'json_object' }
-    })
-  });
+  const maxRetries = 2;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const response = await fetch(GROQ_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages,
+        temperature: 0.7,
+        max_tokens: 500,
+        response_format: { type: 'json_object' }
+      })
+    });
 
-  if (!response.ok) {
-    throw new Error(`Groq API error: ${response.statusText}`);
+    if (!response.ok) {
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+        continue;
+      }
+      throw new Error(`Groq API error: ${response.status}`);
+    }
+
+    const data: GroqResponse = await response.json();
+    const content = data.choices[0].message.content;
+    
+    try {
+      const tip: CareTip = JSON.parse(content);
+      return tip;
+    } catch (error) {
+      throw new Error('Failed to parse Groq response');
+    }
   }
 
-  const data: GroqResponse = await response.json();
-  const content = data.choices[0].message.content;
-  
-  try {
-    const tip: CareTip = JSON.parse(content);
-    return tip;
-  } catch (error) {
-    throw new Error('Failed to parse Groq response');
-  }
+  throw new Error('Groq API error: max retries exceeded');
 }
 
 export async function getCachedCareTip(): Promise<CareTip> {

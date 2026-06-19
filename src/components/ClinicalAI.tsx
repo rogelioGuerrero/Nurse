@@ -3,28 +3,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useToast } from './Toast';
 import { 
-  Sparkles, MessageSquare, Send, Zap, BookOpen, AlertTriangle, 
-  ShieldCheck, HeartPulse, GraduationCap, ChevronRight, Activity, HelpCircle
+  Sparkles, MessageSquare, Send, BookOpen, AlertTriangle, 
+  HeartPulse, GraduationCap, ChevronRight, Activity, HelpCircle
 } from 'lucide-react';
 
 export default function ClinicalAI() {
   const { currentUser } = useApp();
-  const [apiKeyInput, setApiKeyInput] = useState(() => localStorage.getItem('groq_api_key') || '');
-  const [savedKey, setSavedKey] = useState(() => localStorage.getItem('groq_api_key') || '');
+  const { showToast } = useToast();
   const [question, setQuestion] = useState('');
   const [response, setResponse] = useState('');
   const [loading, setLoading] = useState(false);
 
   const isNurseView = currentUser?.role === 'nurse';
-
-  const handleSaveKey = (e: React.FormEvent) => {
-    e.preventDefault();
-    localStorage.setItem('groq_api_key', apiKeyInput);
-    setSavedKey(apiKeyInput);
-  };
 
   const handleQuickQuestion = (q: string) => {
     setQuestion(q);
@@ -40,40 +34,57 @@ export default function ClinicalAI() {
 
     const apiKey = localStorage.getItem('groq_api_key');
     if (!apiKey) {
-      setResponse('Por favor, ingresa y guarda tu Groq API Key en la sección superior para habilitar el Asistente Clínico de IA.');
+      setResponse('El asistente clínico no está disponible en este momento. Contacta al administrador.');
+      showToast('Clave de IA no configurada. Contacta al administrador.', 'error');
       setLoading(false);
       return;
     }
 
-    try {
-      const systemPrompt = isNurseView 
-        ? 'Eres un consultor clínico geriatra y farmacólogo de El Salvador de altísima trayectoria. Proporcionas directrices de enfermería clínica, protocolos de prevención, dosificaciones, cuidados paliativos o de rehabilitación de alta precisión técnica, basándote en estándares de la OMS y el Consejo Superior de Salud Pública (CSSP). Sé formal, sumamente técnico, utiliza terminología de enfermería y destaca los riesgos clínicos.'
-        : 'Eres un enfermero familiar geriátrico sumamente empático y experto de El Salvador. Ayudas a familiares de adultos mayores con consejos prácticos para el cuidado diario en el hogar (nutrición, prevención de caídas, agitación cognitiva, higiene). Responde con calidez, lenguaje claro y no técnico, pero con rigor de seguridad médica. Siempre aconseja consultar con un profesional ante cualquier signo de alerta.';
+    const maxRetries = 2;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const systemPrompt = isNurseView 
+          ? 'Eres un consultor clínico geriatra y farmacólogo de El Salvador de altísima trayectoria. Proporcionas directrices de enfermería clínica, protocolos de prevención, dosificaciones, cuidados paliativos o de rehabilitación de alta precisión técnica, basándote en estándares de la OMS y el Consejo Superior de Salud Pública (CSSP). Sé formal, sumamente técnico, utiliza terminología de enfermería y destaca los riesgos clínicos.'
+          : 'Eres un enfermero familiar geriátrico sumamente empático y experto de El Salvador. Ayudas a familiares de adultos mayores con consejos prácticos para el cuidado diario en el hogar (nutrición, prevención de caídas, agitación cognitiva, higiene). Responde con calidez, lenguaje claro y no técnico, pero con rigor de seguridad médica. Siempre aconseja consultar con un profesional ante cualquier signo de alerta.';
 
-      const chatResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: qToSend }
-          ],
-          temperature: 0.6,
-          max_tokens: 600
-        })
-      });
+        const chatResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'llama-3.3-70b-versatile',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: qToSend }
+            ],
+            temperature: 0.6,
+            max_tokens: 600
+          })
+        });
 
-      if (!chatResponse.ok) throw new Error('Groq API error');
-      const data = await chatResponse.json();
-      setResponse(data.choices[0].message.content);
-    } catch (err) {
-      setResponse('Error al contactar con el Asistente Clínico de IA. Por favor verifica que tu clave API de Groq sea válida.');
-    } finally {
-      setLoading(false);
+        if (!chatResponse.ok) {
+          if (attempt < maxRetries) {
+            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+            continue;
+          }
+          throw new Error(`Groq API error: ${chatResponse.status}`);
+        }
+        const data = await chatResponse.json();
+        setResponse(data.choices[0].message.content);
+        showToast('Respuesta generada correctamente', 'success');
+        break;
+      } catch (err) {
+        if (attempt < maxRetries) {
+          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+          continue;
+        }
+        setResponse('No se pudo conectar con el asistente clínico. Intenta nuevamente en unos momentos.');
+        showToast('Error al conectar con el asistente de IA', 'error');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -138,41 +149,6 @@ export default function ClinicalAI() {
               : 'Asesoramiento experto para el cuidado de tus abuelitos en casa. Aprende de nutrición gerontológica, ejercicios cognitivos y seguridad física diaria de la mano de nuestra IA clínica.'}
           </p>
         </div>
-      </div>
-
-      {/* API Key Configuration Block */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-        <div className="flex items-center gap-2.5">
-          <Zap className="h-5 w-5 text-amber-500 shrink-0" />
-          <div>
-            <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Configuración de Groq API Key</h3>
-            <p className="text-xs text-slate-450">Ingresa tu API Key de Groq para interactuar con los modelos clínicos Llama-3 de forma 100% gratuita.</p>
-          </div>
-        </div>
-
-        <form onSubmit={handleSaveKey} className="flex flex-col sm:flex-row gap-3">
-          <input 
-            type="password"
-            value={apiKeyInput}
-            onChange={(e) => setApiKeyInput(e.target.value)}
-            placeholder="gsk_..."
-            className="flex-1 text-xs font-semibold bg-slate-50 border border-slate-200 outline-none rounded-xl px-4 py-3 focus:bg-white focus:border-indigo-500 transition"
-            id="groq-key-input"
-          />
-          <button 
-            type="submit" 
-            className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-xs px-6 py-3 rounded-xl transition shadow-md cursor-pointer uppercase tracking-wider"
-          >
-            Guardar Clave
-          </button>
-        </form>
-
-        {savedKey && (
-          <div className="text-[10px] text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-150 inline-flex items-center gap-1.5 font-bold">
-            <ShieldCheck className="h-4 w-4" />
-            <span>¡Tu API Key de Groq está lista y cargada correctamente en este navegador!</span>
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

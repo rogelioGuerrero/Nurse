@@ -3,16 +3,12 @@
  * SPDX-License-Identifier: Apache-2.5
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, lazy, Suspense } from 'react';
 import { AppContextProvider, useApp } from './context/AppContext';
 import { MapComponent } from './components/MapComponent';
 import { SearchFilters } from './components/SearchFilters';
-import { NurseDetail } from './components/NurseDetail';
-import { BookingsManager } from './components/BookingsManager';
-import { ChatRoom } from './components/ChatRoom';
-import { NurseProfileEdit } from './components/NurseProfileEdit';
 import CareAdvice from './components/CareAdvice';
-import ClinicalAI from './components/ClinicalAI';
+import { ToastProvider } from './components/Toast';
 import './lib/config-groq';
 import { 
   Stethoscope, Calendar, MessageSquare, 
@@ -20,12 +16,17 @@ import {
   Heart, Users, CheckCircle2, ChevronRight, GraduationCap, Network
 } from 'lucide-react';
 
+const NurseDetail = lazy(() => import('./components/NurseDetail').then(m => ({ default: m.NurseDetail })));
+const BookingsManager = lazy(() => import('./components/BookingsManager').then(m => ({ default: m.BookingsManager })));
+const ChatRoom = lazy(() => import('./components/ChatRoom').then(m => ({ default: m.ChatRoom })));
+const NurseProfileEdit = lazy(() => import('./components/NurseProfileEdit').then(m => ({ default: m.NurseProfileEdit })));
+const ClinicalAI = lazy(() => import('./components/ClinicalAI'));
+
 function MarketplaceApp() {
   const { 
     nurses, 
     profiles, 
     currentUser, 
-    switchUserRole, 
     activeTab, 
     setActiveTab,
     selectedNurseId,
@@ -95,17 +96,8 @@ function MarketplaceApp() {
     setActiveTab('nurse-detail');
   };
 
-  const userRoleText = currentUser?.role === 'nurse' 
-    ? 'Lic. Elena Gómez (Enfermera)' 
-    : 'Familia Ramírez Gómez (Cliente)';
-
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col selection:bg-indigo-100" id="main-layout-root">
-      
-      {/* Top Banner Notice - Sandbox and SQL Sync info */}
-      <div className="bg-slate-900 border-b border-indigo-950 px-4 py-2 block text-center text-[11px] leading-relaxed font-bold tracking-tight text-slate-350">
-        📌 <span className="text-white">Proof of Concept Interactivo</span> con datos locales persistentes en tu navegador. <span className="text-indigo-400">¿Listo para desplegar a Supabase?</span> Copia el script SQL de migración en la última pestaña.
-      </div>
 
       {/* Main Premium Navbar */}
       <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40" id="main-header">
@@ -121,9 +113,6 @@ function MarketplaceApp() {
             <div>
               <div className="flex items-center gap-1.5">
                 <span className="text-xl font-bold font-serif italic tracking-tight text-slate-900">LocalNurse</span>
-                <span className="bg-indigo-50 text-indigo-700 text-[10px] uppercase font-extrabold tracking-widest px-2 py-0.5 rounded-full border border-indigo-100">
-                  PoC v1.2
-                </span>
               </div>
               <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Cuidado del Adulto Mayor</p>
             </div>
@@ -199,21 +188,6 @@ function MarketplaceApp() {
             )}
 
           </nav>
-
-          {/* Actor Role Simulation Switcher badge */}
-          <div className="flex items-center gap-2 bg-slate-100 border border-slate-200 shadow-inner px-3 py-1.5 rounded-2xl w-fit self-end sm:self-auto shrink-0">
-            <div>
-              <span className="text-[9px] uppercase font-bold tracking-wider text-slate-450 block">Probando como:</span>
-              <span className="text-xs font-extrabold text-slate-800 leading-none">{userRoleText}</span>
-            </div>
-            <button
-              onClick={() => switchUserRole(currentUser?.role === 'user' ? 'nurse' : 'user')}
-              className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-extrabold text-[10px] px-2.5 py-1.5 rounded-xl border border-indigo-200 transition cursor-pointer shrink-0 uppercase tracking-wider"
-              id="btn-switch-role"
-            >
-              Alternar Rol
-            </button>
-          </div>
 
         </div>
       </header>
@@ -405,67 +379,66 @@ function MarketplaceApp() {
         )}
 
         {activeTab === 'nurse-detail' && (
-          <NurseDetail />
+          <Suspense fallback={<div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>}>
+            <NurseDetail />
+          </Suspense>
         )}
 
         {activeTab === 'bookings' && (
-          <BookingsManager />
+          <Suspense fallback={<div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>}>
+            <BookingsManager />
+          </Suspense>
         )}
 
         {activeTab === 'chat' && (
-          <ChatRoom />
+          <Suspense fallback={<div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>}>
+            <ChatRoom />
+          </Suspense>
         )}
 
         {activeTab === 'clinical-ai' && (
-          <ClinicalAI />
+          <Suspense fallback={<div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>}>
+            <ClinicalAI />
+          </Suspense>
         )}
 
         {activeTab === 'nurse-profile-edit' && (
-          <NurseProfileEdit />
+          <Suspense fallback={<div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>}>
+            <NurseProfileEdit />
+          </Suspense>
         )}
-
 
       </main>
 
-      {/* Structured Footer */}
+      {/* Footer */}
       <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 py-10 mt-12 shrink-0" id="main-footer">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-1 md:grid-cols-2 gap-8">
           
           <div className="space-y-3">
             <div className="flex items-center gap-2.5">
               <div className="h-8 w-8 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-sm">
                 <Stethoscope className="h-4 w-4" />
               </div>
-              <span className="text-white font-extrabold text-lg tracking-tight">LocalNurse Marketplace</span>
+              <span className="text-white font-extrabold text-lg tracking-tight">LocalNurse</span>
             </div>
-            <p className="text-xs text-slate-400 leading-relaxed font-normal">
-              La plataforma PoC definitiva para conectar familias con enfermeros geriátricos con total trazabilidad de agendas, tarifas dinámicas e integraciones seguras de bases de datos.
+            <p className="text-xs text-slate-400 leading-relaxed font-normal max-w-md">
+              Plataforma para conectar familias con enfermeras profesionales de cuidado del adulto mayor en El Salvador. Verificadas con Sello de Confianza.
             </p>
           </div>
 
           <div className="space-y-2 text-xs">
-            <h4 className="font-extrabold text-white text-xs uppercase tracking-widest text-[#a5b4fc] mb-1">Tecnologías Demostradas</h4>
-            <p>• React 19 + Vite (Arquitectura SPA)</p>
-            <p>• Supabase DB PostgreSQL Schema & RLS Security</p>
-            <p>• Interactive Vector Coordinates Map Engine</p>
-            <p>• TailwindCSS v4 Custom Stylings & Lucide icons</p>
-          </div>
-
-          <div className="space-y-3 text-xs leading-relaxed">
-            <h4 className="font-extrabold text-white text-xs uppercase tracking-widest text-[#a5b4fc] mb-1">Controles del Simulador</h4>
-            <p className="text-slate-400 font-normal">
-              Usa el botón <strong className="text-indigo-400 bg-indigo-950/50 px-1 py-0.5 rounded border border-indigo-900/60 font-bold">Alternar Rol</strong> en el menú superior para intercambiar la perspectiva entre el familiar que busca apoyo y la enfermera (quien puede aprobar la visita).
-            </p>
+            <h4 className="font-extrabold text-white text-xs uppercase tracking-widest text-[#a5b4fc] mb-2">Enlaces</h4>
+            <div className="flex flex-col gap-1.5">
+              <a href="#" className="hover:text-indigo-400 transition">Políticas de Privacidad</a>
+              <a href="#" className="hover:text-indigo-400 transition">Términos del Servicio</a>
+              <a href="#" className="hover:text-indigo-400 transition">Soporte</a>
+            </div>
           </div>
 
         </div>
         <div className="max-w-7xl mx-auto px-4 md:px-6 border-t border-slate-800/80 pt-6 mt-8 flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-slate-500 gap-4">
-          <p>© 2026 LocalNurse Inc. Todos los derechos reservados.</p>
-          <div className="flex gap-4">
-            <a href="#" className="hover:underline">Políticas de Privacidad</a>
-            <a href="#" className="hover:underline">Términos del Servicio</a>
-            <a href="#" className="hover:underline">Soporte Médico</a>
-          </div>
+          <p>© 2026 LocalNurse. Todos los derechos reservados.</p>
+          <p className="text-slate-600">Hecho en El Salvador</p>
         </div>
       </footer>
 
@@ -475,8 +448,10 @@ function MarketplaceApp() {
 
 export default function App() {
   return (
-    <AppContextProvider>
-      <MarketplaceApp />
-    </AppContextProvider>
+    <ToastProvider>
+      <AppContextProvider>
+        <MarketplaceApp />
+      </AppContextProvider>
+    </ToastProvider>
   );
 }
