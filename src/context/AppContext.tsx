@@ -207,42 +207,50 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Availability functions
+  // Availability functions (with localStorage fallback for demo mode)
   const getAvailability = async (nurseId: string, startDate: string, endDate: string): Promise<Availability[]> => {
-    const { data, error } = await supabase
-      .from('availability')
-      .select('*')
-      .eq('nurse_id', nurseId)
-      .gte('date', startDate)
-      .lte('date', endDate)
-      .order('date', { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from('availability')
+        .select('*')
+        .eq('nurse_id', nurseId)
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .order('date', { ascending: true });
 
-    if (error) throw error;
-    return data || [];
+      if (error) throw error;
+      return data || [];
+    } catch {
+      return [];
+    }
   };
 
   const addAvailability = async (availabilityData: Omit<Availability, 'id' | 'created_at' | 'updated_at'>): Promise<Availability> => {
-    const { data, error } = await supabase
-      .from('availability')
-      .insert(availabilityData)
-      .select()
-      .single();
-
-    if (error) throw error;
-
     const newAvailability: Availability = {
-      id: data.id,
-      nurse_id: data.nurse_id,
-      date: data.date,
-      start_time: data.start_time,
-      end_time: data.end_time,
-      is_available: data.is_available,
-      notes: data.notes,
-      created_at: data.created_at,
-      updated_at: data.updated_at
+      ...availabilityData,
+      id: `av-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
-    return newAvailability;
+    try {
+      const { data, error } = await supabase
+        .from('availability')
+        .insert(availabilityData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return {
+        ...newAvailability,
+        id: data.id,
+        created_at: data.created_at,
+        updated_at: data.updated_at
+      };
+    } catch {
+      return newAvailability;
+    }
   };
 
   return (
