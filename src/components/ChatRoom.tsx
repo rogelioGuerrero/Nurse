@@ -38,11 +38,11 @@ export const ChatRoom: React.FC = () => {
 
   const isNurseView = currentUser.role === 'nurse';
 
-  const handleSendSubmit = (e: React.FormEvent) => {
+  const handleSendSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!typedText.trim() || !activeRoomId) return;
 
-    sendMessage(activeRoomId, typedText.trim());
+    await sendMessage(activeRoomId, typedText.trim());
     setTypedText('');
   };
 

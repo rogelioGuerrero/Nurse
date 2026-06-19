@@ -158,7 +158,7 @@ export const NurseDetail: React.FC = () => {
     setBookingStep(3);
   };
 
-  const handleBookingSubmit = (e: React.FormEvent) => {
+  const handleBookingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError('');
 
@@ -189,7 +189,7 @@ export const NurseDetail: React.FC = () => {
     }
 
     try {
-      createBooking({
+      await createBooking({
         nurse_id: nurse.id,
         date,
         start_time: startTime,
@@ -202,8 +202,7 @@ export const NurseDetail: React.FC = () => {
       });
 
       setBookingSuccess(true);
-      setBookingStep(1); // Reset
-      // Clean up fields
+      setBookingStep(1);
       setDate('');
       setPatientName('');
       setPatientCondition('');
@@ -213,9 +212,8 @@ export const NurseDetail: React.FC = () => {
     }
   };
 
-  const handleStartChat = () => {
-    // Current user id is mock client 'family-1'
-    const room = getOrCreateChatRoom('family-1', nurse.id);
+  const handleStartChat = async () => {
+    const room = await getOrCreateChatRoom('00000000-0000-0000-0000-000000000001', nurse.id);
     setActiveTab('chat');
   };
 

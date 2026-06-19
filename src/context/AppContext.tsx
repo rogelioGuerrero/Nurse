@@ -6,6 +6,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Profile, Nurse, Booking, Message, ChatRoom, UserRole, BookingStatus } from '../types';
 import { INITIAL_PROFILES, INITIAL_NURSES } from '../data/nurses';
+import { supabase } from '../lib/supabase';
 
 interface AppContextType {
   profiles: Profile[];
@@ -18,10 +19,10 @@ interface AppContextType {
   switchUserRole: (role: UserRole) => void;
   updateProfile: (profileData: Partial<Profile>) => void;
   updateNurseProfile: (nurseData: Partial<Nurse>) => void;
-  createBooking: (bookingData: Omit<Booking, 'id' | 'user_id' | 'created_at' | 'status'>) => Booking;
-  updateBookingStatus: (bookingId: string, status: BookingStatus) => void;
-  sendMessage: (chatRoomId: string, content: string) => void;
-  getOrCreateChatRoom: (userId: string, nurseId: string) => ChatRoom;
+  createBooking: (bookingData: Omit<Booking, 'id' | 'user_id' | 'created_at' | 'status'>) => Promise<Booking>;
+  updateBookingStatus: (bookingId: string, status: BookingStatus) => Promise<void>;
+  sendMessage: (chatRoomId: string, content: string) => Promise<void>;
+  getOrCreateChatRoom: (userId: string, nurseId: string) => Promise<ChatRoom>;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   selectedNurseId: string | null;
@@ -49,9 +50,9 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return [
       {
         id: 'b-demo-1',
-        user_id: 'family-1',
-        nurse_id: 'n-1',
-        date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0], // 2 days from now
+        user_id: '00000000-0000-0000-0000-000000000001',
+        nurse_id: '00000000-0000-0000-0000-000000000011',
+        date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
         start_time: '09:00',
         end_time: '14:00',
         hours: 5,
@@ -64,9 +65,9 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       },
       {
         id: 'b-demo-2',
-        user_id: 'family-1',
-        nurse_id: 'n-3',
-        date: new Date(Date.now() - 86400000 * 3).toISOString().split('T')[0], // 3 days ago
+        user_id: '00000000-0000-0000-0000-000000000001',
+        nurse_id: '00000000-0000-0000-0000-000000000013',
+        date: new Date(Date.now() - 86400000 * 3).toISOString().split('T')[0],
         start_time: '08:00',
         end_time: '16:00',
         hours: 8,
@@ -86,15 +87,15 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return [
       {
         id: 'm-demo-1',
-        chat_room_id: 'crm-family-1-n-1',
-        sender_id: 'p-1', // Nurse Elena
+        chat_room_id: 'crm-demo-1',
+        sender_id: '00000000-0000-0000-0000-000000000002',
         content: 'Hola, un gusto saludarlos. Estoy disponible para el cuidado de Don Alberto este miércoles. ¿Tienen alguna indicación adicional para las medicinas?',
         created_at: new Date(Date.now() - 3600000 * 4).toISOString()
       },
       {
         id: 'm-demo-2',
-        chat_room_id: 'crm-family-1-n-1',
-        sender_id: 'family-1', // Client Family
+        chat_room_id: 'crm-demo-1',
+        sender_id: '00000000-0000-0000-0000-000000000001',
         content: 'Hola Lic. Elena, excelente. Sí, él toma su recordatorio de Aricept justo a las 10:00 AM después del desayuno. Le daremos más detalles el día de su visita.',
         created_at: new Date(Date.now() - 3600000 * 2).toISOString()
       }
@@ -106,9 +107,9 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     if (saved) return JSON.parse(saved);
     return [
       {
-        id: 'crm-family-1-n-1',
-        user_id: 'family-1',
-        nurse_id: 'n-1',
+        id: 'crm-demo-1',
+        user_id: '00000000-0000-0000-0000-000000000001',
+        nurse_id: '00000000-0000-0000-0000-000000000011',
         last_message_content: 'Hola Lic. Elena, excelente. Sí, él toma su recordatorio de Aricept...',
         last_message_time: new Date(Date.now() - 3600000 * 2).toISOString()
       }
@@ -120,13 +121,13 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
 
   // Authenticated user state
-  // We simulate a default logged-in family client 'family-1'
-  // Or a nurse user 'p-1' (Elena Gómez) when switching roles
+  // We simulate a default logged-in family client
+  // Or a nurse user (Elena Gómez) when switching roles
   const [currentUser, setCurrentUser] = useState<Profile | null>(() => {
     const saved = localStorage.getItem('localnurse_current_user');
     if (saved) return JSON.parse(saved);
     return {
-      id: 'family-1',
+      id: '00000000-0000-0000-0000-000000000001',
       email: 'familia.gomez.servicios@gmail.com',
       role: 'user',
       full_name: 'Familia Ramírez Gómez',
@@ -182,7 +183,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const switchUserRole = (role: UserRole) => {
     if (role === 'nurse') {
       // Switch mock user to Elena Gómez (Nurse n-1, Profile p-1)
-      const elenaProfile = profiles.find(p => p.id === 'p-1');
+      const elenaProfile = profiles.find(p => p.id === '00000000-0000-0000-0000-000000000002');
       if (elenaProfile) {
         setCurrentUser({
           ...elenaProfile,
@@ -190,7 +191,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         });
       } else {
         const fallbackElena: Profile = {
-          id: 'p-1',
+          id: '00000000-0000-0000-0000-000000000002',
           email: 'elena.gomez@localnurse.com',
           role: 'nurse',
           full_name: 'Lic. Elena Gómez',
@@ -203,9 +204,9 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         setCurrentUser(fallbackElena);
       }
     } else {
-      // Switch back to Family client 'family-1'
+      // Switch back to Family client
       const familyUser: Profile = {
-        id: 'family-1',
+        id: '00000000-0000-0000-0000-000000000001',
         email: 'familia.gomez.servicios@gmail.com',
         role: 'user',
         full_name: 'Familia Ramírez Gómez',
@@ -237,15 +238,43 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   // Action: Create high fidelity booking
-  const createBooking = (bookingData: Omit<Booking, 'id' | 'user_id' | 'created_at' | 'status'>) => {
+  const createBooking = async (bookingData: Omit<Booking, 'id' | 'user_id' | 'created_at' | 'status'>) => {
     if (!currentUser) throw new Error('Debes iniciar sesión para agendar.');
     
+    const { data, error } = await supabase
+      .from('bookings')
+      .insert({
+        user_id: currentUser.id,
+        nurse_id: bookingData.nurse_id,
+        date: bookingData.date,
+        start_time: bookingData.start_time,
+        end_time: bookingData.end_time,
+        hours: bookingData.hours,
+        status: 'pending',
+        total_price: bookingData.total_price,
+        notes: bookingData.notes,
+        patient_name: bookingData.patient_name,
+        patient_condition: bookingData.patient_condition
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
     const newBooking: Booking = {
-      ...bookingData,
-      id: 'b-' + Math.random().toString(36).substr(2, 9),
-      user_id: currentUser.id,
-      status: 'pending',
-      created_at: new Date().toISOString()
+      id: data.id,
+      user_id: data.user_id,
+      nurse_id: data.nurse_id,
+      date: data.date,
+      start_time: data.start_time,
+      end_time: data.end_time,
+      hours: Number(data.hours),
+      status: data.status,
+      total_price: Number(data.total_price),
+      notes: data.notes,
+      patient_name: data.patient_name,
+      patient_condition: data.patient_condition,
+      created_at: data.created_at
     };
 
     setBookings(prev => [newBooking, ...prev]);
@@ -253,7 +282,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     // Automatically trigger an onboarding chat message when booking
     const nurse = nurses.find(n => n.id === bookingData.nurse_id);
     if (nurse) {
-      const room = getOrCreateChatRoom(currentUser.id, nurse.id);
+      const room = await getOrCreateChatRoom(currentUser.id, nurse.id);
       
       const welcomeMsg: Message = {
         id: 'm-auto-' + Math.random().toString(36).substr(2, 9),
@@ -271,13 +300,19 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   // Action: Update state of booking (pending, confirmed, completed, cancelled)
-  const updateBookingStatus = (bookingId: string, status: BookingStatus) => {
+  const updateBookingStatus = async (bookingId: string, status: BookingStatus) => {
+    const { error } = await supabase
+      .from('bookings')
+      .update({ status })
+      .eq('id', bookingId);
+
+    if (error) throw error;
     setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status } : b));
     
     // Add automated message notification on changes
     const booking = bookings.find(b => b.id === bookingId);
     if (booking) {
-      const room = getOrCreateChatRoom(booking.user_id, booking.nurse_id);
+      const room = await getOrCreateChatRoom(booking.user_id, booking.nurse_id);
       let alertContent = '';
       if (status === 'confirmed') {
         alertContent = `⚡ Reserva Confirmada: El enfermero ha aceptado la reserva para el día **${booking.date}** de ${booking.start_time} a ${booking.end_time}.`;
@@ -291,12 +326,12 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const alertMsg: Message = {
           id: 'm-alert-' + Math.random().toString(36).substr(2, 9),
           chat_room_id: room.id,
-          sender_id: 'system', // system text or nurse text
+          sender_id: 'system',
           content: alertContent,
           created_at: new Date().toISOString()
         };
         setMessages(prev => [...prev, alertMsg]);
-        updateChatRoomLastMessage(room.id, alertMsg.content);
+        updateChatRoomLastMessage(room.id, alertContent);
       }
     }
   };
@@ -316,15 +351,27 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   // Action: Send real time mock message
-  const sendMessage = (chatRoomId: string, content: string) => {
+  const sendMessage = async (chatRoomId: string, content: string) => {
     if (!currentUser) return;
     
+    const { data, error } = await supabase
+      .from('messages')
+      .insert({
+        chat_room_id: chatRoomId,
+        sender_id: currentUser.id,
+        content
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
     const newMsg: Message = {
-      id: 'm-' + Math.random().toString(36).substr(2, 9),
-      chat_room_id: chatRoomId,
-      sender_id: currentUser.id,
-      content,
-      created_at: new Date().toISOString()
+      id: data.id,
+      chat_room_id: data.chat_room_id,
+      sender_id: data.sender_id,
+      content: data.content,
+      created_at: data.created_at
     };
 
     setMessages(prev => [...prev, newMsg]);
@@ -336,17 +383,6 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       const isSenderClient = currentUser.id === room.user_id;
       const responderId = isSenderClient ? room.nurse_id : room.user_id;
       
-      // Find name profile
-      let responderName = 'Enfermera';
-      if (isSenderClient) {
-        const foundN = nurses.find(n => n.id === room.nurse_id);
-        const refP = foundN ? profiles.find(pr => pr.id === foundN.user_id) : null;
-        if (refP) responderName = refP.full_name;
-      } else {
-        const refP = profiles.find(pr => pr.id === room.user_id);
-        if (refP) responderName = refP.full_name;
-      }
-
       setTimeout(() => {
         const replies = [
           `Entendido, estaré muy al pendiente de los requerimientos y el plan dietético.`,
@@ -360,13 +396,12 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         const autoResponse: Message = {
           id: 'm-reply-' + Math.random().toString(36).substr(2, 9),
           chat_room_id: chatRoomId,
-          sender_id: responderId, // actual responder ID
+          sender_id: responderId,
           content: randomReply,
           created_at: new Date().toISOString()
         };
 
         setMessages(prev => [...prev, autoResponse]);
-        // Update room
         setChatRooms(prevRooms => prevRooms.map(r => r.id === chatRoomId ? {
           ...r,
           last_message_content: randomReply,
@@ -377,16 +412,27 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   // Finder or builder of Chat rooms
-  const getOrCreateChatRoom = (userId: string, nurseId: string): ChatRoom => {
+  const getOrCreateChatRoom = async (userId: string, nurseId: string): Promise<ChatRoom> => {
     const existing = chatRooms.find(r => r.user_id === userId && r.nurse_id === nurseId);
     if (existing) return existing;
 
+    const { data, error } = await supabase
+      .from('chat_rooms')
+      .insert({
+        user_id: userId,
+        nurse_id: nurseId
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
     const newRoom: ChatRoom = {
-      id: `crm-${userId}-${nurseId}`,
-      user_id: userId,
-      nurse_id: nurseId,
+      id: data.id,
+      user_id: data.user_id,
+      nurse_id: data.nurse_id,
       last_message_content: 'Conversación iniciada',
-      last_message_time: new Date().toISOString()
+      last_message_time: data.created_at
     };
 
     setChatRooms(prev => [newRoom, ...prev]);

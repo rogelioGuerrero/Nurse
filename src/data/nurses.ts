@@ -7,7 +7,7 @@ import { Profile, Nurse } from '../types';
 
 export const INITIAL_PROFILES: Profile[] = [
   {
-    id: 'p-1',
+    id: '00000000-0000-0000-0000-000000000002',
     email: 'elena.gomez@localnurse.com',
     role: 'nurse',
     full_name: 'Lic. Elena Gómez',
@@ -17,7 +17,7 @@ export const INITIAL_PROFILES: Profile[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'p-2',
+    id: '00000000-0000-0000-0000-000000000003',
     email: 'carlos.mendoza@localnurse.com',
     role: 'nurse',
     full_name: 'Enf. Carlos Mendoza',
@@ -27,7 +27,7 @@ export const INITIAL_PROFILES: Profile[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'p-3',
+    id: '00000000-0000-0000-0000-000000000004',
     email: 'sofia.rodriguez@localnurse.com',
     role: 'nurse',
     full_name: 'Mtra. Sofía Rodríguez',
@@ -37,7 +37,7 @@ export const INITIAL_PROFILES: Profile[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'p-4',
+    id: '00000000-0000-0000-0000-000000000005',
     email: 'miguel.angel@localnurse.com',
     role: 'nurse',
     full_name: 'Enf. Miguel Ángel Ramos',
@@ -47,7 +47,7 @@ export const INITIAL_PROFILES: Profile[] = [
     updated_at: new Date().toISOString(),
   },
   {
-    id: 'p-5',
+    id: '00000000-0000-0000-0000-000000000006',
     email: 'isabel.castro@localnurse.com',
     role: 'nurse',
     full_name: 'Dra. Isabel Castro',
@@ -60,8 +60,8 @@ export const INITIAL_PROFILES: Profile[] = [
 
 export const INITIAL_NURSES: Nurse[] = [
   {
-    id: 'n-1',
-    user_id: 'p-1',
+    id: '00000000-0000-0000-0000-000000000011',
+    user_id: '00000000-0000-0000-0000-000000000002',
     specialization: ['Geriatría', 'Demencia y Alzheimer', 'Inyecciones'],
     hourly_rate: 180, // in MXN or dynamic representation
     coverage_radius: 8,
@@ -79,8 +79,8 @@ export const INITIAL_NURSES: Nurse[] = [
     ]
   },
   {
-    id: 'n-2',
-    user_id: 'p-2',
+    id: '00000000-0000-0000-0000-000000000012',
+    user_id: '00000000-0000-0000-0000-000000000003',
     specialization: ['Postoperatorio', 'Curaciones complejas', 'Fisioterapia Básica'],
     hourly_rate: 220,
     coverage_radius: 5,
@@ -98,8 +98,8 @@ export const INITIAL_NURSES: Nurse[] = [
     ]
   },
   {
-    id: 'n-3',
-    user_id: 'p-3',
+    id: '00000000-0000-0000-0000-000000000013',
+    user_id: '00000000-0000-0000-0000-000000000004',
     specialization: ['Geriatría', 'Manejo de Sondas', 'Cuidados Paliativos'],
     hourly_rate: 200,
     coverage_radius: 12,
@@ -117,8 +117,8 @@ export const INITIAL_NURSES: Nurse[] = [
     ]
   },
   {
-    id: 'n-4',
-    user_id: 'p-4',
+    id: '00000000-0000-0000-0000-000000000014',
+    user_id: '00000000-0000-0000-0000-000000000005',
     specialization: ['Monitoreo Cardíaco', 'Postoperatorio', 'Control de Diabetes'],
     hourly_rate: 195,
     coverage_radius: 6,
@@ -136,8 +136,8 @@ export const INITIAL_NURSES: Nurse[] = [
     ]
   },
   {
-    id: 'n-5',
-    user_id: 'p-5',
+    id: '00000000-0000-0000-0000-000000000015',
+    user_id: '00000000-0000-0000-0000-000000000006',
     specialization: ['Geriatría', 'Nutrición asistida', 'Demencia y Alzheimer'],
     hourly_rate: 250,
     coverage_radius: 10,
