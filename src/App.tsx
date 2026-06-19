@@ -8,7 +8,6 @@ import { AppContextProvider, useApp } from './context/AppContext';
 import { MapComponent } from './components/MapComponent';
 import { SearchFilters } from './components/SearchFilters';
 import { ToastProvider } from './components/Toast';
-import './lib/config-groq';
 import { 
   Stethoscope, Calendar, 
   Star, Sparkles,
@@ -204,38 +203,29 @@ function MarketplaceApp() {
           <div className="space-y-6">
             
             {/* Elegant Hero card intro */}
-            <div className="bg-slate-900 border border-slate-200/20 rounded-3xl p-6 md:p-8 text-white shadow-md relative overflow-hidden flex flex-col md:flex-row md:items-center justify-between gap-6 subtle-dot-grid">
-              <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 pointer-events-none">
-                <div className="absolute top-10 right-10 h-72 w-72 rounded-full border border-white" />
-                <div className="absolute top-20 right-20 h-72 w-72 rounded-full border-4 border-dashed border-indigo-500 animate-spin-slow" />
-              </div>
-
+            <div className="bg-slate-900 rounded-3xl p-6 md:p-8 text-white shadow-md flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="space-y-3 z-10">
-                <div className="inline-flex items-center gap-1.5 bg-indigo-600/35 border border-indigo-500/30 px-3.5 py-1.5 rounded-full text-indigo-200 font-bold tracking-wider text-[10px] uppercase">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Atención Profesional y Humana
-                </div>
                 <h1 className="text-3xl md:text-4xl font-serif italic tracking-tight font-normal">
                   Cuidado de calidad en tu hogar.
                 </h1>
-                <p className="text-sm text-slate-300 leading-relaxed font-normal max-w-2xl">
-                  Encuentra cuidadores geriátricos profesionales de absoluta confianza. Personal filtrado bajo controles rigurosos de experiencia y ubicación geográfica para atender a tus seres queridos.
+                <p className="text-sm text-slate-300 leading-relaxed max-w-2xl">
+                  Enfermeras profesionales verificadas para el cuidado de tus seres queridos. Filtra por cercanía, precio y especialidad.
                 </p>
               </div>
 
-              <div className="bg-slate-950/45 border border-slate-800 p-5 rounded-2xl md:max-w-xs shrink-0 backdrop-blur-sm z-10 flex flex-col justify-between">
+              <div className="bg-slate-950/45 border border-slate-800 p-5 rounded-2xl md:max-w-xs shrink-0 flex flex-col justify-between">
                 <div className="flex gap-3 mb-3">
                   <div className="py-2.5 px-3 bg-slate-900/50 rounded-xl text-center flex-1 border border-slate-800">
                     <span className="text-lg font-bold block text-indigo-400 font-serif italic">{nurses.length}</span>
                     <span className="text-[9px] uppercase text-slate-400 font-bold">Enfermeras</span>
                   </div>
                   <div className="py-2.5 px-3 bg-slate-900/50 rounded-xl text-center flex-1 border border-slate-800">
-                    <span className="text-lg font-bold block text-indigo-400 font-serif italic">El Salvador</span>
-                    <span className="text-[9px] uppercase text-slate-400 font-bold">Cobertura</span>
+                    <span className="text-lg font-bold block text-indigo-400 font-serif italic">100%</span>
+                    <span className="text-[9px] uppercase text-slate-400 font-bold">Verificadas</span>
                   </div>
                 </div>
-                <p className="text-[10px] text-justify text-slate-400 leading-normal mb-1 font-medium">
-                  Todas las enfermeras verificadas con Sello de Confianza: PNC, Antecedentes Penales y registro CSSP.
+                <p className="text-[10px] text-slate-400 leading-normal font-medium">
+                  Sello de Confianza: PNC, Antecedentes Penales y registro CSSP.
                 </p>
               </div>
             </div>
@@ -422,34 +412,16 @@ function MarketplaceApp() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 py-10 mt-12 shrink-0" id="main-footer">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-          
-          <div className="space-y-3">
-            <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-sm">
-                <Stethoscope className="h-4 w-4" />
-              </div>
-              <span className="text-white font-extrabold text-lg tracking-tight">LocalNurse</span>
+      <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 py-8 mt-12 shrink-0">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-[11px] text-slate-500">
+          <div className="flex items-center gap-2.5">
+            <div className="h-7 w-7 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+              <Stethoscope className="h-3.5 w-3.5" />
             </div>
-            <p className="text-xs text-slate-400 leading-relaxed font-normal max-w-md">
-              Plataforma para conectar familias con enfermeras profesionales de cuidado del adulto mayor en El Salvador. Verificadas con Sello de Confianza.
-            </p>
+            <span className="text-white font-bold text-sm">LocalNurse</span>
+            <span className="text-slate-600">| Cuidado del Adulto Mayor en El Salvador</span>
           </div>
-
-          <div className="space-y-2 text-xs">
-            <h4 className="font-extrabold text-white text-xs uppercase tracking-widest text-[#a5b4fc] mb-2">Enlaces</h4>
-            <div className="flex flex-col gap-1.5">
-              <a href="#" className="hover:text-indigo-400 transition">Políticas de Privacidad</a>
-              <a href="#" className="hover:text-indigo-400 transition">Términos del Servicio</a>
-              <a href="#" className="hover:text-indigo-400 transition">Soporte</a>
-            </div>
-          </div>
-
-        </div>
-        <div className="max-w-7xl mx-auto px-4 md:px-6 border-t border-slate-800/80 pt-6 mt-8 flex flex-col sm:flex-row sm:items-center justify-between text-[11px] text-slate-500 gap-4">
-          <p>© 2026 LocalNurse. Todos los derechos reservados.</p>
-          <p className="text-slate-600">Hecho en El Salvador</p>
+          <p>© 2026 LocalNurse · Hecho en El Salvador</p>
         </div>
       </footer>
 
