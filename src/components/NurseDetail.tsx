@@ -14,6 +14,7 @@ export const NurseDetail: React.FC = () => {
   const { 
     nurses, 
     profiles, 
+    bookings,
     selectedNurseId, 
     setSelectedNurseId, 
     createBooking, 
@@ -35,6 +36,12 @@ export const NurseDetail: React.FC = () => {
 
   // Booking Progress Step (1: Selection, 2: Details, 3: Confirmation)
   const [bookingStep, setBookingStep] = useState<number>(1);
+
+  // Mini Calendar Navigation State
+  const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
+    // Default to today
+    return new Date();
+  });
 
   // Status trigger handlers
   const [bookingSuccess, setBookingSuccess] = useState<boolean>(false);
@@ -69,6 +76,58 @@ export const NurseDetail: React.FC = () => {
   const hours = calculateHours();
   const totalPrice = hours * nurse.hourly_rate;
 
+  // Spanish names & days for Clean Utility Calendar
+  const MONTHS_ES = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+  const WEEKDAYS_ES = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'];
+
+  const getDaysInMonth = (dateObj: Date) => {
+    const year = dateObj.getFullYear();
+    const month = dateObj.getMonth();
+    const firstDayIndex = new Date(year, month, 1).getDay(); 
+    const numDays = new Date(year, month + 1, 0).getDate();
+    
+    const days: (Date | null)[] = [];
+    for (let i = 0; i < firstDayIndex; i++) {
+      days.push(null);
+    }
+    for (let d = 1; d <= numDays; d++) {
+      days.push(new Date(year, month, d));
+    }
+    return days;
+  };
+
+  const isDayBooked = (day: Date) => {
+    if (!nurse) return false;
+    const year = day.getFullYear();
+    const month = String(day.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(day.getDate()).padStart(2, '0');
+    const formatted = `${year}-${month}-${dayStr}`;
+    return bookings.some(b => 
+      b.nurse_id === nurse.id && 
+      b.date === formatted && 
+      b.status !== 'cancelled'
+    );
+  };
+
+  const isDayPast = (day: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const compareDay = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+    return compareDay < today;
+  };
+
+  const selectDay = (day: Date) => {
+    const year = day.getFullYear();
+    const month = String(day.getMonth() + 1).padStart(2, '0');
+    const dayStr = String(day.getDate()).padStart(2, '0');
+    const fullDateVal = `${year}-${month}-${dayStr}`;
+    setDate(fullDateVal);
+    setValidationError('');
+  };
+
   const handleNextToDetails = () => {
     setValidationError('');
     if (!date) {
@@ -99,7 +158,7 @@ export const NurseDetail: React.FC = () => {
     setBookingStep(3);
   };
 
-  const handleBookingSubmit = async (e: React.FormEvent) => {
+  const handleBookingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError('');
 
@@ -130,7 +189,7 @@ export const NurseDetail: React.FC = () => {
     }
 
     try {
-      await createBooking({
+      createBooking({
         nurse_id: nurse.id,
         date,
         start_time: startTime,
@@ -154,11 +213,13 @@ export const NurseDetail: React.FC = () => {
     }
   };
 
-  const handleStartChat = async () => {
-    // Current user id is mock client
-    await getOrCreateChatRoom('00000000-0000-0000-0000-000000000001', nurse.id);
+  const handleStartChat = () => {
+    // Current user id is mock client 'family-1'
+    const room = getOrCreateChatRoom('family-1', nurse.id);
     setActiveTab('chat');
   };
+
+  const daysInMonthList = getDaysInMonth(calendarMonth);
 
   return (
     <div className="space-y-6" id="nurse-detail-container">
@@ -363,16 +424,15 @@ export const NurseDetail: React.FC = () => {
                     className="absolute top-[14px] left-3 h-0.5 bg-indigo-600 -z-10 transition-all duration-300"
                     style={{ width: `${bookingStep === 1 ? '0%' : bookingStep === 2 ? '50%' : '100%'}` }}
                   />
-
                   {/* Step 1 element */}
                   <button 
                     type="button"
                     onClick={() => setBookingStep(1)}
                     className="flex flex-col items-center gap-1 focus:outline-none group"
                   >
-                    <div className={`w-7-circle h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${
                       bookingStep >= 1 ? 'bg-indigo-600 text-white ring-4 ring-indigo-50 border border-indigo-600' : 'bg-slate-100 text-slate-500 border border-slate-200'
-                    } w-7 h-7`}>
+                    }`}>
                       1
                     </div>
                     <span className={`text-[9px] font-bold uppercase tracking-tight ${bookingStep >= 1 ? 'text-indigo-600' : 'text-slate-400'}`}>Selección</span>
@@ -390,9 +450,9 @@ export const NurseDetail: React.FC = () => {
                     }}
                     className="flex flex-col items-center gap-1 focus:outline-none group"
                   >
-                    <div className={`w-7-circle h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${
                       bookingStep >= 2 ? 'bg-indigo-600 text-white ring-4 ring-indigo-50 border border-indigo-600' : 'bg-slate-100 text-slate-500 border border-slate-200'
-                    } w-7 h-7`}>
+                    }`}>
                       2
                     </div>
                     <span className={`text-[9px] font-bold uppercase tracking-tight ${bookingStep >= 2 ? 'text-indigo-600' : 'text-slate-400'}`}>Detalles</span>
@@ -410,9 +470,9 @@ export const NurseDetail: React.FC = () => {
                     }}
                     className="flex flex-col items-center gap-1 focus:outline-none group"
                   >
-                    <div className={`w-7-circle h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${
                       bookingStep >= 3 ? 'bg-indigo-600 text-white ring-4 ring-indigo-50 border border-indigo-600' : 'bg-slate-100 text-slate-500 border border-slate-200'
-                    } w-7 h-7`}>
+                    }`}>
                       3
                     </div>
                     <span className={`text-[9px] font-bold uppercase tracking-tight ${bookingStep >= 3 ? 'text-indigo-600' : 'text-slate-400'}`}>Confirmación</span>
@@ -432,6 +492,108 @@ export const NurseDetail: React.FC = () => {
                     <p className="mt-1.5 text-[10px] text-slate-500 leading-normal">
                       <strong>Horario preferido:</strong> {nurse.availability}
                     </p>
+                  </div>
+
+                  {/* Custom Mini Calendar */}
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3.5 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">Calendario de Disponibilidad</span>
+                      
+                      <div className="flex items-center gap-1.5">
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
+                          }}
+                          className="p-1 hover:bg-slate-200/60 rounded-lg text-slate-600 transition flex items-center justify-center cursor-pointer"
+                          title="Mes anterior"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </button>
+                        <span className="text-xs font-bold text-slate-700 min-w-[90px] text-center capitalize">
+                          {MONTHS_ES[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
+                        </span>
+                        <button 
+                          type="button" 
+                          onClick={() => {
+                            setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
+                          }}
+                          className="p-1 hover:bg-slate-200/60 rounded-lg text-slate-600 transition flex items-center justify-center cursor-pointer"
+                          title="Siguiente mes"
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Weekday Titles */}
+                    <div className="grid grid-cols-7 gap-1 text-center border-b border-slate-200/50 pb-1">
+                      {WEEKDAYS_ES.map((label, idx) => (
+                        <span key={idx} className="text-[10px] font-bold text-slate-400 capitalize">
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Days grid */}
+                    <div className="grid grid-cols-7 gap-1">
+                      {daysInMonthList.map((day, idx) => {
+                        if (!day) return <div key={`empty-${idx}`} className="h-8" />;
+
+                        const year = day.getFullYear();
+                        const month = String(day.getMonth() + 1).padStart(2, '0');
+                        const dayStr = String(day.getDate()).padStart(2, '0');
+                        const dateVal = `${year}-${month}-${dayStr}`;
+
+                        const isSelected = date === dateVal;
+                        const isPast = isDayPast(day);
+                        const isBooked = isDayBooked(day);
+
+                        let cellClasses = "h-8 w-full flex items-center justify-center text-xs font-semibold rounded-xl select-none transition-all duration-150 ";
+                        let isDisabled = false;
+
+                        if (isPast) {
+                          cellClasses += "text-slate-300 cursor-not-allowed";
+                          isDisabled = true;
+                        } else if (isBooked) {
+                          cellClasses += "bg-amber-50 text-amber-700 line-through border border-amber-200/60 cursor-not-allowed font-semibold p-1";
+                          isDisabled = true;
+                        } else if (isSelected) {
+                          cellClasses += "bg-indigo-600 text-white font-bold ring-2 ring-indigo-100 shadow-sm";
+                        } else {
+                          cellClasses += "text-slate-700 hover:bg-slate-200 cursor-pointer hover:scale-105 active:scale-95";
+                        }
+
+                        return (
+                          <button
+                            key={`cal-day-${idx}-${day.getDate()}`}
+                            type="button"
+                            disabled={isDisabled}
+                            onClick={() => selectDay(day)}
+                            className={cellClasses}
+                            title={isBooked ? "Ocupado (Reservado)" : isPast ? "Fecha pasada" : `Seleccionar ${dateVal}`}
+                          >
+                            {day.getDate()}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Legends */}
+                    <div className="flex items-center justify-between text-[9px] text-slate-400 border-t border-slate-200/60 pt-2 font-medium">
+                      <div className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-slate-250 border border-slate-300" />
+                        <span>Disponible</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-amber-100 border border-amber-300" />
+                        <span className="text-amber-600 font-semibold">Ocupado</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-indigo-600" />
+                        <span className="text-indigo-600 font-bold">Seleccionado</span>
+                      </div>
+                    </div>
                   </div>
 
                   <div>
