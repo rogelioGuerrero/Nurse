@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
 import { Calendar, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Availability } from '../types';
