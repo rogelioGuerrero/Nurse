@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, FormEvent } from 'react';
-import { Calendar, Clock, Plus, Trash2, Check, X } from 'lucide-react';
+import { Calendar, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Availability } from '../types';
 

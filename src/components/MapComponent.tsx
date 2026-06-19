@@ -1,18 +1,15 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Circle, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { Nurse, Profile } from '../types';
+import { Nurse } from '../types';
 import { useApp } from '../context/AppContext';
+import { getDistanceKm, USER_COORDS } from '../lib/distance';
 import { Compass, Eye, Navigation } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
 interface MapComponentProps {
   filteredNurses: Nurse[];
-  maxRate: number;
-  selectedSpecialization: string;
 }
-
-const USER_COORDS = { lat: 13.6929, lng: -89.2182 };
 
 const userIcon = L.divIcon({
   className: 'custom-div-icon',
@@ -46,19 +43,6 @@ function MapResizer() {
 export const MapComponent = ({ filteredNurses }: MapComponentProps) => {
   const { profiles, selectedNurseId, setSelectedNurseId, setActiveTab } = useApp();
   const [filterRadius, setFilterRadius] = useState<number>(10);
-
-  // Calculate distance between coordinates in KM (Haversine formula representation)
-  const getDistanceKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
-    const R = 6371; // Earth Radius
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-      Math.sin(dLng/2) * Math.sin(dLng/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
-  };
 
   const mapItems = useMemo(() => {
     return filteredNurses.map(nurse => {

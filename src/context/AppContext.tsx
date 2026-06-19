@@ -12,7 +12,6 @@ interface AppContextType {
   profiles: Profile[];
   nurses: Nurse[];
   bookings: Booking[];
-  availability: Availability[];
   currentUser: Profile | null;
   currentNurse: Nurse | null;
   updateProfile: (profileData: Partial<Profile>) => void;
@@ -81,15 +80,9 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     ];
   });
 
-  const [availability, setAvailability] = useState<Availability[]>([]);
-
-  // Global settings/view state
   const [activeTab, setActiveTab] = useState<string>('home');
   const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
 
-  // Authenticated user state
-  // We simulate a default logged-in family client
-  // Or a nurse user (Elena Gómez) when switching roles
   const [currentUser, setCurrentUser] = useState<Profile | null>(() => {
     const saved = localStorage.getItem('localnurse_current_user');
     if (saved) return JSON.parse(saved);
@@ -244,7 +237,6 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       updated_at: data.updated_at
     };
 
-    setAvailability(prev => [...prev, newAvailability]);
     return newAvailability;
   };
 
@@ -255,7 +247,6 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       .eq('id', id);
 
     if (error) throw error;
-    setAvailability(prev => prev.map(a => a.id === id ? { ...a, ...availabilityData } : a));
   };
 
   const deleteAvailability = async (id: string): Promise<void> => {
@@ -265,7 +256,6 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       .eq('id', id);
 
     if (error) throw error;
-    setAvailability(prev => prev.filter(a => a.id !== id));
   };
 
   return (
@@ -273,7 +263,6 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       profiles,
       nurses,
       bookings,
-      availability,
       currentUser,
       currentNurse,
       updateProfile,

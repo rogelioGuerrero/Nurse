@@ -8,6 +8,7 @@ import { AppContextProvider, useApp } from './context/AppContext';
 import { MapComponent } from './components/MapComponent';
 import { SearchFilters } from './components/SearchFilters';
 import { ToastProvider } from './components/Toast';
+import { getDistanceKm, USER_COORDS } from './lib/distance';
 import { 
   Stethoscope, Calendar, 
   Star, Sparkles,
@@ -42,16 +43,6 @@ function MarketplaceApp() {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
-
-  // Haversine distance from San Salvador
-  const USER_COORDS = { lat: 13.6929, lng: -89.2182 };
-  const getDistanceKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng/2) ** 2;
-    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  };
 
   // Extract all distinct specializations for robust select dropdowns
   const allSpecializations = useMemo(() => {
@@ -371,8 +362,6 @@ function MarketplaceApp() {
               <div className="lg:col-span-5 h-full lg:sticky lg:top-28">
                 <MapComponent 
                   filteredNurses={filteredNurses}
-                  maxRate={maxRate}
-                  selectedSpecialization={selectedSpecialization}
                 />
               </div>
 

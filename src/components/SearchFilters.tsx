@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Search, SlidersHorizontal, ArrowUpDown, ShieldCheck, HeartPulse, Sparkles } from 'lucide-react';
+import { Search, SlidersHorizontal, ArrowUpDown, HeartPulse } from 'lucide-react';
 
 interface SearchFiltersProps {
   searchQuery: string;

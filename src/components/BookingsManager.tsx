@@ -7,8 +7,8 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Booking, BookingStatus } from '../types';
 import { 
-  Calendar, Clock, User, HeartPulse, CheckCircle, 
-  DollarSign, CheckCircle2,
+  Calendar, User, HeartPulse, CheckCircle, 
+  CheckCircle2,
   Activity, Smile, PlusCircle, Sparkles, FileText, AlertTriangle,
   Printer, Phone
 } from 'lucide-react';
