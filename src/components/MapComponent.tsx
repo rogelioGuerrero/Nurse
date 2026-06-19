@@ -115,8 +115,8 @@ export const MapComponent = ({ filteredNurses }: MapComponentProps) => {
             center={[USER_COORDS.lat, USER_COORDS.lng]}
             radius={filterRadius * 1000}
             pathOptions={{
-              color: '#6366f1',
-              fillColor: '#6366f1',
+              color: '#0d9488',
+              fillColor: '#0d9488',
               fillOpacity: 0.05,
               dashArray: '4 3',
             }}
@@ -154,7 +154,7 @@ export const MapComponent = ({ filteredNurses }: MapComponentProps) => {
                     <span style={{ fontSize: '11px', color: '#666' }}>
                       {item.nurse.specialization.join(', ')}
                     </span><br />
-                    <span style={{ fontSize: '12px', color: '#6366f1', fontWeight: 'bold' }}>
+                    <span style={{ fontSize: '12px', color: '#0d9488', fontWeight: 'bold' }}>
                       US$ {item.nurse.hourly_rate}/hr
                     </span>
                     <span style={{ fontSize: '11px', color: '#999' }}> | {item.distance} km</span><br />

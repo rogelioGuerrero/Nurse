@@ -12,6 +12,42 @@ import {
   ChevronRight, Activity
 } from 'lucide-react';
 
+const nurseSuggestions = [
+  {
+    title: 'Manejo de Escaras Grado II',
+    desc: 'Protocolo de curación aséptica y frecuencia de alivio por presión.',
+    prompt: 'Proporciona el protocolo clínico detallado de enfermería geriátrica para el tratamiento y curación de una úlcera por presión (escala de escaras) grado II en el talón de un paciente postrado.'
+  },
+  {
+    title: 'Crisis de Agitación Cognitiva',
+    desc: 'Medidas no farmacológicas de contención conductual ante Alzheimer.',
+    prompt: '¿Cuáles son las directrices de contención no farmacológica y de desescalada de conducta recomendadas para enfermeros cuando un paciente geriátrico con demencia de Alzheimer presenta una crisis de agitación psicomotora por el síndrome del ocaso?'
+  },
+  {
+    title: 'Cálculo de Terapia de Infusión',
+    desc: 'Fórmulas de cálculo de goteo para hidratación subcutánea/IV.',
+    prompt: 'Explica detalladamente la fórmula de goteo de infusión intravenosa para administrar 1000ml de solución salina al 0.9% en un lapso de 12 horas en un paciente geriátrico con insuficiencia cardíaca compensada.'
+  }
+];
+
+const familySuggestions = [
+  {
+    title: 'Mi Abuelo no quiere Comer/Beber',
+    desc: 'Tácticas caseras de hidratación y deglución segura.',
+    prompt: 'Mi abuelo de 84 años está decaído y se niega a tomar agua o comer. ¿Qué métodos prácticos de hidratación oral segura y alimentos estimulantes de fácil deglución puedo ofrecerle en casa?'
+  },
+  {
+    title: 'Prevención de Caídas en el Baño',
+    desc: 'Acondicionamiento y traslados de apoyo para el aseo.',
+    prompt: 'Quiero adaptar el cuarto de baño para mi madre de 79 años con artrosis. ¿Cuáles son las medidas clave de seguridad física, barandiles y técnicas de apoyo para el traslado seguro de la ducha a la taza?'
+  },
+  {
+    title: 'Estimulación Cognitiva Semanal',
+    desc: 'Actividades mentales para retrasar deterioro cognitivo.',
+    prompt: '¿Qué actividades diarias de estimulación cognitiva puedo realizar con mi abuelito con pérdida de memoria leve para mantenerlo activo mentalmente sin que se frustre?'
+  }
+];
+
 export default function ClinicalAI() {
   const { currentUser } = useApp();
   const { showToast } = useToast();
@@ -59,42 +95,6 @@ export default function ClinicalAI() {
       setLoading(false);
     }
   };
-
-  const nurseSuggestions = [
-    {
-      title: 'Manejo de Escaras Grado II',
-      desc: 'Protocolo de curación aséptica y frecuencia de alivio por presión.',
-      prompt: 'Proporciona el protocolo clínico detallado de enfermería geriátrica para el tratamiento y curación de una úlcera por presión (escala de escaras) grado II en el talón de un paciente postrado.'
-    },
-    {
-      title: 'Crisis de Agitación Cognitiva',
-      desc: 'Medidas no farmacológicas de contención conductual ante Alzheimer.',
-      prompt: '¿Cuáles son las directrices de contención no farmacológica y de desescalada de conducta recomendadas para enfermeros cuando un paciente geriátrico con demencia de Alzheimer presenta una crisis de agitación psicomotora por el síndrome del ocaso?'
-    },
-    {
-      title: 'Cálculo de Terapia de Infusión',
-      desc: 'Fórmulas de cálculo de goteo para hidratación subcutánea/IV.',
-      prompt: 'Explica detalladamente la fórmula de goteo de infusión intravenosa para administrar 1000ml de solución salina al 0.9% en un lapso de 12 horas en un paciente geriátrico con insuficiencia cardíaca compensada.'
-    }
-  ];
-
-  const familySuggestions = [
-    {
-      title: 'Mi Abuelo no quiere Comer/Beber',
-      desc: 'Tácticas caseras de hidratación y deglución segura.',
-      prompt: 'Mi abuelo de 84 años está decaído y se niega a tomar agua o comer. ¿Qué métodos prácticos de hidratación oral segura y alimentos estimulantes de fácil deglución puedo ofrecerle en casa?'
-    },
-    {
-      title: 'Prevención de Caídas en el Baño',
-      desc: 'Acondicionamiento y traslados de apoyo para el aseo.',
-      prompt: 'Quiero adaptar el cuarto de baño para mi madre de 79 años con artrosis. ¿Cuáles son las medidas clave de seguridad física, barandales y técnicas de apoyo para el traslado seguro de la ducha a la taza?'
-    },
-    {
-      title: 'Estimulación Cognitiva Semanal',
-      desc: 'Actividades mentales para retrasar deterioro cognitivo.',
-      prompt: '¿Qué actividades diarias de estimulación cognitiva puedo realizar con mi abuelito con pérdida de memoria leve para mantenerlo activo mentalmente sin que se frustre?'
-    }
-  ];
 
   const suggestions = isNurseView ? nurseSuggestions : familySuggestions;
 
