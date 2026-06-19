@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, type FC, type ReactNode } from 'react';
 import { Profile, Nurse, Booking, BookingStatus, Availability } from '../types';
 import { INITIAL_PROFILES, INITIAL_NURSES } from '../data/nurses';
 import { supabase } from '../lib/supabase';
@@ -20,8 +20,6 @@ interface AppContextType {
   updateBookingStatus: (bookingId: string, status: BookingStatus) => Promise<void>;
   getAvailability: (nurseId: string, startDate: string, endDate: string) => Promise<Availability[]>;
   addAvailability: (availabilityData: Omit<Availability, 'id' | 'created_at' | 'updated_at'>) => Promise<Availability>;
-  updateAvailability: (id: string, availabilityData: Partial<Availability>) => Promise<void>;
-  deleteAvailability: (id: string) => Promise<void>;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   selectedNurseId: string | null;
@@ -30,7 +28,7 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
   // Load or seed data from local storage
   const [profiles, setProfiles] = useState<Profile[]>(() => {
     const saved = localStorage.getItem('localnurse_profiles');
@@ -240,24 +238,6 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return newAvailability;
   };
 
-  const updateAvailability = async (id: string, availabilityData: Partial<Availability>): Promise<void> => {
-    const { error } = await supabase
-      .from('availability')
-      .update(availabilityData)
-      .eq('id', id);
-
-    if (error) throw error;
-  };
-
-  const deleteAvailability = async (id: string): Promise<void> => {
-    const { error } = await supabase
-      .from('availability')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
-  };
-
   return (
     <AppContext.Provider value={{
       profiles,
@@ -271,8 +251,6 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       updateBookingStatus,
       getAvailability,
       addAvailability,
-      updateAvailability,
-      deleteAvailability,
       activeTab,
       setActiveTab,
       selectedNurseId,
