@@ -252,7 +252,7 @@ export const BookingsManager: FC = () => {
       {/* EL SALVADOR SOS EMERGENCY BANNER */}
       {filteredBookings.some(b => b.status === 'confirmed') && (
         <div className="bg-rose-50 border-2 border-rose-200 rounded-3xl p-5 text-rose-950 flex flex-col md:flex-row items-start md:items-center gap-4 shadow-sm" id="sos-emergency-banner">
-          <div className="w-12 h-12 bg-rose-100 border border-rose-250 rounded-2xl flex items-center justify-center text-rose-600 shrink-0 animate-pulse">
+          <div className="w-12 h-12 bg-rose-100 border border-rose-200 rounded-2xl flex items-center justify-center text-rose-600 shrink-0 animate-pulse">
             <AlertTriangle className="h-6.5 w-6.5 animate-bounce" />
           </div>
           <div className="flex-1 space-y-1 text-xs">
@@ -263,19 +263,19 @@ export const BookingsManager: FC = () => {
               Tienes una visita de cuidado activo programada. Ante cualquier descompensación clínica severa o emergencia domiciliaria, mantén la calma y comunícate de inmediato con la red nacional de salud de El Salvador:
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1.5 text-center text-[10px] font-black uppercase">
-              <a href="tel:132" className="bg-rose-100 hover:bg-rose-200 text-rose-800 p-2 rounded-xl border border-rose-250 transition flex items-center justify-center gap-1">
+              <a href="tel:132" className="bg-rose-100 hover:bg-rose-200 text-rose-800 p-2 rounded-xl border border-rose-200 transition flex items-center justify-center gap-1">
                 <Phone className="h-3 w-3" />
                 <span>SEM 132 (Ambulancia)</span>
               </a>
-              <a href="tel:911" className="bg-rose-100 hover:bg-rose-200 text-rose-800 p-2 rounded-xl border border-rose-250 transition flex items-center justify-center gap-1">
+              <a href="tel:911" className="bg-rose-100 hover:bg-rose-200 text-rose-800 p-2 rounded-xl border border-rose-200 transition flex items-center justify-center gap-1">
                 <Phone className="h-3 w-3" />
                 <span>PNC 911 (Seguridad)</span>
               </a>
-              <a href="tel:22225155" className="bg-rose-100 hover:bg-rose-200 text-rose-800 p-2 rounded-xl border border-rose-250 transition flex items-center justify-center gap-1">
+              <a href="tel:22225155" className="bg-rose-100 hover:bg-rose-200 text-rose-800 p-2 rounded-xl border border-rose-200 transition flex items-center justify-center gap-1">
                 <Phone className="h-3 w-3" />
                 <span>Cruz Roja 2222-5155</span>
               </a>
-              <a href="tel:913" className="bg-rose-100 hover:bg-rose-200 text-rose-800 p-2 rounded-xl border border-rose-250 transition flex items-center justify-center gap-1">
+              <a href="tel:913" className="bg-rose-100 hover:bg-rose-200 text-rose-800 p-2 rounded-xl border border-rose-200 transition flex items-center justify-center gap-1">
                 <Phone className="h-3 w-3" />
                 <span>Bomberos 913</span>
               </a>
@@ -407,7 +407,7 @@ export const BookingsManager: FC = () => {
                     {/* Log Header */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <Activity className="h-5 w-5 text-indigo-650" />
+                        <Activity className="h-5 w-5 text-indigo-600" />
                         <h5 className="font-extrabold text-xs text-slate-800 uppercase tracking-wider">Bitácora Médica de Signos Vitales</h5>
                       </div>
                       <span className="text-[10px] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded border border-indigo-100 font-bold">
@@ -537,10 +537,10 @@ export const BookingsManager: FC = () => {
                                 <div className="flex items-center gap-2 text-[11px] font-bold text-slate-500">
                                   <Smile className="h-4 w-4 text-indigo-500" />
                                   <span>Estado de Ánimo:</span>
-                                  <span className="bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded text-[10px] border border-amber-250/30">{log.mood}</span>
+                                  <span className="bg-amber-100 text-amber-800 font-extrabold px-2 py-0.5 rounded text-[10px] border border-amber-200/30">{log.mood}</span>
                                   <span className="text-[10px] text-slate-400 font-normal ml-auto">Última actualización: {new Date(log.updatedAt).toLocaleTimeString()}</span>
                                 </div>
-                                <p className="leading-relaxed font-medium bg-white p-2.5 rounded-lg border border-slate-100 text-slate-650">
+                                <p className="leading-relaxed font-medium bg-white p-2.5 rounded-lg border border-slate-100 text-slate-600">
                                   {log.remarks || 'Sin notas de evolución descritas.'}
                                 </p>
                               </div>
@@ -550,14 +550,14 @@ export const BookingsManager: FC = () => {
                                 {isNurseView ? (
                                   <button 
                                     onClick={() => handleOpenLogForm(b.id)} 
-                                    className="text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl border border-indigo-150 transition cursor-pointer"
+                                    className="text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl border border-indigo-100 transition cursor-pointer"
                                   >
                                     Editar Signos Vitales
                                   </button>
                                 ) : (
                                   <button 
                                     onClick={() => handleGenerateAIInterpretation(b.id, b.patient_name)}
-                                    className="text-xs font-black text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-xl border border-indigo-150 transition flex items-center gap-1.5 shadow-sm shadow-indigo-100/40 cursor-pointer"
+                                    className="text-xs font-black text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-xl border border-indigo-100 transition flex items-center gap-1.5 shadow-sm shadow-indigo-100/40 cursor-pointer"
                                   >
                                     <Sparkles className="h-4.5 w-4.5 text-indigo-600 animate-pulse" />
                                     <span>Generar Reporte Clínico IA con Groq</span>
@@ -567,7 +567,7 @@ export const BookingsManager: FC = () => {
 
                               {/* AI advice content output */}
                               {aiReportId === b.id && (
-                                <div className="bg-gradient-to-br from-indigo-50/70 to-purple-50/70 border border-indigo-150 rounded-2xl p-4 space-y-2.5 relative shadow-sm">
+                                <div className="bg-gradient-to-br from-indigo-50/70 to-purple-50/70 border border-indigo-100 rounded-2xl p-4 space-y-2.5 relative shadow-sm">
                                   <div className="flex items-center gap-2">
                                     <Sparkles className="h-4.5 w-4.5 text-indigo-600" />
                                     <span className="text-xs font-extrabold text-indigo-950 uppercase tracking-wider block">Análisis Clínico Llama IA (El Salvador)</span>
@@ -754,7 +754,7 @@ export const BookingsManager: FC = () => {
                     <span className="text-[9px] uppercase font-black text-slate-400 block mb-0.5">Emisor (Enfermero Profesional)</span>
                     <span className="font-extrabold text-slate-900 block text-sm">{emisorName}</span>
                     <span className="text-[10px] text-slate-500 block">DUI: {duiNumber}</span>
-                    <span className="text-[10px] text-indigo-650 font-semibold block">Reg. CSSP: N° {cssNumber}</span>
+                    <span className="text-[10px] text-indigo-600 font-semibold block">Reg. CSSP: N° {cssNumber}</span>
                   </div>
                   <div className="text-right">
                     <span className="text-[9px] uppercase font-black text-slate-400 block mb-0.5">Adquirente (Cliente Familiar)</span>

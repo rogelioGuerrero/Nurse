@@ -108,7 +108,7 @@ function MarketplaceApp() {
           
           {/* Brand/Product Logo */}
           <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => { setSelectedNurseId(null); setActiveTab('home'); }}>
-            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center transform hover:scale-105 transition-all duration-200 border border-indigo-750 shadow-sm">
+            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center transform hover:scale-105 transition-all duration-200 border border-indigo-700 shadow-sm">
               <div className="w-4.5 h-4.5 border border-white rounded-full flex items-center justify-center">
                 <Stethoscope className="h-2.5 w-2.5 text-white" />
               </div>
@@ -259,7 +259,7 @@ function MarketplaceApp() {
                               referrerPolicy="no-referrer"
                               loading="lazy"
                             />
-                            <div className="absolute -bottom-2 -left-1 -right-1 bg-amber-50 rounded-full border border-amber-250 py-0.5 px-1.5 text-center flex items-center justify-center gap-0.5 shadow-sm">
+                            <div className="absolute -bottom-2 -left-1 -right-1 bg-amber-50 rounded-full border border-amber-200 py-0.5 px-1.5 text-center flex items-center justify-center gap-0.5 shadow-sm">
                               <Star className="h-3 w-3 fill-amber-400 text-amber-500" />
                               <span className="text-[10px] font-black text-amber-800">{nurse.rating.toFixed(1)}</span>
                             </div>

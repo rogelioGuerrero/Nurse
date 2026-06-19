@@ -102,7 +102,7 @@ export default function ClinicalAI() {
     <div className="space-y-6 animate-fade-in" id="clinical-ai-container">
       
       {/* Premium Hero Title */}
-      <div className="bg-gradient-to-r from-indigo-850 to-indigo-950 rounded-3xl p-6 md:p-8 text-white shadow-md">
+      <div className="bg-gradient-to-r from-indigo-900 to-indigo-950 rounded-3xl p-6 md:p-8 text-white shadow-md">
         <div className="space-y-3">
           <div className="inline-flex items-center gap-1.5 bg-indigo-600/35 border border-indigo-500/30 px-3.5 py-1.5 rounded-full text-indigo-200 font-bold tracking-wider text-[10px] uppercase">
             <Sparkles className="h-3.5 w-3.5" />
@@ -138,8 +138,8 @@ export default function ClinicalAI() {
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <h5 className="font-bold text-slate-800 text-sm group-hover:text-indigo-650 transition">{s.title}</h5>
-                    <p className="text-[11px] text-slate-450 mt-1 leading-normal font-medium">{s.desc}</p>
+                    <h5 className="font-bold text-slate-800 text-sm group-hover:text-indigo-600 transition">{s.title}</h5>
+                    <p className="text-[11px] text-slate-400 mt-1 leading-normal font-medium">{s.desc}</p>
                   </div>
                   <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all mt-0.5" />
                 </div>
@@ -147,7 +147,7 @@ export default function ClinicalAI() {
             ))}
           </div>
 
-          <div className="bg-amber-50/70 border border-amber-250/20 rounded-2xl p-4 space-y-2 text-[11px] text-amber-900 leading-normal font-medium">
+          <div className="bg-amber-50/70 border border-amber-200/20 rounded-2xl p-4 space-y-2 text-[11px] text-amber-900 leading-normal font-medium">
             <div className="flex items-center gap-1.5 font-bold text-amber-950 uppercase tracking-wider text-[10px]">
               <AlertTriangle className="h-4 w-4 text-amber-600" />
               <span>Aviso Regulatorio de Salud</span>

@@ -90,7 +90,7 @@ export const NurseProfileEdit: FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           
           {/* Rate Card */}
-          <div className="bg-slate-50/50 p-4 border border-slate-150 rounded-2xl relative space-y-1.5">
+          <div className="bg-slate-50/50 p-4 border border-slate-200 rounded-2xl relative space-y-1.5">
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
               Tarifa por Hora (US$)
             </label>
@@ -111,7 +111,7 @@ export const NurseProfileEdit: FC = () => {
           </div>
 
           {/* Travel Radius km */}
-          <div className="bg-slate-50/50 p-4 border border-slate-150 rounded-2xl relative space-y-1.5">
+          <div className="bg-slate-50/50 p-4 border border-slate-200 rounded-2xl relative space-y-1.5">
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
               Radio de Cobertura (Km)
             </label>
@@ -126,13 +126,13 @@ export const NurseProfileEdit: FC = () => {
                 className="w-full bg-transparent px-3 py-2.5 outline-none font-bold text-slate-800 text-sm"
                 id="input-edit-radius"
               />
-              <span className="absolute inset-y-0 right-3 flex items-center text-slate-450 text-xs font-bold">Km</span>
+              <span className="absolute inset-y-0 right-3 flex items-center text-slate-400 text-xs font-bold">Km</span>
             </div>
             <p className="text-[10px] text-slate-400 leading-normal">Rango geográfico límite para traslados médicos desde tu domicilio actual.</p>
           </div>
 
           {/* Experience years count */}
-          <div className="bg-slate-50/50 p-4 border border-slate-150 rounded-2xl relative space-y-1.5">
+          <div className="bg-slate-50/50 p-4 border border-slate-200 rounded-2xl relative space-y-1.5">
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
               Años de Experiencia
             </label>
@@ -147,7 +147,7 @@ export const NurseProfileEdit: FC = () => {
                 className="w-full bg-transparent px-3 py-2.5 outline-none font-bold text-slate-800 text-sm"
                 id="input-edit-exp"
               />
-              <span className="absolute inset-y-0 right-3 flex items-center text-slate-450 text-xs font-bold">Años</span>
+              <span className="absolute inset-y-0 right-3 flex items-center text-slate-400 text-xs font-bold">Años</span>
             </div>
             <p className="text-[10px] text-slate-400 leading-normal">Años de servicio formal que avalan el currículum de cuidados geriátricos.</p>
           </div>
@@ -157,7 +157,7 @@ export const NurseProfileEdit: FC = () => {
         {/* CALCULADORA TRIBUTARIA EL SALVADOR */}
         <div className="bg-indigo-50/30 border border-indigo-100 rounded-2xl p-5 space-y-4">
           <div className="flex items-start gap-2.5">
-            <Calculator className="h-5 w-5 text-indigo-650 shrink-0 mt-0.5" />
+            <Calculator className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
             <div>
               <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                 Calculadora Tributaria de El Salvador
@@ -171,13 +171,13 @@ export const NurseProfileEdit: FC = () => {
             <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
               <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Tu Tarifa Bruta / Hora</span>
               <span className="text-base font-black text-slate-800">US$ {hourlyRate.toFixed(2)}</span>
-              <span className="text-[9px] text-slate-450 block mt-1">Ingreso bruto acordado</span>
+              <span className="text-[9px] text-slate-400 block mt-1">Ingreso bruto acordado</span>
             </div>
 
             <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
               <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Retención del Renta (10%)</span>
               <span className="text-base font-black text-rose-600">-(US$ {(hourlyRate * 0.1).toFixed(2)})</span>
-              <span className="text-[9px] text-slate-450 block mt-1">Retención que realiza la familia</span>
+              <span className="text-[9px] text-slate-400 block mt-1">Retención que realiza la familia</span>
             </div>
 
             <div className="bg-white p-3.5 rounded-xl border border-indigo-100 shadow-sm bg-indigo-50/20">
@@ -188,22 +188,22 @@ export const NurseProfileEdit: FC = () => {
           </div>
 
           {/* Projection Calculator Table */}
-          <div className="bg-white rounded-xl border border-slate-150 p-3.5 text-xs">
+          <div className="bg-white rounded-xl border border-slate-200 p-3.5 text-xs">
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Simulación de Ganancias Estimadas (Neto Líquido)</span>
             <div className="grid grid-cols-3 gap-2.5 text-center text-[11px]">
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">Turno de 8 Horas</span>
-                <span className="font-black text-slate-850 block mt-0.5 text-slate-800">US$ {(hourlyRate * 8 * 0.9).toFixed(2)} netos</span>
+                <span className="font-black text-slate-800 block mt-0.5 text-slate-800">US$ {(hourlyRate * 8 * 0.9).toFixed(2)} netos</span>
                 <span className="text-[9px] text-slate-400 block mt-0.5">(Bruto: US$ {(hourlyRate * 8).toFixed(0)})</span>
               </div>
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">Turno de 12 Horas</span>
-                <span className="font-black text-slate-850 block mt-0.5 text-slate-800">US$ {(hourlyRate * 12 * 0.9).toFixed(2)} netos</span>
+                <span className="font-black text-slate-800 block mt-0.5 text-slate-800">US$ {(hourlyRate * 12 * 0.9).toFixed(2)} netos</span>
                 <span className="text-[9px] text-slate-400 block mt-0.5">(Bruto: US$ {(hourlyRate * 12).toFixed(0)})</span>
               </div>
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">Mensual (120 Horas)</span>
-                <span className="font-black text-slate-850 block mt-0.5 text-indigo-600">US$ {(hourlyRate * 120 * 0.9).toFixed(2)} netos</span>
+                <span className="font-black text-slate-800 block mt-0.5 text-indigo-600">US$ {(hourlyRate * 120 * 0.9).toFixed(2)} netos</span>
                 <span className="text-[9px] text-slate-400 block mt-0.5">(Bruto: US$ {(hourlyRate * 120).toFixed(0)})</span>
               </div>
             </div>
@@ -303,7 +303,7 @@ export const NurseProfileEdit: FC = () => {
         <div className="pt-4 border-t border-slate-100 flex justify-end">
           <button
             type="submit"
-            className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-xs px-6 py-3 rounded-xl transition shadow-md shadow-indigo-150 flex items-center gap-2 cursor-pointer"
+            className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-xs px-6 py-3 rounded-xl transition shadow-md shadow-indigo-100 flex items-center gap-2 cursor-pointer"
             id="btn-edit-profile-submit"
           >
             <Save className="h-4 w-4" />

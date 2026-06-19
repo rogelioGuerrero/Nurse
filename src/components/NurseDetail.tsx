@@ -326,7 +326,7 @@ export const NurseDetail: FC = () => {
                       <span className="w-5 h-5 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-[10px] font-bold">✓</span>
                       <div>
                         <span className="text-[10px] font-black text-slate-800 block">Solvencia de la PNC</span>
-                        <span className="text-[9px] text-slate-450 font-semibold block">Policía Nacional Civil</span>
+                        <span className="text-[9px] text-slate-400 font-semibold block">Policía Nacional Civil</span>
                       </div>
                     </div>
 
@@ -334,7 +334,7 @@ export const NurseDetail: FC = () => {
                       <span className="w-5 h-5 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-[10px] font-bold">✓</span>
                       <div>
                         <span className="text-[10px] font-black text-slate-800 block">Antecedentes Penales</span>
-                        <span className="text-[9px] text-slate-450 font-semibold block">Dirección Gral. de Penales</span>
+                        <span className="text-[9px] text-slate-400 font-semibold block">Dirección Gral. de Penales</span>
                       </div>
                     </div>
 
@@ -342,7 +342,7 @@ export const NurseDetail: FC = () => {
                       <span className="w-5 h-5 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-[10px] font-bold">✓</span>
                       <div>
                         <span className="text-[10px] font-black text-slate-800 block">Registro del CSSP</span>
-                        <span className="text-[9px] text-slate-450 font-semibold block">Consejo Superior de Salud Pública</span>
+                        <span className="text-[9px] text-slate-400 font-semibold block">Consejo Superior de Salud Pública</span>
                       </div>
                     </div>
 
@@ -350,7 +350,7 @@ export const NurseDetail: FC = () => {
                       <span className="w-5 h-5 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-[10px] font-bold">✓</span>
                       <div>
                         <span className="text-[10px] font-black text-slate-800 block">Verificación de DUI</span>
-                        <span className="text-[9px] text-slate-450 font-semibold block">Doc. Único de Identidad</span>
+                        <span className="text-[9px] text-slate-400 font-semibold block">Doc. Único de Identidad</span>
                       </div>
                     </div>
                   </div>
