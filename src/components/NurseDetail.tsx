@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import { useState, type FC, type FormEvent } from 'react';
 import { useApp } from '../context/AppContext';
 import AvailabilityCalendar from './AvailabilityCalendar';
 import {
@@ -11,7 +11,7 @@ import {
   Stethoscope, AlertCircle, Heart, CheckCircle2, MessageCircle
 } from 'lucide-react';
 
-export const NurseDetail: React.FC = () => {
+export const NurseDetail: FC = () => {
   const {
     nurses,
     profiles,
@@ -107,7 +107,7 @@ export const NurseDetail: React.FC = () => {
     setBookingStep(3);
   };
 
-  const handleBookingSubmit = async (e: React.FormEvent) => {
+  const handleBookingSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setValidationError('');
 

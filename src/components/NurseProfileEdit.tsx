@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import { useState, type FC, type FormEvent } from 'react';
 import { useApp } from '../context/AppContext';
 import { Save, Edit3, CheckCircle2, Calculator } from 'lucide-react';
 
-export const NurseProfileEdit: React.FC = () => {
+export const NurseProfileEdit: FC = () => {
   const { currentNurse, currentUser, updateNurseProfile, updateProfile } = useApp();
 
   const [hourlyRate, setHourlyRate] = useState<number>(currentNurse?.hourly_rate || 12);
@@ -38,7 +38,7 @@ export const NurseProfileEdit: React.FC = () => {
     );
   };
 
-  const handleProfileSave = (e: React.FormEvent) => {
+  const handleProfileSave = (e: FormEvent) => {
     e.preventDefault();
 
     // Save Nurse specific specs

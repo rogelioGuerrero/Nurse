@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { Booking, BookingStatus } from '../types';
+import { groqChat } from '../lib/groq';
 import { 
   Calendar, User, HeartPulse, CheckCircle, 
   CheckCircle2,
@@ -24,7 +25,7 @@ interface CareLog {
   updatedAt: string;
 }
 
-export const BookingsManager: React.FC = () => {
+export const BookingsManager: FC = () => {
   const { 
     bookings, 
     nurses, 
@@ -111,46 +112,27 @@ export const BookingsManager: React.FC = () => {
     setAiReportContent('');
     setAiReportLoading(true);
 
-    const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-    if (!apiKey) {
-      setAiReportContent('El asistente clínico no está disponible en este momento. Contacta al administrador.');
-      setAiReportLoading(false);
-      return;
-    }
-
     try {
-      const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'llama-3.1-8b-instant',
-          messages: [
-            {
-              role: 'system',
-              content: 'Eres un enfermero geriatra clínico experto en El Salvador. Analiza los signos vitales de un paciente adulto mayor y proporciona un informe corto, empático y profesional de la jornada para sus familiares. Explica si los valores están en rangos normales y da recomendaciones prácticas salvadoreñas de cuidado.'
-            },
-            {
-              role: 'user',
-              content: `Analiza esta bitácora del paciente ${patientName}:
-              - Presión Arterial: ${log.bloodPressure}
-              - Ritmo Cardíaco: ${log.heartRate}
-              - Glucemia (Glucosa): ${log.glucose}
-              - Temperatura: ${log.temperature}
-              - Estado de ánimo: ${log.mood}
-              - Comentarios del enfermero: ${log.remarks}`
-            }
-          ],
-          temperature: 0.5,
-          max_tokens: 400
-        })
-      });
-
-      if (!response.ok) throw new Error('API error');
-      const data = await response.json();
-      setAiReportContent(data.choices[0].message.content);
+      const content = await groqChat(
+        [
+          {
+            role: 'system',
+            content: 'Eres un enfermero geriatra clínico experto en El Salvador. Analiza los signos vitales de un paciente adulto mayor y proporciona un informe corto, empático y profesional de la jornada para sus familiares. Explica si los valores están en rangos normales y da recomendaciones prácticas salvadoreñas de cuidado.'
+          },
+          {
+            role: 'user',
+            content: `Analiza esta bitácora del paciente ${patientName}:
+            - Presión Arterial: ${log.bloodPressure}
+            - Ritmo Cardíaco: ${log.heartRate}
+            - Glucemia (Glucosa): ${log.glucose}
+            - Temperatura: ${log.temperature}
+            - Estado de ánimo: ${log.mood}
+            - Comentarios del enfermero: ${log.remarks}`
+          }
+        ],
+        { temperature: 0.5, maxTokens: 400 }
+      );
+      setAiReportContent(content);
     } catch (e) {
       setAiReportContent('Ocurrió un error al contactar con el Asistente Clínico Llama-3. Asegúrate de que tu clave Groq API Key sea válida.');
     } finally {
@@ -269,8 +251,8 @@ export const BookingsManager: React.FC = () => {
 
       {/* EL SALVADOR SOS EMERGENCY BANNER */}
       {filteredBookings.some(b => b.status === 'confirmed') && (
-        <div className="bg-rose-50 border-2 border-rose-200 rounded-3xl p-5 text-rose-950 flex flex-col md:flex-row items-start md:items-center gap-4 animate-pulse shadow-sm" id="sos-emergency-banner">
-          <div className="w-12 h-12 bg-rose-100 border border-rose-250 rounded-2xl flex items-center justify-center text-rose-600 shrink-0">
+        <div className="bg-rose-50 border-2 border-rose-200 rounded-3xl p-5 text-rose-950 flex flex-col md:flex-row items-start md:items-center gap-4 shadow-sm" id="sos-emergency-banner">
+          <div className="w-12 h-12 bg-rose-100 border border-rose-250 rounded-2xl flex items-center justify-center text-rose-600 shrink-0 animate-pulse">
             <AlertTriangle className="h-6.5 w-6.5 animate-bounce" />
           </div>
           <div className="flex-1 space-y-1 text-xs">

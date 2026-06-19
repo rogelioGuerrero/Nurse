@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useToast } from './Toast';
+import { groqChat } from '../lib/groq';
 import { 
   Sparkles, MessageSquare, Send, BookOpen, AlertTriangle, 
   ChevronRight, Activity
@@ -32,59 +33,30 @@ export default function ClinicalAI() {
     setLoading(true);
     setResponse('');
 
-    const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-    if (!apiKey) {
-      setResponse('El asistente clínico no está disponible en este momento. Contacta al administrador.');
-      showToast('Clave de IA no configurada. Contacta al administrador.', 'error');
-      setLoading(false);
-      return;
-    }
+    const systemPrompt = isNurseView 
+      ? 'Eres un consultor clínico geriatra y farmacólogo de El Salvador de altísima trayectoria. Proporcionas directrices de enfermería clínica, protocolos de prevención, dosificaciones, cuidados paliativos o de rehabilitación de alta precisión técnica, basándote en estándares de la OMS y el Consejo Superior de Salud Pública (CSSP). Sé formal, sumamente técnico, utiliza terminología de enfermería y destaca los riesgos clínicos.'
+      : 'Eres un enfermero familiar geriátrico sumamente empático y experto de El Salvador. Ayudas a familiares de adultos mayores con consejos prácticos para el cuidado diario en el hogar (nutrición, prevención de caídas, agitación cognitiva, higiene). Responde con calidez, lenguaje claro y no técnico, pero con rigor de seguridad médica. Siempre aconseja consultar con un profesional ante cualquier signo de alerta.';
 
-    const maxRetries = 2;
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        const systemPrompt = isNurseView 
-          ? 'Eres un consultor clínico geriatra y farmacólogo de El Salvador de altísima trayectoria. Proporcionas directrices de enfermería clínica, protocolos de prevención, dosificaciones, cuidados paliativos o de rehabilitación de alta precisión técnica, basándote en estándares de la OMS y el Consejo Superior de Salud Pública (CSSP). Sé formal, sumamente técnico, utiliza terminología de enfermería y destaca los riesgos clínicos.'
-          : 'Eres un enfermero familiar geriátrico sumamente empático y experto de El Salvador. Ayudas a familiares de adultos mayores con consejos prácticos para el cuidado diario en el hogar (nutrición, prevención de caídas, agitación cognitiva, higiene). Responde con calidez, lenguaje claro y no técnico, pero con rigor de seguridad médica. Siempre aconseja consultar con un profesional ante cualquier signo de alerta.';
-
-        const chatResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'llama-3.3-70b-versatile',
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: qToSend }
-            ],
-            temperature: 0.6,
-            max_tokens: 600
-          })
-        });
-
-        if (!chatResponse.ok) {
-          if (attempt < maxRetries) {
-            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-            continue;
-          }
-          throw new Error(`Groq API error: ${chatResponse.status}`);
-        }
-        const data = await chatResponse.json();
-        setResponse(data.choices[0].message.content);
-        showToast('Respuesta generada correctamente', 'success');
-        break;
-      } catch (err) {
-        if (attempt < maxRetries) {
-          await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-          continue;
-        }
+    try {
+      const content = await groqChat(
+        [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: qToSend }
+        ],
+        { temperature: 0.6, maxTokens: 600 }
+      );
+      setResponse(content);
+      showToast('Respuesta generada correctamente', 'success');
+    } catch (err) {
+      if (err instanceof Error && err.message === 'NO_API_KEY') {
+        setResponse('El asistente clínico no está disponible en este momento. Contacta al administrador.');
+        showToast('Clave de IA no configurada. Contacta al administrador.', 'error');
+      } else {
         setResponse('No se pudo conectar con el asistente clínico. Intenta nuevamente en unos momentos.');
         showToast('Error al conectar con el asistente de IA', 'error');
-      } finally {
-        setLoading(false);
       }
+    } finally {
+      setLoading(false);
     }
   };
 
