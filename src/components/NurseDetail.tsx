@@ -674,7 +674,7 @@ export const NurseDetail: FC = () => {
                     <button
                       type="button"
                       onClick={() => setBookingStep(1)}
-                      className="py-3 bg-slate-100 hover:bg-slate-250 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer text-center"
+                      className="py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer text-center"
                     >
                       Atrás
                     </button>
@@ -756,7 +756,7 @@ export const NurseDetail: FC = () => {
                     <button
                       type="button"
                       onClick={() => setBookingStep(2)}
-                      className="py-3 bg-slate-100 hover:bg-slate-250 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer text-center"
+                      className="py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition cursor-pointer text-center"
                     >
                       Atrás
                     </button>

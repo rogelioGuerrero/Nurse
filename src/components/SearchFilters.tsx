@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
-import { Search, SlidersHorizontal, ArrowUpDown, HeartPulse } from 'lucide-react';
+import { type FC } from 'react';
+import { Search, HeartPulse } from 'lucide-react';
 
 interface SearchFiltersProps {
   searchQuery: string;
@@ -18,7 +18,7 @@ interface SearchFiltersProps {
   allSpecializations: string[];
 }
 
-export const SearchFilters: React.FC<SearchFiltersProps> = ({
+export const SearchFilters: FC<SearchFiltersProps> = ({
   searchQuery,
   setSearchQuery,
   selectedSpecialization,
