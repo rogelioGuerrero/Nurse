@@ -5,7 +5,6 @@
 
 import { useState, useMemo } from 'react';
 import { AppContextProvider, useApp } from './context/AppContext';
-import { SupabaseScript } from './components/SupabaseScript';
 import { MapComponent } from './components/MapComponent';
 import { SearchFilters } from './components/SearchFilters';
 import { NurseDetail } from './components/NurseDetail';
@@ -16,7 +15,7 @@ import CareAdvice from './components/CareAdvice';
 import ClinicalAI from './components/ClinicalAI';
 import './lib/config-groq';
 import { 
-  Stethoscope, Calendar, MessageSquare, Database, 
+  Stethoscope, Calendar, MessageSquare, 
   MapPin, Star, Clock, Sparkles, SlidersHorizontal, ArrowUpRight,
   Heart, Users, CheckCircle2, ChevronRight, GraduationCap, Network
 } from 'lucide-react';
@@ -199,18 +198,6 @@ function MarketplaceApp() {
               </button>
             )}
 
-            <button
-              onClick={() => setActiveTab('database')}
-              className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'database'
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
-                  : 'text-slate-650 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-              id="tab-btn-database"
-            >
-              <Database className="h-4 w-4" />
-              <span>Base de Datos SQL</span>
-            </button>
           </nav>
 
           {/* Actor Role Simulation Switcher badge */}
@@ -437,9 +424,6 @@ function MarketplaceApp() {
           <NurseProfileEdit />
         )}
 
-        {activeTab === 'database' && (
-          <SupabaseScript />
-        )}
 
       </main>
 
