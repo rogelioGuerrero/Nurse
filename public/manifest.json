@@ -4,8 +4,8 @@
   "description": "Plataforma para conectar familias con enfermeras profesionales en El Salvador",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#4f46e5",
+  "background_color": "#F5F5F0",
+  "theme_color": "#0d9488",
   "lang": "es-SV",
   "icons": [
     {
