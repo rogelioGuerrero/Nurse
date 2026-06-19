@@ -50,26 +50,6 @@ export interface Booking {
   created_at: string;
 }
 
-export interface Message {
-  id: string;
-  chat_room_id: string; // composite user_id + nurse_id or single key
-  sender_id: string;
-  content: string;
-  created_at: string;
-  is_read?: boolean;
-  read_at?: string;
-  is_urgent?: boolean;
-  booking_id?: string; // Link message to specific booking
-}
-
-export interface ChatRoom {
-  id: string;
-  user_id: string;
-  nurse_id: string;
-  last_message_content?: string;
-  last_message_time?: string;
-}
-
 export interface Availability {
   id: string;
   nurse_id: string;
