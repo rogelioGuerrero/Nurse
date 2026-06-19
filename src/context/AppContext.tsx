@@ -28,6 +28,7 @@ interface AppContextType {
   addAvailability: (availabilityData: Omit<Availability, 'id' | 'created_at' | 'updated_at'>) => Promise<Availability>;
   updateAvailability: (id: string, availabilityData: Partial<Availability>) => Promise<void>;
   deleteAvailability: (id: string) => Promise<void>;
+  markMessagesAsRead: (chatRoomId: string, userId: string) => Promise<void>;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   selectedNurseId: string | null;
@@ -378,7 +379,8 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       chat_room_id: data.chat_room_id,
       sender_id: data.sender_id,
       content: data.content,
-      created_at: data.created_at
+      created_at: data.created_at,
+      is_read: false
     };
 
     setMessages(prev => [...prev, newMsg]);
@@ -505,6 +507,24 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setAvailability(prev => prev.filter(a => a.id !== id));
   };
 
+  const markMessagesAsRead = async (chatRoomId: string, userId: string): Promise<void> => {
+    // Update local state first
+    setMessages(prev => prev.map(msg => 
+      msg.chat_room_id === chatRoomId && msg.sender_id !== userId
+        ? { ...msg, is_read: true, read_at: new Date().toISOString() }
+        : msg
+    ));
+
+    // Update in Supabase
+    const { error } = await supabase
+      .from('messages')
+      .update({ is_read: true, read_at: new Date().toISOString() })
+      .eq('chat_room_id', chatRoomId)
+      .neq('sender_id', userId);
+
+    if (error) console.error('Error marking messages as read:', error);
+  };
+
   return (
     <AppContext.Provider value={{
       profiles,
@@ -526,6 +546,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       addAvailability,
       updateAvailability,
       deleteAvailability,
+      markMessagesAsRead,
       activeTab,
       setActiveTab,
       selectedNurseId,

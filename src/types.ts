@@ -56,6 +56,10 @@ export interface Message {
   sender_id: string;
   content: string;
   created_at: string;
+  is_read?: boolean;
+  read_at?: string;
+  is_urgent?: boolean;
+  booking_id?: string; // Link message to specific booking
 }
 
 export interface ChatRoom {

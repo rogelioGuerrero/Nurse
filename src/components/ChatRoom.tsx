@@ -6,7 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../context/AppContext';
 import { Message, ChatRoom as ChatRoomType } from '../types';
-import { Send, User, Calendar, MessageCircle, AlertCircle, Sparkles, PhoneCall } from 'lucide-react';
+import { Send, User, Calendar, MessageCircle, AlertCircle, Sparkles, PhoneCall, Check, CheckCheck } from 'lucide-react';
 
 export const ChatRoom: React.FC = () => {
   const { 
@@ -15,12 +15,22 @@ export const ChatRoom: React.FC = () => {
     currentUser, 
     profiles, 
     nurses, 
-    sendMessage 
+    sendMessage,
+    markMessagesAsRead
   } = useApp();
 
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [typedText, setTypedText] = useState<string>('');
+  const [showQuickReplies, setShowQuickReplies] = useState(false);
   const msgEndRef = useRef<HTMLDivElement>(null);
+
+  const quickReplies = [
+    'Confirmo la cita',
+    'Necesito cambiar horario',
+    'El paciente está bien',
+    'Tengo una duda',
+    '¿Necesito preparar algo?'
+  ];
 
   // Set default active room if none is selected
   useEffect(() => {
@@ -28,6 +38,13 @@ export const ChatRoom: React.FC = () => {
       setActiveRoomId(chatRooms[0].id);
     }
   }, [chatRooms, activeRoomId]);
+
+  // Mark messages as read when room changes
+  useEffect(() => {
+    if (activeRoomId && currentUser) {
+      markMessagesAsRead(activeRoomId, currentUser.id);
+    }
+  }, [activeRoomId, currentUser, markMessagesAsRead]);
 
   // Scroll to bottom when messages are appended
   useEffect(() => {
@@ -216,8 +233,22 @@ export const ChatRoom: React.FC = () => {
                       <p className="text-xs font-normal whitespace-pre-line leading-relaxed">
                         {m.content}
                       </p>
-                      <div className="text-[9px] text-right font-medium opacity-70">
-                        {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      <div className="flex items-center justify-end gap-2">
+                        <span className="text-[9px] font-medium opacity-70">
+                          {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        {isMyMessage && (
+                          <div className="flex items-center gap-0.5">
+                            {m.is_read ? (
+                              <CheckCheck className="h-3 w-3 text-indigo-200" />
+                            ) : (
+                              <Check className="h-3 w-3 text-indigo-200 opacity-50" />
+                            )}
+                          </div>
+                        )}
+                        {m.is_urgent && (
+                          <AlertCircle className="h-3 w-3 text-red-300" />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -227,22 +258,49 @@ export const ChatRoom: React.FC = () => {
             </div>
 
             {/* Form Input submit panel */}
-            <form onSubmit={handleSendSubmit} className="p-3 border-t border-slate-200 bg-white flex gap-2.5 items-center shrink-0">
-              <input
-                type="text"
-                placeholder="Escribe un mensaje privado con el cuidador..."
-                value={typedText}
-                onChange={(e) => setTypedText(e.target.value)}
-                className="flex-1 bg-slate-50 border border-slate-200 hover:bg-slate-50/70 focus:bg-white text-xs px-4 py-3 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition outline-none"
-                id="input-text-message"
-              />
-              <button
-                type="submit"
-                className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white p-3 rounded-xl transition cursor-pointer shrink-0"
-                id="btn-send-message"
-              >
-                <Send className="h-4.5 w-4.5" />
-              </button>
+            <form onSubmit={handleSendSubmit} className="p-3 border-t border-slate-200 bg-white flex flex-col gap-2 shrink-0">
+              {showQuickReplies && (
+                <div className="flex flex-wrap gap-2">
+                  {quickReplies.map((reply) => (
+                    <button
+                      key={reply}
+                      type="button"
+                      onClick={() => {
+                        setTypedText(reply);
+                        setShowQuickReplies(false);
+                      }}
+                      className="text-xs bg-indigo-50 text-indigo-700 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition-colors"
+                    >
+                      {reply}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2.5 items-center">
+                <button
+                  type="button"
+                  onClick={() => setShowQuickReplies(!showQuickReplies)}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
+                  title="Respuestas rápidas"
+                >
+                  <Sparkles className="h-4 w-4" />
+                </button>
+                <input
+                  type="text"
+                  placeholder="Escribe un mensaje privado con el cuidador..."
+                  value={typedText}
+                  onChange={(e) => setTypedText(e.target.value)}
+                  className="flex-1 bg-slate-50 border border-slate-200 hover:bg-slate-50/70 focus:bg-white text-xs px-4 py-3 rounded-xl focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition outline-none"
+                  id="input-text-message"
+                />
+                <button
+                  type="submit"
+                  className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white p-3 rounded-xl transition cursor-pointer shrink-0"
+                  id="btn-send-message"
+                >
+                  <Send className="h-4.5 w-4.5" />
+                </button>
+              </div>
             </form>
           </>
         ) : (
