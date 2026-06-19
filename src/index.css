@@ -37,17 +37,3 @@ body {
   background-color: #F5F5F0;
   color: #11110D;
 }
-
-/* Custom background pattern from the Minimal theme layout */
-.subtle-dot-grid {
-  position: relative;
-}
-.subtle-dot-grid::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  opacity: 0.15;
-  pointer-events: none;
-  background-image: radial-gradient(#11110D 0.5px, transparent 0.5px);
-  background-size: 20px 20px;
-}

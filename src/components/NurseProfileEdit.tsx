@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Sparkles, Save, ShieldCheck, DollarSign, Compass, Edit3, HeartPulse, CheckCircle2, Calculator } from 'lucide-react';
+import { Save, Edit3, CheckCircle2, Calculator } from 'lucide-react';
 
 export const NurseProfileEdit: React.FC = () => {
   const { currentNurse, currentUser, updateNurseProfile, updateProfile } = useApp();

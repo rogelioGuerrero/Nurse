@@ -8,7 +8,7 @@ import { useApp } from '../context/AppContext';
 import AvailabilityCalendar from './AvailabilityCalendar';
 import {
   Star, Clock, ChevronLeft, ChevronRight, MapPin, Award, ShieldCheck,
-  Calendar, Stethoscope, AlertCircle, Heart, CheckCircle2, MessageCircle
+  Stethoscope, AlertCircle, Heart, CheckCircle2, MessageCircle
 } from 'lucide-react';
 
 export const NurseDetail: React.FC = () => {
