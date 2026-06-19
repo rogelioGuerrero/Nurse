@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.5
  */
 
-import { useState, useMemo, lazy, Suspense } from 'react';
+import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { AppContextProvider, useApp } from './context/AppContext';
 import { MapComponent } from './components/MapComponent';
 import { SearchFilters } from './components/SearchFilters';
@@ -13,7 +13,7 @@ import './lib/config-groq';
 import { 
   Stethoscope, Calendar, MessageSquare, 
   MapPin, Star, Clock, Sparkles, SlidersHorizontal, ArrowUpRight,
-  Heart, Users, CheckCircle2, ChevronRight, GraduationCap, Network
+  Heart, Users, CheckCircle2, ChevronRight, GraduationCap, Network, MapPinned, MessageCircle
 } from 'lucide-react';
 
 const NurseDetail = lazy(() => import('./components/NurseDetail').then(m => ({ default: m.NurseDetail })));
@@ -35,9 +35,26 @@ function MarketplaceApp() {
 
   // Search and general filtering states
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [debouncedSearch, setDebouncedSearch] = useState<string>('');
   const [selectedSpecialization, setSelectedSpecialization] = useState<string>('');
   const [maxRate, setMaxRate] = useState<number>(30);
-  const [sortBy, setSortBy] = useState<string>('rating');
+  const [sortBy, setSortBy] = useState<string>('distance');
+
+  // Debounce search input (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Haversine distance from San Salvador
+  const USER_COORDS = { lat: 13.6929, lng: -89.2182 };
+  const getDistanceKm = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng/2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  };
 
   // Extract all distinct specializations for robust select dropdowns
   const allSpecializations = useMemo(() => {
@@ -53,8 +70,8 @@ function MarketplaceApp() {
     let result = [...nurses];
 
     // Filter by name, bio, certifications
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
       result = result.filter(nurse => {
         const prof = profiles.find(p => p.id === nurse.user_id);
         const nameMatch = prof?.full_name.toLowerCase().includes(q) || false;
@@ -74,7 +91,9 @@ function MarketplaceApp() {
     result = result.filter(n => n.hourly_rate <= maxRate);
 
     // Sort accordingly
-    if (sortBy === 'rating') {
+    if (sortBy === 'distance') {
+      result.sort((a, b) => getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, a.lat, a.lng) - getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, b.lat, b.lng));
+    } else if (sortBy === 'rating') {
       result.sort((a, b) => b.rating - a.rating);
     } else if (sortBy === 'rate-asc') {
       result.sort((a, b) => a.hourly_rate - b.hourly_rate);
@@ -85,7 +104,7 @@ function MarketplaceApp() {
     }
 
     return result;
-  }, [nurses, profiles, searchQuery, selectedSpecialization, maxRate, sortBy]);
+  }, [nurses, profiles, debouncedSearch, selectedSpecialization, maxRate, sortBy]);
 
   const handleNurseClick = (id: string) => {
     setSelectedNurseId(id);
@@ -296,6 +315,7 @@ function MarketplaceApp() {
                               alt={profile.full_name} 
                               className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border border-slate-200 shadow-sm"
                               referrerPolicy="no-referrer"
+                              loading="lazy"
                             />
                             <div className="absolute -bottom-2 -left-1 -right-1 bg-amber-50 rounded-full border border-amber-250 py-0.5 px-1.5 text-center flex items-center justify-center gap-0.5 shadow-sm">
                               <Star className="h-3 w-3 fill-amber-400 text-amber-500" />
@@ -313,6 +333,10 @@ function MarketplaceApp() {
                                 <p className="text-[10px] text-indigo-600 font-bold flex items-center justify-center sm:justify-start gap-1">
                                   <GraduationCap className="h-3.5 w-3.5" />
                                   Exp: {nurse.experience_years} años profesionales
+                                </p>
+                                <p className="text-[10px] text-slate-500 font-bold flex items-center justify-center sm:justify-start gap-1">
+                                  <MapPinned className="h-3.5 w-3.5 text-indigo-400" />
+                                  {getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, nurse.lat, nurse.lng).toFixed(1)} km de ti
                                 </p>
                               </div>
                               <div className="text-slate-800 text-right shrink-0">
@@ -344,6 +368,18 @@ function MarketplaceApp() {
 
                           {/* Detail navigational arrow column */}
                           <div className="shrink-0 flex sm:flex-col justify-end items-end h-full gap-2 self-stretch pt-2 sm:pt-0">
+                            {profile.phone && (
+                              <a
+                                href={`https://wa.me/503${profile.phone.replace(/[^0-9]/g, '').replace(/^503/, '')}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold w-full sm:w-auto px-4 py-2 rounded-xl transition flex items-center justify-center gap-1 shadow-sm"
+                              >
+                                <MessageCircle className="h-3.5 w-3.5" />
+                                <span>WhatsApp</span>
+                              </a>
+                            )}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();

@@ -107,10 +107,11 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
               className="w-full text-slate-700 text-xs font-semibold px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:border-slate-300 focus:border-indigo-500 cursor-pointer outline-none transition"
               id="select-sorting"
             >
-              <option value="rating">Mejor Calificación (★)</option>
-              <option value="rate-asc">Precio más bajo ($)</option>
-              <option value="rate-desc">Precio más alto ($$$)</option>
-              <option value="experience">Años de trayectoria</option>
+              <option value="distance">Mas cercana primero (km)</option>
+              <option value="rating">Mejor Calificacion</option>
+              <option value="rate-asc">Precio mas bajo ($)</option>
+              <option value="rate-desc">Precio mas alto ($$$)</option>
+              <option value="experience">Anios de trayectoria</option>
             </select>
           </div>
         </div>
