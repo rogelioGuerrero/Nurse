@@ -200,14 +200,14 @@ export const BookingsManager: React.FC = () => {
                       {isNurseView ? (
                         <>
                           <button
-                            onClick={() => updateBookingStatus(b.id, 'cancelled')}
+                            onClick={() => updateBookingStatus(b.id, 'cancelled').catch(console.error)}
                             className="text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 px-4 py-2 rounded-xl transition cursor-pointer"
                             id={`btn-reject-booking-${b.id}`}
                           >
                             Rechazar Cita
                           </button>
                           <button
-                            onClick={() => updateBookingStatus(b.id, 'confirmed')}
+                            onClick={() => updateBookingStatus(b.id, 'confirmed').catch(console.error)}
                             className="text-xs font-black text-white bg-indigo-600 hover:bg-indigo-500 px-4 py-2 rounded-xl transition cursor-pointer shadow-sm shadow-indigo-200"
                             id={`btn-confirm-booking-${b.id}`}
                           >
@@ -216,7 +216,7 @@ export const BookingsManager: React.FC = () => {
                         </>
                       ) : (
                         <button
-                          onClick={() => updateBookingStatus(b.id, 'cancelled')}
+                          onClick={() => updateBookingStatus(b.id, 'cancelled').catch(console.error)}
                           className="text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 px-4 py-2 rounded-xl transition cursor-pointer"
                           id={`btn-cancel-client-booking-${b.id}`}
                         >
@@ -230,7 +230,7 @@ export const BookingsManager: React.FC = () => {
                     <>
                       {isNurseView ? (
                         <button
-                          onClick={() => updateBookingStatus(b.id, 'completed')}
+                          onClick={() => updateBookingStatus(b.id, 'completed').catch(console.error)}
                           className="text-xs font-black text-white bg-emerald-600 hover:bg-emerald-500 px-4 py-2.5 rounded-xl transition cursor-pointer shadow-sm shadow-emerald-200 flex items-center gap-1"
                           id={`btn-complete-booking-${b.id}`}
                         >
@@ -241,7 +241,7 @@ export const BookingsManager: React.FC = () => {
                         <div className="flex gap-4 items-center">
                           <span className="text-[11px] text-indigo-600 font-semibold">El cuidador ya está confirmado para esta fecha.</span>
                           <button
-                            onClick={() => updateBookingStatus(b.id, 'cancelled')}
+                            onClick={() => updateBookingStatus(b.id, 'cancelled').catch(console.error)}
                             className="text-xs font-semibold text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl transition cursor-pointer"
                             id={`btn-cancel-confirmed-booking-${b.id}`}
                           >
