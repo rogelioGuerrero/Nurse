@@ -41,12 +41,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               toast.type === 'success'
                 ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                 : toast.type === 'error'
-                ? 'bg-red-50 border-red-200 text-red-800'
+                ? 'bg-rose-50 border-rose-200 text-rose-800'
                 : 'bg-slate-50 border-slate-200 text-slate-800'
             }`}
           >
             {toast.type === 'success' && <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />}
-            {toast.type === 'error' && <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />}
+            {toast.type === 'error' && <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />}
             {toast.type === 'info' && <Info className="h-5 w-5 text-slate-600 shrink-0 mt-0.5" />}
             <p className="text-sm font-medium leading-snug flex-1">{toast.message}</p>
             <button onClick={() => removeToast(toast.id)} className="shrink-0 opacity-50 hover:opacity-100 transition">
