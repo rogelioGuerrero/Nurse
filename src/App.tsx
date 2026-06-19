@@ -13,6 +13,7 @@ import { BookingsManager } from './components/BookingsManager';
 import { ChatRoom } from './components/ChatRoom';
 import { NurseProfileEdit } from './components/NurseProfileEdit';
 import CareAdvice from './components/CareAdvice';
+import './lib/config-groq';
 import { 
   Stethoscope, Calendar, MessageSquare, Database, 
   MapPin, Star, Clock, Sparkles, SlidersHorizontal, ArrowUpRight,
