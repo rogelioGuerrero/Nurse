@@ -294,23 +294,16 @@ export const BookingsManager: FC = () => {
         <div className="space-y-4">
           {filteredBookings.map((b) => {
             // Find opposite party profile
-            let counterPartyName = '';
-            let counterPartyAvatar = '';
-            let counterPartySpecializations: string[] = [];
-
-            if (isNurseView) {
-              // Nurse sees client family
-              const clientProfile = profiles.find(p => p.id === b.user_id);
-              counterPartyName = clientProfile ? clientProfile.full_name : 'Familia Visitada';
-              counterPartyAvatar = clientProfile ? clientProfile.avatar_url : 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=200';
-            } else {
-              // Client sees nurse details
-              const nurseRec = nurses.find(n => n.id === b.nurse_id);
-              const nurseProfile = nurseRec ? profiles.find(p => p.id === nurseRec.user_id) : null;
-              counterPartyName = nurseProfile ? nurseProfile.full_name : 'Caretaker Profesional';
-              counterPartyAvatar = nurseProfile ? nurseProfile.avatar_url : 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200';
-              counterPartySpecializations = nurseRec ? nurseRec.specialization : [];
-            }
+            const clientProfile = profiles.find(p => p.id === b.user_id);
+            const counterPartyName = isNurseView
+              ? (clientProfile?.full_name ?? 'Familia Visitada')
+              : (profiles.find(p => p.id === nurses.find(n => n.id === b.nurse_id)?.user_id)?.full_name ?? 'Caretaker Profesional');
+            const counterPartyAvatar = isNurseView
+              ? (clientProfile?.avatar_url ?? 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=200')
+              : (profiles.find(p => p.id === nurses.find(n => n.id === b.nurse_id)?.user_id)?.avatar_url ?? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200');
+            const counterPartySpecializations = !isNurseView
+              ? (nurses.find(n => n.id === b.nurse_id)?.specialization ?? [])
+              : [];
 
             return (
               <div 
@@ -717,9 +710,6 @@ export const BookingsManager: FC = () => {
         const subtotal = b.total_price;
         const retencion = subtotal * 0.1;
         const liquido = subtotal * 0.9;
-        
-        const cssNumber = '—';
-        const duiNumber = '—';
 
         return (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="receipt-modal-overlay">
@@ -753,8 +743,8 @@ export const BookingsManager: FC = () => {
                   <div>
                     <span className="text-[9px] uppercase font-black text-slate-400 block mb-0.5">Emisor (Enfermero Profesional)</span>
                     <span className="font-extrabold text-slate-900 block text-sm">{emisorName}</span>
-                    <span className="text-[10px] text-slate-500 block">DUI: {duiNumber}</span>
-                    <span className="text-[10px] text-indigo-600 font-semibold block">Reg. CSSP: N° {cssNumber}</span>
+                    <span className="text-[10px] text-slate-500 block">DUI: —</span>
+                    <span className="text-[10px] text-indigo-600 font-semibold block">Reg. CSSP: N° —</span>
                   </div>
                   <div className="text-right">
                     <span className="text-[9px] uppercase font-black text-slate-400 block mb-0.5">Adquirente (Cliente Familiar)</span>
