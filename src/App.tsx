@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.5
  */
 
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { AppContextProvider, useApp } from './context/AppContext';
 import { SupabaseScript } from './components/SupabaseScript';
 import { MapComponent } from './components/MapComponent';
@@ -461,7 +461,7 @@ function MarketplaceApp() {
 
           <div className="space-y-2 text-xs">
             <h4 className="font-extrabold text-white text-xs uppercase tracking-widest text-[#a5b4fc] mb-1">Tecnologías Demostradas</h4>
-            <p>• Next.js App Router & Server Actions (Arquitectura propuesta)</p>
+            <p>• React 19 + Vite (Arquitectura SPA)</p>
             <p>• Supabase DB PostgreSQL Schema & RLS Security</p>
             <p>• Interactive Vector Coordinates Map Engine</p>
             <p>• TailwindCSS v4 Custom Stylings & Lucide icons</p>

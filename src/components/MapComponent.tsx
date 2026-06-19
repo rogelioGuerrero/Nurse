@@ -19,7 +19,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   maxRate, 
   selectedSpecialization 
 }) => {
-  const { profiles, selectedNurseId, setSelectedNurseId, setSelectedNurseId: appSelectNurse, setActiveTab } = useApp();
+  const { profiles, selectedNurseId, setSelectedNurseId, setActiveTab } = useApp();
   const [filterRadius, setFilterRadius] = useState<number>(10); // user filter radius in km
   const [mapCenter, setMapCenter] = useState({ lat: 13.7942, lng: -88.8965 }); // El Salvador center
 
@@ -48,7 +48,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
   };
 
   // User location pin (center of family query)
-  const userCoords = { lat: 19.4100, lng: -99.1800 }; // Condesa area
+  const userCoords = { lat: 13.6929, lng: -89.2182 }; // San Salvador center
   const userSvg = coordsToSvg(userCoords.lat, userCoords.lng);
 
   // Calculate distance between coordinates in KM (Haversine formula representation)
@@ -147,7 +147,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           <rect width="800" height="600" fill="url(#city-grid)" />
 
           {/* Environmental Geometries (Simulated Landmarks) */}
-          {/* Paseo de la Reforma Avenue */}
+          {/* Boulevard de los Proceres */}
           <path 
             d="M 50 180 L 350 280 L 550 350 L 750 420" 
             fill="none" 
@@ -163,7 +163,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             strokeLinecap="round"
           />
 
-          {/* Avenida Insurgentes Avenue */}
+          {/* Alameda Juan Pablo II */}
           <path 
             d="M 450 50 L 410 250 L 380 400 L 320 550" 
             fill="none" 
@@ -179,7 +179,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             strokeLinecap="round"
           />
 
-          {/* Chapultepec Green Forest Zone (Polanco Side) */}
+          {/* Parque Nacional El Boqueron */}
           <path 
             d="M 120 220 Q 180 200 220 260 T 160 380 Z" 
             fill="rgba(16, 185, 129, 0.07)" 
@@ -187,10 +187,10 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             strokeWidth="2"
           />
           <text x="140" y="290" fill="rgba(16, 185, 129, 0.4)" className="text-[10px] font-semibold tracking-wider italic fill-emerald-500">
-            Bosque Chapultepec
+            Parque El Boqueron
           </text>
 
-          {/* Coyoacán Historic Green Hub */}
+          {/* Plaza Libertad Historic Hub */}
           <circle 
             cx="390" 
             cy="460" 
@@ -200,14 +200,14 @@ export const MapComponent: React.FC<MapComponentProps> = ({
             strokeWidth="1.5"
           />
           <text x="360" y="465" fill="rgba(16, 185, 129, 0.4)" className="text-[10px] font-semibold tracking-wider italic fill-emerald-500">
-            Coyoacán Centro
+            Plaza Libertad
           </text>
 
           {/* Area Labels */}
-          <text x="180" y="150" fill="rgba(255, 255, 255, 0.15)" className="text-[11px] font-bold tracking-widest uppercase">POLANCO</text>
-          <text x="320" y="210" fill="rgba(255, 255, 255, 0.15)" className="text-[11px] font-bold tracking-widest uppercase">CONDESA</text>
-          <text x="480" y="270" fill="rgba(255, 255, 255, 0.15)" className="text-[11px] font-bold tracking-widest uppercase">ROMA NORTE</text>
-          <text x="490" y="380" fill="rgba(255, 255, 255, 0.15)" className="text-[11px] font-bold tracking-widest uppercase">DEL VALLE</text>
+          <text x="180" y="150" fill="rgba(255, 255, 255, 0.15)" className="text-[11px] font-bold tracking-widest uppercase">SANTA TECLA</text>
+          <text x="320" y="210" fill="rgba(255, 255, 255, 0.15)" className="text-[11px] font-bold tracking-widest uppercase">SAN SALVADOR</text>
+          <text x="480" y="270" fill="rgba(255, 255, 255, 0.15)" className="text-[11px] font-bold tracking-widest uppercase">SOYAPANGO</text>
+          <text x="490" y="380" fill="rgba(255, 255, 255, 0.15)" className="text-[11px] font-bold tracking-widest uppercase">MEJICANOS</text>
 
           {/* USER COVERAGE RADAR CIRCLE */}
           {/* Converts the selected KM value to proportional SVG radius pixels (1 Km = approx 16px) */}
@@ -331,7 +331,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
         {/* Home target label badge */}
         <div className="absolute top-4 left-4 bg-slate-900/90 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-slate-700/60 shadow-lg text-white flex items-center gap-2 text-xs">
           <div className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse" />
-          <span className="font-semibold text-slate-200">Tu Ubicación (Condesa)</span>
+          <span className="font-semibold text-slate-200">Tu Ubicación (San Salvador)</span>
         </div>
 
         {/* Small Compass Indicator */}

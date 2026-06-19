@@ -77,14 +77,14 @@ export const ChatRoom: React.FC = () => {
       activeCounterPartyName = clientP ? clientP.full_name : 'Familia Solicitante';
       activeCounterPartyRole = 'Familia de Adulto Mayor';
       activeCounterPartyAvatar = clientP ? clientP.avatar_url : 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=200';
-      activeCounterPartyPhone = clientP?.phone || '+52 55 5555 4444';
+      activeCounterPartyPhone = clientP?.phone || '+503 2222 3333';
     } else {
       const nurseR = nurses.find(n => n.id === activeRoom.nurse_id);
       const nurseP = nurseR ? profiles.find(p => p.id === nurseR.user_id) : null;
       activeCounterPartyName = nurseP ? nurseP.full_name : 'Caretaker Profesional';
       activeCounterPartyRole = 'Enfermero Registrado';
       activeCounterPartyAvatar = nurseP ? nurseP.avatar_url : 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200';
-      activeCounterPartyPhone = nurseP?.phone || '+52 55 4321 8765';
+      activeCounterPartyPhone = nurseP?.phone || '+503 2222 3344';
     }
   }
 
