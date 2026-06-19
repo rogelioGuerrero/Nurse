@@ -13,6 +13,9 @@ interface AvailabilityCalendarProps {
   isEditable?: boolean;
 }
 
+const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
 export default function AvailabilityCalendar({ nurseId, isEditable = false }: AvailabilityCalendarProps) {
   const { getAvailability, addAvailability } = useApp();
   const [availability, setAvailability] = useState<Availability[]>([]);
@@ -82,9 +85,6 @@ export default function AvailabilityCalendar({ nurseId, isEditable = false }: Av
       console.error('Error adding availability:', error);
     }
   };
-
-  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6">

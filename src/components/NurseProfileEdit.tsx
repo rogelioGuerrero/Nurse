@@ -7,6 +7,12 @@ import { useState, type FC, type FormEvent } from 'react';
 import { useApp } from '../context/AppContext';
 import { Save, Edit3, CheckCircle2, Calculator } from 'lucide-react';
 
+const allSpecialtyTags = [
+  'Geriatría', 'Demencia y Alzheimer', 'Inyecciones', 'Postoperatorio', 
+  'Curaciones complejas', 'Fisioterapia Básica', 'Manejo de Sondas', 
+  'Cuidados Paliativos', 'Monitoreo Cardíaco', 'Control de Diabetes', 'Nutrición asistida'
+];
+
 export const NurseProfileEdit: FC = () => {
   const { currentNurse, currentUser, updateNurseProfile, updateProfile } = useApp();
 
@@ -18,13 +24,6 @@ export const NurseProfileEdit: FC = () => {
   const [phone, setPhone] = useState<string>(currentUser?.phone || '');
   const [locationName, setLocationName] = useState<string>(currentUser?.location_name || '');
 
-  // Tag helper selection
-  const allSpecialtyTags = [
-    'Geriatría', 'Demencia y Alzheimer', 'Inyecciones', 'Postoperatorio', 
-    'Curaciones complejas', 'Fisioterapia Básica', 'Manejo de Sondas', 
-    'Cuidados Paliativos', 'Monitoreo Cardíaco', 'Control de Diabetes', 'Nutrición asistida'
-  ];
-  
   const [selectedSpecs, setSelectedSpecs] = useState<string[]>(currentNurse?.specialization || []);
   const [showNotify, setShowNotify] = useState(false);
 
