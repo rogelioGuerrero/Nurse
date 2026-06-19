@@ -299,7 +299,7 @@ export const NurseDetail: React.FC = () => {
                 <div className="flex flex-wrap items-center justify-center sm:justify-start gap-y-1.5 gap-x-4 text-xs text-slate-500 font-medium">
                   <span className="flex items-center gap-1">
                     <MapPin className="h-4 w-4 text-slate-400" />
-                    {profile.location_name || 'Ubicación no especificada'}
+                    {profile.location_name || 'San Salvador'}
                   </span>
                   <span className="flex items-center gap-1">
                     <Clock className="h-4 w-4 text-slate-400" />

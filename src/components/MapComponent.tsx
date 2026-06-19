@@ -21,14 +21,14 @@ export const MapComponent: React.FC<MapComponentProps> = ({
 }) => {
   const { profiles, selectedNurseId, setSelectedNurseId, setSelectedNurseId: appSelectNurse, setActiveTab } = useApp();
   const [filterRadius, setFilterRadius] = useState<number>(10); // user filter radius in km
-  const [mapCenter, setMapCenter] = useState({ lat: 37.0902, lng: -95.7129 }); // USA center
+  const [mapCenter, setMapCenter] = useState({ lat: 13.7942, lng: -88.8965 }); // El Salvador center
 
   // Min and Max bounds of operational zone
   const bounds = {
-    minLat: 25.0000,
-    maxLat: 49.0000,
-    minLng: -125.0000,
-    maxLng: -66.0000,
+    minLat: 13.0000,
+    maxLat: 14.5000,
+    minLng: -90.0000,
+    maxLng: -87.5000,
   };
 
   // Convert real geographic Latitude and Longitude to SVG space dimensions (w:800, h:600)

@@ -251,7 +251,7 @@ function MarketplaceApp() {
                     <span className="text-[9px] uppercase text-slate-400 font-bold">Candidatos</span>
                   </div>
                   <div className="py-2.5 px-3 bg-slate-900/50 rounded-xl text-center flex-1 border border-slate-800">
-                    <span className="text-lg font-bold block text-indigo-400 font-serif italic">Global</span>
+                    <span className="text-lg font-bold block text-indigo-400 font-serif italic">El Salvador</span>
                     <span className="text-[9px] uppercase text-slate-400 font-bold">Cobertura</span>
                   </div>
                 </div>
