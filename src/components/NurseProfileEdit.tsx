@@ -67,7 +67,7 @@ export const NurseProfileEdit: FC = () => {
       <div className="flex items-center justify-between border-b border-slate-100 pb-4">
         <div>
           <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
-            <Edit3 className="h-5.5 w-5.5 text-indigo-550" />
+            <Edit3 className="h-5 w-5 text-indigo-600" />
             Configurar mi Perfil de Cuidador Profesional
           </h2>
           <p className="text-xs text-slate-500 mt-1">
