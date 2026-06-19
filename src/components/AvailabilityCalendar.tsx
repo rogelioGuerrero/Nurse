@@ -14,7 +14,7 @@ interface AvailabilityCalendarProps {
 }
 
 export default function AvailabilityCalendar({ nurseId, isEditable = false }: AvailabilityCalendarProps) {
-  const { getAvailability, addAvailability, updateAvailability, deleteAvailability } = useApp();
+  const { getAvailability, addAvailability } = useApp();
   const [availability, setAvailability] = useState<Availability[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -80,24 +80,6 @@ export default function AvailabilityCalendar({ nurseId, isEditable = false }: Av
       loadAvailability();
     } catch (error) {
       console.error('Error adding availability:', error);
-    }
-  };
-
-  const handleDeleteAvailability = async (id: string) => {
-    try {
-      await deleteAvailability(id);
-      loadAvailability();
-    } catch (error) {
-      console.error('Error deleting availability:', error);
-    }
-  };
-
-  const handleToggleAvailability = async (id: string, currentStatus: boolean) => {
-    try {
-      await updateAvailability(id, { is_available: !currentStatus });
-      loadAvailability();
-    } catch (error) {
-      console.error('Error toggling availability:', error);
     }
   };
 
@@ -167,7 +149,6 @@ export default function AvailabilityCalendar({ nurseId, isEditable = false }: Av
             const hasAvailability = dayAvailability.length > 0;
             const isFullyAvailable = hasAvailability && dayAvailability.every(a => a.is_available);
             const isPartiallyAvailable = hasAvailability && dayAvailability.some(a => a.is_available) && !isFullyAvailable;
-            const isUnavailable = hasAvailability && dayAvailability.every(a => !a.is_available);
 
             return (
               <div
