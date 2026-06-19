@@ -8,7 +8,7 @@ import { useApp } from '../context/AppContext';
 import { useToast } from './Toast';
 import { 
   Sparkles, MessageSquare, Send, BookOpen, AlertTriangle, 
-  HeartPulse, GraduationCap, ChevronRight, Activity, HelpCircle
+  ChevronRight, Activity
 } from 'lucide-react';
 
 export default function ClinicalAI() {

@@ -15,7 +15,6 @@ export const NurseDetail: React.FC = () => {
   const {
     nurses,
     profiles,
-    bookings,
     selectedNurseId,
     setSelectedNurseId,
     createBooking,
@@ -540,7 +539,6 @@ export const NurseDetail: React.FC = () => {
                 </div>
               )}
 
-              {/* Step 2: Patient Details */}
               {/* Step 2: Patient Details */}
               {bookingStep === 2 && (
                 <div className="space-y-4">

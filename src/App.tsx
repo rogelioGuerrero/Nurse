@@ -212,7 +212,7 @@ function MarketplaceApp() {
                   </div>
                 </div>
                 <p className="text-[10px] text-slate-400 leading-normal font-medium">
-                  Sello de Confianza: PNC, Antecedentes Penales y registro CSSP.
+                  Cada enfermera pasa por verificación de antecedentes y documentos profesionales.
                 </p>
               </div>
             </div>
