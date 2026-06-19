@@ -168,8 +168,8 @@ export const NurseDetail: FC = () => {
       setChronicMedications('');
       setAutonomyLevel('Dependencia Moderada');
       setNotes('');
-    } catch (err: any) {
-      setValidationError(err.message || 'Error al agendar cita.');
+    } catch (err) {
+      setValidationError(err instanceof Error ? err.message : 'Error al agendar cita.');
     }
   };
 

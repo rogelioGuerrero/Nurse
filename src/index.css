@@ -29,6 +29,9 @@
 
   --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Playfair Display", "Georgia", serif;
+
+  --spacing-4\.5: 1.125rem;
+  --spacing-6\.5: 1.625rem;
 }
 
 /* Animations */
