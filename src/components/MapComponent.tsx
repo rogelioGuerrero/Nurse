@@ -21,14 +21,14 @@ export const MapComponent: React.FC<MapComponentProps> = ({
 }) => {
   const { profiles, selectedNurseId, setSelectedNurseId, setSelectedNurseId: appSelectNurse, setActiveTab } = useApp();
   const [filterRadius, setFilterRadius] = useState<number>(10); // user filter radius in km
-  const [mapCenter, setMapCenter] = useState({ lat: 19.4000, lng: -99.1700 }); // simulated CDMX focus
+  const [mapCenter, setMapCenter] = useState({ lat: 37.0902, lng: -95.7129 }); // USA center
 
-  // Min and Max bounds of CDMX operational zone
+  // Min and Max bounds of operational zone
   const bounds = {
-    minLat: 19.3300,
-    maxLat: 19.4500,
-    minLng: -99.2100,
-    maxLng: -99.1400,
+    minLat: 25.0000,
+    maxLat: 49.0000,
+    minLng: -125.0000,
+    maxLng: -66.0000,
   };
 
   // Convert real geographic Latitude and Longitude to SVG space dimensions (w:800, h:600)
@@ -146,7 +146,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
           <rect width="800" height="600" fill="#0f172a" />
           <rect width="800" height="600" fill="url(#city-grid)" />
 
-          {/* Environmental Geometries (Simulated Landmarks of CDMX) */}
+          {/* Environmental Geometries (Simulated Landmarks) */}
           {/* Paseo de la Reforma Avenue */}
           <path 
             d="M 50 180 L 350 280 L 550 350 L 750 420" 

@@ -140,8 +140,8 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       role: 'user',
       full_name: 'Familia Ramírez Gómez',
       avatar_url: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&q=80&w=200',
-      phone: '+52 55 5555 4444',
-      location_name: 'Polanco / Condesa, México DF',
+      phone: '+1 415 555 0199',
+      location_name: 'San Francisco, CA',
       updated_at: new Date().toISOString()
     };
   });
@@ -204,8 +204,8 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           role: 'nurse',
           full_name: 'Lic. Elena Gómez',
           avatar_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
-          phone: '+52 55 4321 8765',
-          location_name: 'Polanco, CDMX',
+          phone: '+1 415 555 0123',
+          location_name: 'San Francisco, CA',
           updated_at: new Date().toISOString()
         };
         setProfiles(prev => [...prev, fallbackElena]);
@@ -219,8 +219,8 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         role: 'user',
         full_name: 'Familia Ramírez Gómez',
         avatar_url: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&q=80&w=200',
-        phone: '+52 55 5555 4444',
-        location_name: 'Polanco / Condesa, México DF',
+        phone: '+1 415 555 0199',
+        location_name: 'San Francisco, CA',
         updated_at: new Date().toISOString()
       };
       setCurrentUser(familyUser);

@@ -12,8 +12,8 @@ export const INITIAL_PROFILES: Profile[] = [
     role: 'nurse',
     full_name: 'Lic. Elena Gómez',
     avatar_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
-    phone: '+52 55 4321 8765',
-    location_name: 'Polanco, CDMX',
+    phone: '+1 415 555 0123',
+    location_name: 'San Francisco, CA',
     updated_at: new Date().toISOString(),
   },
   {
@@ -22,8 +22,8 @@ export const INITIAL_PROFILES: Profile[] = [
     role: 'nurse',
     full_name: 'Enf. Carlos Mendoza',
     avatar_url: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=200',
-    phone: '+52 55 8765 4321',
-    location_name: 'Roma Norte, CDMX',
+    phone: '+1 212 555 0456',
+    location_name: 'New York, NY',
     updated_at: new Date().toISOString(),
   },
   {
@@ -32,8 +32,8 @@ export const INITIAL_PROFILES: Profile[] = [
     role: 'nurse',
     full_name: 'Mtra. Sofía Rodríguez',
     avatar_url: 'https://images.unsplash.com/photo-1594824813573-246434de83fb?auto=format&fit=crop&q=80&w=200',
-    phone: '+52 55 3344 5566',
-    location_name: 'Coyoacán, CDMX',
+    phone: '+1 312 555 0789',
+    location_name: 'Chicago, IL',
     updated_at: new Date().toISOString(),
   },
   {
@@ -42,8 +42,8 @@ export const INITIAL_PROFILES: Profile[] = [
     role: 'nurse',
     full_name: 'Enf. Miguel Ángel Ramos',
     avatar_url: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=200',
-    phone: '+52 55 1122 3344',
-    location_name: 'Condesa, CDMX',
+    phone: '+1 305 555 0234',
+    location_name: 'Miami, FL',
     updated_at: new Date().toISOString(),
   },
   {
@@ -52,8 +52,8 @@ export const INITIAL_PROFILES: Profile[] = [
     role: 'nurse',
     full_name: 'Dra. Isabel Castro',
     avatar_url: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=200',
-    phone: '+52 55 9988 7766',
-    location_name: 'Del Valle, CDMX',
+    phone: '+1 206 555 0567',
+    location_name: 'Seattle, WA',
     updated_at: new Date().toISOString(),
   },
 ];
@@ -63,18 +63,18 @@ export const INITIAL_NURSES: Nurse[] = [
     id: '00000000-0000-0000-0000-000000000011',
     user_id: '00000000-0000-0000-0000-000000000002',
     specialization: ['Geriatría', 'Demencia y Alzheimer', 'Inyecciones'],
-    hourly_rate: 180, // in MXN or dynamic representation
+    hourly_rate: 180,
     coverage_radius: 8,
     availability: 'Lunes a Viernes (08:00 - 18:00)',
     rating: 4.9,
     review_count: 24,
-    lat: 19.4326, // Polanco center approx
-    lng: -99.1933,
+    lat: 37.7749,
+    lng: -122.4194,
     bio: 'Enfermera licenciada con más de 8 años de experiencia especializada exclusivamente en el cuidado del adulto mayor con trastornos cognitivos como Alzheimer. Ofrezco terapia ocupacional básica, administración precisa de medicamentos y acompañamiento cognitivo.',
     experience_years: 8,
     certifications: [
-      'Licenciatura en Enfermería (UNAM)',
-      'Diplomado en Cuidado Integral del Adulto Mayor (INDEP)',
+      'Licenciatura en Enfermería',
+      'Diplomado en Cuidado Integral del Adulto Mayor',
       'Certificación internacional de atención en Alzheimer y Demencias'
     ]
   },
@@ -87,8 +87,8 @@ export const INITIAL_NURSES: Nurse[] = [
     availability: 'Lunes a Sábado, Turno Nocturno (20:00 - 06:00)',
     rating: 4.8,
     review_count: 18,
-    lat: 19.4143, // Roma Norte approx
-    lng: -99.1601,
+    lat: 40.7128,
+    lng: -74.0060,
     bio: 'Especialista en curaciones de heridas posquirúrgicas, movilización de pacientes con movilidad reducida y rehabilitación física básica tras fracturas. Comprometido con la comodidad, seguridad y el trato empático y respetuoso del adulto mayor.',
     experience_years: 6,
     certifications: [
@@ -106,12 +106,12 @@ export const INITIAL_NURSES: Nurse[] = [
     availability: 'Fin de Semana Completo (Sáb/Dom 24 hrs)',
     rating: 5.0,
     review_count: 32,
-    lat: 19.3497, // Coyoacán approx
-    lng: -99.1611,
+    lat: 41.8781,
+    lng: -87.6298,
     bio: 'Maestría en Tanatología y enfermería paliativa avanzada. Ofrezco acompañamiento cálido y control del dolor para pacientes con enfermedades en etapas avanzadas, manejo e instalación de sondas enterales, vesicales y asistencia nutricional de alta precisión.',
     experience_years: 12,
     certifications: [
-      'Licenciatura en Enfermería y Obstetricia (ENEO-UNAM)',
+      'Licenciatura en Enfermería y Obstetricia',
       'Maestría en Tanatología y Acompañamiento Emocional',
       'Curso Superior Universitario de Farmacología en Terapia Paliativa'
     ]
@@ -125,8 +125,8 @@ export const INITIAL_NURSES: Nurse[] = [
     availability: 'Flexible (Días hábiles y fines de semana)',
     rating: 4.7,
     review_count: 15,
-    lat: 19.4111, // Condesa approx
-    lng: -99.1729,
+    lat: 25.7617,
+    lng: -80.1918,
     bio: 'Experiencia en cuidados cardiovasculares crónicos y monitoreo de constantes vitales en pacientes con hipertensión severa o insuficiencia cardíaca. Experto en control riguroso de diabetes (curva de insulina, glucometrías seriadas y nutrición adaptada).',
     experience_years: 5,
     certifications: [
@@ -144,14 +144,14 @@ export const INITIAL_NURSES: Nurse[] = [
     availability: 'Lunes a Viernes (09:00 - 15:00)',
     rating: 4.9,
     review_count: 40,
-    lat: 19.3828, // Del Valle approx
-    lng: -99.1652,
+    lat: 47.6062,
+    lng: -122.3321,
     bio: 'Médico graduada reconvertida con pasión al cuidado directo de enfermería gerontológica personalizada. Combino sólida comprensión clínica con una inigualable calidad humana para estructurar planes diarios de caminatas, estimulación mental y hábitos de vida saludables.',
     experience_years: 15,
     certifications: [
       'Título Profesional en Medicina y Enfermería',
       'Especialidad Certificada en Nutrición Clínica del Adulto Mayor',
-      'Secretaria de Salud - Registro y Cédula del Consejo de Gerontología'
+      'Registro y Cédula del Consejo de Gerontología'
     ]
   }
 ];

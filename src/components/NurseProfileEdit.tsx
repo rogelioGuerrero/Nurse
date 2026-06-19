@@ -172,7 +172,7 @@ export const NurseProfileEdit: React.FC = () => {
 
           {/* Location Area Text */}
           <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Área de Operación Principal (CDMX)</label>
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Área de Operación Principal</label>
             <input
               type="text"
               required
