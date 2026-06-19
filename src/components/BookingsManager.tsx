@@ -34,9 +34,7 @@ export const BookingsManager: FC = () => {
     updateBookingStatus 
   } = useApp();
 
-  if (!currentUser) return null;
-
-  const isNurseView = currentUser.role === 'nurse';
+  const isNurseView = currentUser?.role === 'nurse';
 
   const [selectedReceiptBooking, setSelectedReceiptBooking] = useState<Booking | null>(null);
 
@@ -75,6 +73,8 @@ export const BookingsManager: FC = () => {
   const [aiReportId, setAiReportId] = useState<string | null>(null);
   const [aiReportContent, setAiReportContent] = useState<string>('');
   const [aiReportLoading, setAiReportLoading] = useState(false);
+
+  if (!currentUser) return null;
 
   const handleOpenLogForm = (bookingId: string) => {
     const log = careLogs[bookingId];
@@ -133,7 +133,7 @@ export const BookingsManager: FC = () => {
         { temperature: 0.5, maxTokens: 400 }
       );
       setAiReportContent(content);
-    } catch (e) {
+    } catch {
       setAiReportContent('Ocurrió un error al contactar con el Asistente Clínico Llama-3. Asegúrate de que tu clave Groq API Key sea válida.');
     } finally {
       setAiReportLoading(false);
@@ -171,7 +171,7 @@ export const BookingsManager: FC = () => {
         medications: medsMatch ? medsMatch[1].trim() : 'Ninguno',
         emergency: emergencyMatch ? emergencyMatch[1].trim() : 'No proporcionado'
       };
-    } catch (e) {
+    } catch {
       return {
         raw: condition,
         diagnosis: condition,
