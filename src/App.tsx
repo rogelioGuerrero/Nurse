@@ -7,18 +7,16 @@ import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { AppContextProvider, useApp } from './context/AppContext';
 import { MapComponent } from './components/MapComponent';
 import { SearchFilters } from './components/SearchFilters';
-import CareAdvice from './components/CareAdvice';
 import { ToastProvider } from './components/Toast';
 import './lib/config-groq';
 import { 
-  Stethoscope, Calendar, MessageSquare, 
-  MapPin, Star, Clock, Sparkles, SlidersHorizontal, ArrowUpRight,
-  Heart, Users, CheckCircle2, ChevronRight, GraduationCap, Network, MapPinned, MessageCircle
+  Stethoscope, Calendar, 
+  Star, Sparkles,
+  Heart, Users, ChevronRight, GraduationCap, Network, MapPinned, MessageCircle
 } from 'lucide-react';
 
 const NurseDetail = lazy(() => import('./components/NurseDetail').then(m => ({ default: m.NurseDetail })));
 const BookingsManager = lazy(() => import('./components/BookingsManager').then(m => ({ default: m.BookingsManager })));
-const ChatRoom = lazy(() => import('./components/ChatRoom').then(m => ({ default: m.ChatRoom })));
 const NurseProfileEdit = lazy(() => import('./components/NurseProfileEdit').then(m => ({ default: m.NurseProfileEdit })));
 const ClinicalAI = lazy(() => import('./components/ClinicalAI'));
 
@@ -166,19 +164,6 @@ function MarketplaceApp() {
             </button>
 
             <button
-              onClick={() => setActiveTab('chat')}
-              className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                activeTab === 'chat'
-                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-              id="tab-btn-chat"
-            >
-              <MessageSquare className="h-4 w-4" />
-              <span>Soporte & Chats</span>
-            </button>
-
-            <button
               onClick={() => setActiveTab('clinical-ai')}
               className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'clinical-ai'
@@ -241,8 +226,8 @@ function MarketplaceApp() {
               <div className="bg-slate-950/45 border border-slate-800 p-5 rounded-2xl md:max-w-xs shrink-0 backdrop-blur-sm z-10 flex flex-col justify-between">
                 <div className="flex gap-3 mb-3">
                   <div className="py-2.5 px-3 bg-slate-900/50 rounded-xl text-center flex-1 border border-slate-800">
-                    <span className="text-lg font-bold block text-indigo-400 font-serif italic">5</span>
-                    <span className="text-[9px] uppercase text-slate-400 font-bold">Candidatos</span>
+                    <span className="text-lg font-bold block text-indigo-400 font-serif italic">{nurses.length}</span>
+                    <span className="text-[9px] uppercase text-slate-400 font-bold">Enfermeras</span>
                   </div>
                   <div className="py-2.5 px-3 bg-slate-900/50 rounded-xl text-center flex-1 border border-slate-800">
                     <span className="text-lg font-bold block text-indigo-400 font-serif italic">El Salvador</span>
@@ -250,13 +235,10 @@ function MarketplaceApp() {
                   </div>
                 </div>
                 <p className="text-[10px] text-justify text-slate-400 leading-normal mb-1 font-medium">
-                  *Todos los enfermeros inscritos en el PoC cuentan con cédula profesional certificada bajo normativas oficiales de salud.
+                  Todas las enfermeras verificadas con Sello de Confianza: PNC, Antecedentes Penales y registro CSSP.
                 </p>
               </div>
             </div>
-
-            {/* Daily Care Advice Section */}
-            <CareAdvice />
 
             {/* Comprehensive Search & Multi-Filters Panel */}
             <SearchFilters 
@@ -280,7 +262,6 @@ function MarketplaceApp() {
                   <span className="text-xs font-bold text-slate-600 uppercase tracking-widest pl-2">
                     Resultados ({filteredNurses.length})
                   </span>
-                  <span className="text-[10px] text-slate-400 font-medium">Actualizado hace unos instantes</span>
                 </div>
 
                 {filteredNurses.length === 0 ? (
@@ -423,12 +404,6 @@ function MarketplaceApp() {
         {activeTab === 'bookings' && (
           <Suspense fallback={<div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>}>
             <BookingsManager />
-          </Suspense>
-        )}
-
-        {activeTab === 'chat' && (
-          <Suspense fallback={<div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>}>
-            <ChatRoom />
           </Suspense>
         )}
 
