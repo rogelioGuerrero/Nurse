@@ -190,29 +190,13 @@ function MarketplaceApp() {
           <div className="space-y-6">
             
             {/* Elegant Hero card intro */}
-            <div className="bg-slate-900 rounded-3xl p-6 md:p-8 text-white shadow-md flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="bg-slate-900 rounded-3xl p-6 md:p-8 text-white shadow-md">
               <div className="space-y-3 z-10">
                 <h1 className="text-3xl md:text-4xl font-serif italic tracking-tight font-normal">
                   Cuidado de calidad en tu hogar.
                 </h1>
                 <p className="text-sm text-slate-300 leading-relaxed max-w-2xl">
                   Enfermeras profesionales verificadas para el cuidado de tus seres queridos. Filtra por cercanía, precio y especialidad.
-                </p>
-              </div>
-
-              <div className="bg-slate-950/45 border border-slate-800 p-5 rounded-2xl md:max-w-xs shrink-0 flex flex-col justify-between">
-                <div className="flex gap-3 mb-3">
-                  <div className="py-2.5 px-3 bg-slate-900/50 rounded-xl text-center flex-1 border border-slate-800">
-                    <span className="text-lg font-bold block text-indigo-400 font-serif italic">{nurses.length}</span>
-                    <span className="text-[9px] uppercase text-slate-400 font-bold">Enfermeras</span>
-                  </div>
-                  <div className="py-2.5 px-3 bg-slate-900/50 rounded-xl text-center flex-1 border border-slate-800">
-                    <span className="text-lg font-bold block text-indigo-400 font-serif italic">100%</span>
-                    <span className="text-[9px] uppercase text-slate-400 font-bold">Verificadas</span>
-                  </div>
-                </div>
-                <p className="text-[10px] text-slate-400 leading-normal font-medium">
-                  Cada enfermera pasa por verificación de antecedentes y documentos profesionales.
                 </p>
               </div>
             </div>
