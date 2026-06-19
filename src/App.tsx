@@ -13,6 +13,7 @@ import { BookingsManager } from './components/BookingsManager';
 import { ChatRoom } from './components/ChatRoom';
 import { NurseProfileEdit } from './components/NurseProfileEdit';
 import CareAdvice from './components/CareAdvice';
+import ClinicalAI from './components/ClinicalAI';
 import './lib/config-groq';
 import { 
   Stethoscope, Calendar, MessageSquare, Database, 
@@ -35,7 +36,7 @@ function MarketplaceApp() {
   // Search and general filtering states
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedSpecialization, setSelectedSpecialization] = useState<string>('');
-  const [maxRate, setMaxRate] = useState<number>(300);
+  const [maxRate, setMaxRate] = useState<number>(30);
   const [sortBy, setSortBy] = useState<string>('rating');
 
   // Extract all distinct specializations for robust select dropdowns
@@ -168,6 +169,19 @@ function MarketplaceApp() {
             >
               <MessageSquare className="h-4 w-4" />
               <span>Soporte & Chats</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('clinical-ai')}
+              className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'clinical-ai'
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+              id="tab-btn-clinical-ai"
+            >
+              <Sparkles className="h-4 w-4 text-amber-500" />
+              <span>Clínico IA</span>
             </button>
 
             {currentUser?.role === 'nurse' && (
@@ -341,7 +355,7 @@ function MarketplaceApp() {
                                 </p>
                               </div>
                               <div className="text-slate-800 text-right shrink-0">
-                                <span className="text-indigo-600 font-black text-lg block">${nurse.hourly_rate} MXN<span className="text-xs font-normal text-slate-400">/hr</span></span>
+                                <span className="text-indigo-600 font-black text-lg block">US$ {nurse.hourly_rate}<span className="text-xs font-normal text-slate-400">/hr</span></span>
                               </div>
                             </div>
 
@@ -413,6 +427,10 @@ function MarketplaceApp() {
 
         {activeTab === 'chat' && (
           <ChatRoom />
+        )}
+
+        {activeTab === 'clinical-ai' && (
+          <ClinicalAI />
         )}
 
         {activeTab === 'nurse-profile-edit' && (

@@ -372,7 +372,7 @@ export const MapComponent: React.FC<MapComponentProps> = ({
                     {item.nurse.specialization.join(', ')}
                   </p>
                   <p className="text-xs text-indigo-600 font-bold mt-0.5">
-                    ${item.nurse.hourly_rate} MXN/Hr <span className="text-slate-400 font-normal">| {item.distance} km de distancia</span>
+                    US$ {item.nurse.hourly_rate}/Hr <span className="text-slate-400 font-normal">| {item.distance} km de distancia</span>
                   </p>
                 </div>
               </div>

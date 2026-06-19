@@ -77,21 +77,21 @@ export const SearchFilters: React.FC<SearchFiltersProps> = ({
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
               Tarifa Máxima por Hora
             </label>
-            <span className="text-xs font-bold text-indigo-600">${maxRate} MXN</span>
+            <span className="text-xs font-bold text-indigo-600">US$ {maxRate}/hr</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-[10px] text-slate-400 font-semibold">$100</span>
+            <span className="text-[10px] text-slate-400 font-semibold">US$ 5</span>
             <input
               type="range"
-              min="100"
-              max="350"
-              step="10"
+              min="5"
+              max="40"
+              step="1"
               value={maxRate}
               onChange={(e) => setMaxRate(Number(e.target.value))}
               className="flex-1 accent-indigo-600 cursor-pointer h-1.5"
               id="slider-filter-maxrate"
             />
-            <span className="text-[10px] text-slate-400 font-semibold">$350</span>
+            <span className="text-[10px] text-slate-400 font-semibold">US$ 40</span>
           </div>
         </div>
 
