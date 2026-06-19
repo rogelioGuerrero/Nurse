@@ -288,7 +288,7 @@ export const NurseProfileEdit: FC = () => {
                   className={`text-xs font-semibold px-3.5 py-2 rounded-xl border transition cursor-pointer ${
                     isSelected 
                       ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' 
-                      : 'bg-white text-slate-600 border-slate-250 hover:bg-slate-50'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                   }`}
                   id={`btn-spec-toggle-${tag}`}
                 >

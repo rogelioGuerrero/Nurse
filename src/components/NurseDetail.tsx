@@ -542,7 +542,7 @@ export const NurseDetail: FC = () => {
               {/* Step 2: Patient Details */}
               {bookingStep === 2 && (
                 <div className="space-y-4">
-                  <div className="bg-slate-55 bg-indigo-50/20 p-4 border border-indigo-100 rounded-2xl mb-2">
+                  <div className="bg-indigo-50/20 p-4 border border-indigo-100 rounded-2xl mb-2">
                     <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-widest block mb-1">FICHA CLÍNICA DIGITAL DEL ADULTO MAYOR</span>
                     <p className="text-[11px] text-slate-500 font-medium">Esta ficha digital será enviada de forma inmediata al enfermero profesional y se anexará a su reporte.</p>
                   </div>

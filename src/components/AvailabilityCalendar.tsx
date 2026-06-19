@@ -94,8 +94,8 @@ export default function AvailabilityCalendar({ nurseId, isEditable = false }: Av
             <Calendar className="h-5 w-5 text-indigo-600" />
           </div>
           <div>
-            <h3 className="font-bold text-lg text-gray-900">Calendario de Disponibilidad</h3>
-            <p className="text-sm text-gray-500">Gestiona tus horarios disponibles</p>
+            <h3 className="font-bold text-lg text-slate-900">Calendario de Disponibilidad</h3>
+            <p className="text-sm text-slate-500">Gestiona tus horarios disponibles</p>
           </div>
         </div>
         
@@ -106,7 +106,7 @@ export default function AvailabilityCalendar({ nurseId, isEditable = false }: Av
           >
             ←
           </button>
-          <span className="font-semibold text-gray-700 min-w-[150px] text-center">
+          <span className="font-semibold text-slate-700 min-w-[150px] text-center">
             {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
           </span>
           <button
@@ -134,7 +134,7 @@ export default function AvailabilityCalendar({ nurseId, isEditable = false }: Av
       ) : (
         <div className="grid grid-cols-7 gap-2">
           {dayNames.map(day => (
-            <div key={day} className="text-center text-xs font-semibold text-gray-500 py-2">
+            <div key={day} className="text-center text-xs font-semibold text-slate-500 py-2">
               {day}
             </div>
           ))}
@@ -156,10 +156,10 @@ export default function AvailabilityCalendar({ nurseId, isEditable = false }: Av
                 className={`h-24 border rounded-lg p-2 ${
                   hasAvailability
                     ? isFullyAvailable
-                      ? 'bg-green-50 border-green-200'
+                      ? 'bg-emerald-50 border-emerald-200'
                       : isPartiallyAvailable
-                      ? 'bg-yellow-50 border-yellow-200'
-                      : 'bg-red-50 border-red-200'
+                      ? 'bg-amber-50 border-amber-200'
+                      : 'bg-rose-50 border-rose-200'
                     : 'bg-slate-50 border-slate-200'
                 }`}
               >
@@ -170,14 +170,14 @@ export default function AvailabilityCalendar({ nurseId, isEditable = false }: Av
                       <div
                         key={avail.id}
                         className={`text-xs p-1 rounded ${
-                          avail.is_available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          avail.is_available ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
                         }`}
                       >
                         {avail.start_time} - {avail.end_time}
                       </div>
                     ))}
                     {dayAvailability.length > 2 && (
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-slate-500">
                         +{dayAvailability.length - 2} más
                       </div>
                     )}
@@ -195,7 +195,7 @@ export default function AvailabilityCalendar({ nurseId, isEditable = false }: Av
             <h3 className="font-bold text-lg mb-4">Agregar Disponibilidad</h3>
             <form onSubmit={handleAddAvailability} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Fecha</label>
                 <input
                   type="date"
                   value={newAvailability.date}
@@ -206,7 +206,7 @@ export default function AvailabilityCalendar({ nurseId, isEditable = false }: Av
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Hora inicio</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Hora inicio</label>
                   <input
                     type="time"
                     value={newAvailability.start_time}
@@ -216,7 +216,7 @@ export default function AvailabilityCalendar({ nurseId, isEditable = false }: Av
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Hora fin</label>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Hora fin</label>
                   <input
                     type="time"
                     value={newAvailability.end_time}
@@ -234,11 +234,11 @@ export default function AvailabilityCalendar({ nurseId, isEditable = false }: Av
                     onChange={(e) => setNewAvailability({ ...newAvailability, is_available: e.target.checked })}
                     className="rounded"
                   />
-                  <span className="text-sm font-medium text-gray-700">Disponible</span>
+                  <span className="text-sm font-medium text-slate-700">Disponible</span>
                 </label>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Notas (opcional)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Notas (opcional)</label>
                 <textarea
                   value={newAvailability.notes}
                   onChange={(e) => setNewAvailability({ ...newAvailability, notes: e.target.value })}
