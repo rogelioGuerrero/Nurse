@@ -111,9 +111,9 @@ export const BookingsManager: React.FC = () => {
     setAiReportContent('');
     setAiReportLoading(true);
 
-    const apiKey = localStorage.getItem('groq_api_key');
+    const apiKey = import.meta.env.VITE_GROQ_API_KEY;
     if (!apiKey) {
-      setAiReportContent('No se ha configurado la clave API de Groq en esta sesión. Por favor, asegúrate de ingresar una Groq API Key en la consola para usar la inteligencia artificial clínica.');
+      setAiReportContent('El asistente clínico no está disponible en este momento. Contacta al administrador.');
       setAiReportLoading(false);
       return;
     }
@@ -708,9 +708,6 @@ export const BookingsManager: React.FC = () => {
                           <FileText className="h-3.5 w-3.5 text-slate-500" />
                           <span>Ver Recibo de Honorarios</span>
                         </button>
-                        {!isNurseView && (
-                          <span className="text-indigo-600 font-bold hover:underline cursor-pointer text-[11px]">Dejar Reseña Adicional</span>
-                        )}
                       </div>
                     </div>
                   )}
@@ -739,8 +736,8 @@ export const BookingsManager: React.FC = () => {
         const retencion = subtotal * 0.1;
         const liquido = subtotal * 0.9;
         
-        const cssNumber = Math.floor(1000 + Math.random() * 8999);
-        const duiNumber = `${Math.floor(10000000) - Math.floor(Math.random() * 10000000)}-${Math.floor(Math.random() * 9)}`;
+        const cssNumber = '—';
+        const duiNumber = '—';
 
         return (
           <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="receipt-modal-overlay">

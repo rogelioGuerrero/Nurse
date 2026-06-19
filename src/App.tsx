@@ -103,10 +103,6 @@ function MarketplaceApp() {
     return result;
   }, [nurses, profiles, debouncedSearch, selectedSpecialization, maxRate, sortBy]);
 
-  const handleNurseClick = (id: string) => {
-    setSelectedNurseId(id);
-  };
-
   const handleInspectNurse = (id: string) => {
     setSelectedNurseId(id);
     setActiveTab('nurse-detail');
@@ -271,7 +267,7 @@ function MarketplaceApp() {
                       return (
                         <div
                           key={nurse.id}
-                          onClick={() => handleNurseClick(nurse.id)}
+                          onClick={() => handleInspectNurse(nurse.id)}
                           className={`bg-white border rounded-2xl p-5 shadow-sm transition flex flex-col sm:flex-row gap-4 items-center sm:items-start cursor-pointer group ${
                             isSelected 
                               ? 'border-indigo-600 ring-1 ring-indigo-500' 

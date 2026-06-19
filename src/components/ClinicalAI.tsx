@@ -32,7 +32,7 @@ export default function ClinicalAI() {
     setLoading(true);
     setResponse('');
 
-    const apiKey = localStorage.getItem('groq_api_key');
+    const apiKey = import.meta.env.VITE_GROQ_API_KEY;
     if (!apiKey) {
       setResponse('El asistente clínico no está disponible en este momento. Contacta al administrador.');
       showToast('Clave de IA no configurada. Contacta al administrador.', 'error');
@@ -130,12 +130,8 @@ export default function ClinicalAI() {
     <div className="space-y-6 animate-fade-in" id="clinical-ai-container">
       
       {/* Premium Hero Title */}
-      <div className="bg-gradient-to-r from-indigo-850 to-indigo-950 rounded-3xl p-6 md:p-8 text-white shadow-md relative overflow-hidden subtle-dot-grid">
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 pointer-events-none">
-          <div className="absolute top-5 right-5 h-40 w-40 rounded-full border-4 border-dashed border-indigo-400 animate-spin-slow" />
-        </div>
-        
-        <div className="space-y-3 z-10 relative">
+      <div className="bg-gradient-to-r from-indigo-850 to-indigo-950 rounded-3xl p-6 md:p-8 text-white shadow-md">
+        <div className="space-y-3">
           <div className="inline-flex items-center gap-1.5 bg-indigo-600/35 border border-indigo-500/30 px-3.5 py-1.5 rounded-full text-indigo-200 font-bold tracking-wider text-[10px] uppercase">
             <Sparkles className="h-3.5 w-3.5" />
             Apoyo Clínico por Inteligencia Artificial

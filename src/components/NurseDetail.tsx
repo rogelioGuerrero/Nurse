@@ -41,12 +41,6 @@ export const NurseDetail: React.FC = () => {
   // Booking Progress Step (1: Selection, 2: Details, 3: Confirmation)
   const [bookingStep, setBookingStep] = useState<number>(1);
 
-  // Mini Calendar Navigation State
-  const [calendarMonth, setCalendarMonth] = useState<Date>(() => {
-    // Default to today
-    return new Date();
-  });
-
   // Status trigger handlers
   const [bookingSuccess, setBookingSuccess] = useState<boolean>(false);
   const [validationError, setValidationError] = useState<string>('');
@@ -79,58 +73,6 @@ export const NurseDetail: React.FC = () => {
 
   const hours = calculateHours();
   const totalPrice = hours * nurse.hourly_rate;
-
-  // Spanish names & days for Clean Utility Calendar
-  const MONTHS_ES = [
-    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-  ];
-  const WEEKDAYS_ES = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá'];
-
-  const getDaysInMonth = (dateObj: Date) => {
-    const year = dateObj.getFullYear();
-    const month = dateObj.getMonth();
-    const firstDayIndex = new Date(year, month, 1).getDay(); 
-    const numDays = new Date(year, month + 1, 0).getDate();
-    
-    const days: (Date | null)[] = [];
-    for (let i = 0; i < firstDayIndex; i++) {
-      days.push(null);
-    }
-    for (let d = 1; d <= numDays; d++) {
-      days.push(new Date(year, month, d));
-    }
-    return days;
-  };
-
-  const isDayBooked = (day: Date) => {
-    if (!nurse) return false;
-    const year = day.getFullYear();
-    const month = String(day.getMonth() + 1).padStart(2, '0');
-    const dayStr = String(day.getDate()).padStart(2, '0');
-    const formatted = `${year}-${month}-${dayStr}`;
-    return bookings.some(b => 
-      b.nurse_id === nurse.id && 
-      b.date === formatted && 
-      b.status !== 'cancelled'
-    );
-  };
-
-  const isDayPast = (day: Date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const compareDay = new Date(day.getFullYear(), day.getMonth(), day.getDate());
-    return compareDay < today;
-  };
-
-  const selectDay = (day: Date) => {
-    const year = day.getFullYear();
-    const month = String(day.getMonth() + 1).padStart(2, '0');
-    const dayStr = String(day.getDate()).padStart(2, '0');
-    const fullDateVal = `${year}-${month}-${dayStr}`;
-    setDate(fullDateVal);
-    setValidationError('');
-  };
 
   const handleNextToDetails = () => {
     setValidationError('');
@@ -232,8 +174,6 @@ export const NurseDetail: React.FC = () => {
     }
   };
 
-  const daysInMonthList = getDaysInMonth(calendarMonth);
-
   return (
     <div className="space-y-6" id="nurse-detail-container">
       
@@ -258,23 +198,16 @@ export const NurseDetail: React.FC = () => {
           <div>
             <h3 className="text-xl font-bold text-emerald-900">¡Reserva enviada con éxito!</h3>
             <p className="text-sm text-emerald-700 mt-2 max-w-lg mx-auto">
-              Se ha solicitado tu cita y se ha abierto un chat automático con <strong>{profile.full_name}</strong>. Puedes comunicarte directamente para coordinar aspectos adicionales de la visita.
+              Se ha solicitado tu cita con <strong>{profile.full_name}</strong>. Puedes coordinar directamente por WhatsApp.
             </p>
           </div>
-          <div className="flex flex-col sm:flex-row justify-center gap-3 pt-3">
+          <div className="flex justify-center pt-3">
             <button
               onClick={() => setActiveTab('bookings')}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition cursor-pointer"
               id="btn-nav-bookings"
             >
               Ver mis Solicitudes
-            </button>
-            <button
-              onClick={() => setActiveTab('chat')}
-              className="bg-white hover:bg-slate-50 text-emerald-800 font-semibold text-sm px-5 py-2.5 rounded-xl border border-emerald-200 transition cursor-pointer"
-              id="btn-nav-chats"
-            >
-              Ir a Mensajes
             </button>
           </div>
         </div>
@@ -410,7 +343,7 @@ export const NurseDetail: React.FC = () => {
                       <span className="w-5 h-5 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-[10px] font-bold">✓</span>
                       <div>
                         <span className="text-[10px] font-black text-slate-800 block">Registro del CSSP</span>
-                        <span className="text-[9px] text-slate-450 font-semibold block">CSSP N° {Math.floor(1000 + Math.random() * 9000)} - Activo</span>
+                        <span className="text-[9px] text-slate-450 font-semibold block">Consejo Superior de Salud Pública</span>
                       </div>
                     </div>
 
@@ -427,43 +360,6 @@ export const NurseDetail: React.FC = () => {
                     <span className="text-amber-500 font-black">ⓘ</span>
                     <span>Los enfermeros autorizan periódicamente la actualización de sus antecedentes legales salvadoreños ante nuestro equipo regulador.</span>
                   </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Testimonials */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <Star className="h-5 w-5 text-indigo-500" />
-                Opiniones Recientes ({nurse.review_count})
-              </h3>
-              <div className="space-y-4">
-                <div className="border-b border-slate-100 pb-4">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-semibold text-xs text-slate-800">Familia Velázquez S.</span>
-                    <div className="flex gap-0.5">
-                      {[1, 2, 3, 4, 5].map(s => (
-                        <Star key={s} className="h-3 w-3 fill-amber-400 text-amber-400" />
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-500 leading-relaxed font-normal">
-                    "Increíble trato con nuestra madre que sufre de demencia tipo Alzheimer. Muy puntual y paciente a la hora de las comidas. Total tranquilidad para toda la familia."
-                  </p>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="font-semibold text-xs text-slate-800">Roberto Lozano (Hijo)</span>
-                    <div className="flex gap-0.5">
-                      {[1, 2, 3, 4, 5].map(s => (
-                        <Star key={s} className="h-3 w-3 fill-amber-400 text-amber-400" />
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-500 leading-relaxed font-normal">
-                    "Excelente profesional para curación de heridas complejas y asistencia en la toma de medicamentos. Estuvo a cargo del postoperatorio de mi padre y su recuperación fue exitosa."
-                  </p>
                 </div>
               </div>
             </div>
@@ -563,108 +459,6 @@ export const NurseDetail: React.FC = () => {
                     <p className="mt-1.5 text-[10px] text-slate-500 leading-normal">
                       <strong>Horario preferido:</strong> {nurse.availability}
                     </p>
-                  </div>
-
-                  {/* Custom Mini Calendar */}
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3.5 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 block">Calendario de Disponibilidad</span>
-                      
-                      <div className="flex items-center gap-1.5">
-                        <button 
-                          type="button" 
-                          onClick={() => {
-                            setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1));
-                          }}
-                          className="p-1 hover:bg-slate-200/60 rounded-lg text-slate-600 transition flex items-center justify-center cursor-pointer"
-                          title="Mes anterior"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </button>
-                        <span className="text-xs font-bold text-slate-700 min-w-[90px] text-center capitalize">
-                          {MONTHS_ES[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
-                        </span>
-                        <button 
-                          type="button" 
-                          onClick={() => {
-                            setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1));
-                          }}
-                          className="p-1 hover:bg-slate-200/60 rounded-lg text-slate-600 transition flex items-center justify-center cursor-pointer"
-                          title="Siguiente mes"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Weekday Titles */}
-                    <div className="grid grid-cols-7 gap-1 text-center border-b border-slate-200/50 pb-1">
-                      {WEEKDAYS_ES.map((label, idx) => (
-                        <span key={idx} className="text-[10px] font-bold text-slate-400 capitalize">
-                          {label}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Days grid */}
-                    <div className="grid grid-cols-7 gap-1">
-                      {daysInMonthList.map((day, idx) => {
-                        if (!day) return <div key={`empty-${idx}`} className="h-8" />;
-
-                        const year = day.getFullYear();
-                        const month = String(day.getMonth() + 1).padStart(2, '0');
-                        const dayStr = String(day.getDate()).padStart(2, '0');
-                        const dateVal = `${year}-${month}-${dayStr}`;
-
-                        const isSelected = date === dateVal;
-                        const isPast = isDayPast(day);
-                        const isBooked = isDayBooked(day);
-
-                        let cellClasses = "h-8 w-full flex items-center justify-center text-xs font-semibold rounded-xl select-none transition-all duration-150 ";
-                        let isDisabled = false;
-
-                        if (isPast) {
-                          cellClasses += "text-slate-300 cursor-not-allowed";
-                          isDisabled = true;
-                        } else if (isBooked) {
-                          cellClasses += "bg-amber-50 text-amber-700 line-through border border-amber-200/60 cursor-not-allowed font-semibold p-1";
-                          isDisabled = true;
-                        } else if (isSelected) {
-                          cellClasses += "bg-indigo-600 text-white font-bold ring-2 ring-indigo-100 shadow-sm";
-                        } else {
-                          cellClasses += "text-slate-700 hover:bg-slate-200 cursor-pointer hover:scale-105 active:scale-95";
-                        }
-
-                        return (
-                          <button
-                            key={`cal-day-${idx}-${day.getDate()}`}
-                            type="button"
-                            disabled={isDisabled}
-                            onClick={() => selectDay(day)}
-                            className={cellClasses}
-                            title={isBooked ? "Ocupado (Reservado)" : isPast ? "Fecha pasada" : `Seleccionar ${dateVal}`}
-                          >
-                            {day.getDate()}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Legends */}
-                    <div className="flex items-center justify-between text-[9px] text-slate-400 border-t border-slate-200/60 pt-2 font-medium">
-                      <div className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-slate-250 border border-slate-300" />
-                        <span>Disponible</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-amber-100 border border-amber-300" />
-                        <span className="text-amber-600 font-semibold">Ocupado</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-indigo-600" />
-                        <span className="text-indigo-600 font-bold">Seleccionado</span>
-                      </div>
-                    </div>
                   </div>
 
                   <div>
