@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;1,400;1,600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-indigo-50: #f0fdfa;
+  --color-indigo-100: #ccfbf1;
+  --color-indigo-200: #99f6e4;
+  --color-indigo-300: #5eead4;
+  --color-indigo-400: #2dd4bf;
+  --color-indigo-500: #14b8a6;
+  --color-indigo-600: #0d9488;
+  --color-indigo-700: #0f766e;
+  --color-indigo-800: #115e59;
+  --color-indigo-900: #134e4a;
+  --color-indigo-950: #042f2e;
+
+  /* Warm slate/gray scale for the Clean Utility bone/minimal theme */
+  --color-slate-50: #F5F5F0;
+  --color-slate-100: #EEEEEA;
+  --color-slate-200: #E5E5E0;
+  --color-slate-300: #D6D6CE;
+  --color-slate-400: #8E8E85;
+  --color-slate-500: #6A6A60;
+  --color-slate-600: #4B4B42;
+  --color-slate-700: #33332D;
+  --color-slate-800: #22221D;
+  --color-slate-900: #11110D;
+  --color-slate-950: #080805;
+
+  --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", "Georgia", serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+/* Base resets & custom additions for minimal design look */
+body {
+  background-color: #F5F5F0;
+  color: #11110D;
+}
+
+/* Custom background pattern from the Minimal theme layout */
+.subtle-dot-grid {
+  position: relative;
+}
+.subtle-dot-grid::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.15;
+  pointer-events: none;
+  background-image: radial-gradient(#11110D 0.5px, transparent 0.5px);
+  background-size: 20px 20px;
+}

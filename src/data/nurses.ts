@@ -1,0 +1,157 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import { Profile, Nurse } from '../types';
+
+export const INITIAL_PROFILES: Profile[] = [
+  {
+    id: 'p-1',
+    email: 'elena.gomez@localnurse.com',
+    role: 'nurse',
+    full_name: 'Lic. Elena Gómez',
+    avatar_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
+    phone: '+52 55 4321 8765',
+    location_name: 'Polanco, CDMX',
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'p-2',
+    email: 'carlos.mendoza@localnurse.com',
+    role: 'nurse',
+    full_name: 'Enf. Carlos Mendoza',
+    avatar_url: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=200',
+    phone: '+52 55 8765 4321',
+    location_name: 'Roma Norte, CDMX',
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'p-3',
+    email: 'sofia.rodriguez@localnurse.com',
+    role: 'nurse',
+    full_name: 'Mtra. Sofía Rodríguez',
+    avatar_url: 'https://images.unsplash.com/photo-1594824813573-246434de83fb?auto=format&fit=crop&q=80&w=200',
+    phone: '+52 55 3344 5566',
+    location_name: 'Coyoacán, CDMX',
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'p-4',
+    email: 'miguel.angel@localnurse.com',
+    role: 'nurse',
+    full_name: 'Enf. Miguel Ángel Ramos',
+    avatar_url: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=200',
+    phone: '+52 55 1122 3344',
+    location_name: 'Condesa, CDMX',
+    updated_at: new Date().toISOString(),
+  },
+  {
+    id: 'p-5',
+    email: 'isabel.castro@localnurse.com',
+    role: 'nurse',
+    full_name: 'Dra. Isabel Castro',
+    avatar_url: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=200',
+    phone: '+52 55 9988 7766',
+    location_name: 'Del Valle, CDMX',
+    updated_at: new Date().toISOString(),
+  },
+];
+
+export const INITIAL_NURSES: Nurse[] = [
+  {
+    id: 'n-1',
+    user_id: 'p-1',
+    specialization: ['Geriatría', 'Demencia y Alzheimer', 'Inyecciones'],
+    hourly_rate: 180, // in MXN or dynamic representation
+    coverage_radius: 8,
+    availability: 'Lunes a Viernes (08:00 - 18:00)',
+    rating: 4.9,
+    review_count: 24,
+    lat: 19.4326, // Polanco center approx
+    lng: -99.1933,
+    bio: 'Enfermera licenciada con más de 8 años de experiencia especializada exclusivamente en el cuidado del adulto mayor con trastornos cognitivos como Alzheimer. Ofrezco terapia ocupacional básica, administración precisa de medicamentos y acompañamiento cognitivo.',
+    experience_years: 8,
+    certifications: [
+      'Licenciatura en Enfermería (UNAM)',
+      'Diplomado en Cuidado Integral del Adulto Mayor (INDEP)',
+      'Certificación internacional de atención en Alzheimer y Demencias'
+    ]
+  },
+  {
+    id: 'n-2',
+    user_id: 'p-2',
+    specialization: ['Postoperatorio', 'Curaciones complejas', 'Fisioterapia Básica'],
+    hourly_rate: 220,
+    coverage_radius: 5,
+    availability: 'Lunes a Sábado, Turno Nocturno (20:00 - 06:00)',
+    rating: 4.8,
+    review_count: 18,
+    lat: 19.4143, // Roma Norte approx
+    lng: -99.1601,
+    bio: 'Especialista en curaciones de heridas posquirúrgicas, movilización de pacientes con movilidad reducida y rehabilitación física básica tras fracturas. Comprometido con la comodidad, seguridad y el trato empático y respetuoso del adulto mayor.',
+    experience_years: 6,
+    certifications: [
+      'Técnico Superior Universitario en Enfermería',
+      'Certificación avalada en Soporte Vital Avanzado (ACLS)',
+      'Especialista en Cuidados Críticos y Terapia de Infusión'
+    ]
+  },
+  {
+    id: 'n-3',
+    user_id: 'p-3',
+    specialization: ['Geriatría', 'Manejo de Sondas', 'Cuidados Paliativos'],
+    hourly_rate: 200,
+    coverage_radius: 12,
+    availability: 'Fin de Semana Completo (Sáb/Dom 24 hrs)',
+    rating: 5.0,
+    review_count: 32,
+    lat: 19.3497, // Coyoacán approx
+    lng: -99.1611,
+    bio: 'Maestría en Tanatología y enfermería paliativa avanzada. Ofrezco acompañamiento cálido y control del dolor para pacientes con enfermedades en etapas avanzadas, manejo e instalación de sondas enterales, vesicales y asistencia nutricional de alta precisión.',
+    experience_years: 12,
+    certifications: [
+      'Licenciatura en Enfermería y Obstetricia (ENEO-UNAM)',
+      'Maestría en Tanatología y Acompañamiento Emocional',
+      'Curso Superior Universitario de Farmacología en Terapia Paliativa'
+    ]
+  },
+  {
+    id: 'n-4',
+    user_id: 'p-4',
+    specialization: ['Monitoreo Cardíaco', 'Postoperatorio', 'Control de Diabetes'],
+    hourly_rate: 195,
+    coverage_radius: 6,
+    availability: 'Flexible (Días hábiles y fines de semana)',
+    rating: 4.7,
+    review_count: 15,
+    lat: 19.4111, // Condesa approx
+    lng: -99.1729,
+    bio: 'Experiencia en cuidados cardiovasculares crónicos y monitoreo de constantes vitales en pacientes con hipertensión severa o insuficiencia cardíaca. Experto en control riguroso de diabetes (curva de insulina, glucometrías seriadas y nutrición adaptada).',
+    experience_years: 5,
+    certifications: [
+      'Licenciatura y Cédula Profesional Federal de Enfermería',
+      'Certificado en Atención Integral al Paciente Diabético',
+      'Taller Avanzado en RCP y Primeros Auxilios'
+    ]
+  },
+  {
+    id: 'n-5',
+    user_id: 'p-5',
+    specialization: ['Geriatría', 'Nutrición asistida', 'Demencia y Alzheimer'],
+    hourly_rate: 250,
+    coverage_radius: 10,
+    availability: 'Lunes a Viernes (09:00 - 15:00)',
+    rating: 4.9,
+    review_count: 40,
+    lat: 19.3828, // Del Valle approx
+    lng: -99.1652,
+    bio: 'Médico graduada reconvertida con pasión al cuidado directo de enfermería gerontológica personalizada. Combino sólida comprensión clínica con una inigualable calidad humana para estructurar planes diarios de caminatas, estimulación mental y hábitos de vida saludables.',
+    experience_years: 15,
+    certifications: [
+      'Título Profesional en Medicina y Enfermería',
+      'Especialidad Certificada en Nutrición Clínica del Adulto Mayor',
+      'Secretaria de Salud - Registro y Cédula del Consejo de Gerontología'
+    ]
+  }
+];
