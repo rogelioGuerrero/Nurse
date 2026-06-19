@@ -111,36 +111,8 @@ export const NurseDetail: FC = () => {
     e.preventDefault();
     setValidationError('');
 
-    if (!date) {
-      setValidationError('Por favor selecciona una fecha válida.');
-      setBookingStep(1);
-      return;
-    }
-    if (hours <= 0) {
-      setValidationError('La hora de fin debe ser posterior a la hora de inicio.');
-      setBookingStep(1);
-      return;
-    }
-    if (hours < 2) {
-      setValidationError('La reserva mínima debe ser de al menos 2 horas.');
-      setBookingStep(1);
-      return;
-    }
-    if (!patientName.trim()) {
-      setValidationError('Se requiere el nombre del paciente adulto mayor.');
-      setBookingStep(2);
-      return;
-    }
-    if (!patientCondition.trim()) {
-      setValidationError('Indica un breve resumen de las condiciones físicas o cognitivas para mejor asignación.');
-      setBookingStep(2);
-      return;
-    }
-    if (!emergencyContact.trim()) {
-      setValidationError('Se requiere un contacto de emergencia (Nombre y Teléfono).');
-      setBookingStep(2);
-      return;
-    }
+    // Validation is already enforced by the stepper (handleNextToDetails + handleNextToConfirmation)
+    // before reaching step 3, so we can proceed directly to booking creation.
 
     // Prepare packed fields for high compatibility with standard schema
     const packedCondition = `${patientCondition} [Autonomía: ${autonomyLevel}] [Alergias: ${patientAllergies || 'Ninguna'}] [Medicamentos: ${chronicMedications || 'Ninguno'}] [Emergencia: ${emergencyContact}]`;

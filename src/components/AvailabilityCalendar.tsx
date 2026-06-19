@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, type FormEvent } from 'react';
 import { Calendar, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Availability } from '../types';
@@ -27,7 +27,7 @@ export default function AvailabilityCalendar({ nurseId, isEditable = false }: Av
     notes: ''
   });
 
-  const loadAvailability = async () => {
+  const loadAvailability = useCallback(async () => {
     try {
       setLoading(true);
       const startDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
@@ -44,11 +44,11 @@ export default function AvailabilityCalendar({ nurseId, isEditable = false }: Av
     } finally {
       setLoading(false);
     }
-  };
+  }, [nurseId, currentMonth, getAvailability]);
 
   useEffect(() => {
     loadAvailability();
-  }, [nurseId, currentMonth]);
+  }, [loadAvailability]);
 
   const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();

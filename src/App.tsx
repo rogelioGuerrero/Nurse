@@ -15,6 +15,12 @@ import {
   Heart, Users, ChevronRight, GraduationCap, Network, MapPinned, MessageCircle
 } from 'lucide-react';
 
+const LoadingSpinner = () => (
+  <div className="flex justify-center py-20">
+    <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+  </div>
+);
+
 const NurseDetail = lazy(() => import('./components/NurseDetail').then(m => ({ default: m.NurseDetail })));
 const BookingsManager = lazy(() => import('./components/BookingsManager').then(m => ({ default: m.BookingsManager })));
 const NurseProfileEdit = lazy(() => import('./components/NurseProfileEdit').then(m => ({ default: m.NurseProfileEdit })));
@@ -355,25 +361,25 @@ function MarketplaceApp() {
         )}
 
         {activeTab === 'nurse-detail' && (
-          <Suspense fallback={<div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>}>
+          <Suspense fallback={<LoadingSpinner />}>
             <NurseDetail />
           </Suspense>
         )}
 
         {activeTab === 'bookings' && (
-          <Suspense fallback={<div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>}>
+          <Suspense fallback={<LoadingSpinner />}>
             <BookingsManager />
           </Suspense>
         )}
 
         {activeTab === 'clinical-ai' && (
-          <Suspense fallback={<div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>}>
+          <Suspense fallback={<LoadingSpinner />}>
             <ClinicalAI />
           </Suspense>
         )}
 
         {activeTab === 'nurse-profile-edit' && (
-          <Suspense fallback={<div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" /></div>}>
+          <Suspense fallback={<LoadingSpinner />}>
             <NurseProfileEdit />
           </Suspense>
         )}
