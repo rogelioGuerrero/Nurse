@@ -7,7 +7,7 @@ Plataforma marketplace para conectar familias con enfermeras profesionales de cu
 - Busqueda y filtrado de enfermeras por especializacion, tarifa y ubicacion
 - Mapa interactivo con cobertura geografica de El Salvador
 - Sistema de reservas con calendario de disponibilidad
-- Chat en tiempo real entre familias y enfermeras
+- Integracion con WhatsApp para comunicacion directa familia-enfermera
 - Asistente clinico con IA (Groq + Llama-3)
 - Calculadora tributaria de El Salvador (Art. 156 Codigo Tributario)
 - Sello de Confianza: verificacion de PNC, Antecedentes Penales, CSSP y DUI
@@ -47,7 +47,7 @@ npm run build
 
 ```
 src/
-  components/    Componentes UI (MapComponent, NurseDetail, ChatRoom, etc.)
+  components/    Componentes UI (MapComponent, NurseDetail, BookingsManager, etc.)
   context/       AppContext - estado global y persistencia local
   data/          Datos iniciales mock (nurses, profiles)
   lib/           Configuracion de Supabase y Groq AI

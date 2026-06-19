@@ -1,6 +1,6 @@
 /**
  * @license
- * SPDX-License-Identifier: Apache-2.5
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 import { useState, useMemo, useEffect, lazy, Suspense } from 'react';

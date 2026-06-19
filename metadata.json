@@ -2,5 +2,5 @@
   "name": "LocalNurse",
   "description": "Marketplace que conecta familias con enfermeras profesionales para la atención domiciliaria de adultos mayores.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GROQ_API"]
 }

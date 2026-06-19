@@ -1,16 +1,6 @@
 # Instrucciones de Configuración
 
-## 1. Aplicar Migración SQL en Supabase
-
-1. Ir a https://supabase.com/dashboard
-2. Seleccionar el proyecto (zqgtkrqfyhcvgagjhbnv)
-3. Ir a SQL Editor
-4. Copiar el contenido de `src/lib/supabase-migrations/availability.sql`
-5. Pegar en el SQL Editor
-6. Hacer clic en "Run" para ejecutar la migración
-7. Verificar que la tabla `availability` se creó correctamente
-
-## 2. Configurar API Key de Groq en Netlify
+## 1. Configurar API Key de Groq en Netlify
 
 ### Opción A: A través del Dashboard
 1. Ir a https://app.netlify.com/
@@ -28,20 +18,19 @@ netlify env:set VITE_GROQ_API_KEY (tu-api-key)
 netlify deploy --prod
 ```
 
-## 3. Verificar Despliegue
+## 2. Verificar Despliegue
 
 1. Ir a https://localnurse.netlify.app
-2. Verificar que Care Advice muestre consejos diarios
+2. Verificar que el asistente clínico IA funcione
 3. Verificar que el calendario de disponibilidad funcione en NurseDetail
 4. Revisar console por errores
 
 ## Características Implementadas
 
-### Care Advice (Groq API)
-- Consejos diarios de cuidado de adultos mayores
-- Categorizados: nutrición, seguridad, bienestar, medicación, social
-- Caché de 24h para optimización
-- Usa Llama 3.1 70B
+### Asistente Clínico IA (Groq API)
+- Asistente con Llama-3 para familias y enfermeras
+- Sugerencias rápidas y preguntas personalizadas
+- Configurado vía Groq API
 
 ### Disponibilidad en Tiempo Real
 - Tabla `availability` en Supabase

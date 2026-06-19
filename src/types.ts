@@ -22,7 +22,7 @@ export interface Nurse {
   id: string; // UUID
   user_id: string; // profiles FK
   specialization: string[]; // List of specializations, e.g., ["Geriatría", "Postoperatorio", "Demencia"]
-  hourly_rate: number; // Tariff hourly rate in local currency (e.g. MXN, COP, USD)
+  hourly_rate: number; // Tariff hourly rate in USD
   coverage_radius: number; // in kilometers (km)
   availability: string; // descriptive text or simple JSON, e.g., "Lunes a Viernes, Turno Completo"
   rating: number;
