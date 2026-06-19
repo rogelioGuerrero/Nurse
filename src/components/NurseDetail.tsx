@@ -5,6 +5,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import AvailabilityCalendar from './AvailabilityCalendar';
 import { 
   Star, Clock, ChevronLeft, ChevronRight, MapPin, Award, ShieldCheck, 
   MessageSquare, Calendar, Stethoscope, AlertCircle, Heart, CheckCircle2 
@@ -397,6 +398,9 @@ export const NurseDetail: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* Availability Calendar */}
+            <AvailabilityCalendar nurseId={nurse.id} isEditable={false} />
 
           </div>
 

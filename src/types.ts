@@ -65,3 +65,15 @@ export interface ChatRoom {
   last_message_content?: string;
   last_message_time?: string;
 }
+
+export interface Availability {
+  id: string;
+  nurse_id: string;
+  date: string; // YYYY-MM-DD
+  start_time: string; // HH:MM
+  end_time: string; // HH:MM
+  is_available: boolean;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+}

@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Profile, Nurse, Booking, Message, ChatRoom, UserRole, BookingStatus } from '../types';
+import { Profile, Nurse, Booking, Message, ChatRoom, UserRole, BookingStatus, Availability } from '../types';
 import { INITIAL_PROFILES, INITIAL_NURSES } from '../data/nurses';
 import { supabase } from '../lib/supabase';
 
@@ -14,6 +14,7 @@ interface AppContextType {
   bookings: Booking[];
   messages: Message[];
   chatRooms: ChatRoom[];
+  availability: Availability[];
   currentUser: Profile | null;
   currentNurse: Nurse | null; // loaded if current user is a nurse
   switchUserRole: (role: UserRole) => void;
@@ -23,6 +24,10 @@ interface AppContextType {
   updateBookingStatus: (bookingId: string, status: BookingStatus) => Promise<void>;
   sendMessage: (chatRoomId: string, content: string) => Promise<void>;
   getOrCreateChatRoom: (userId: string, nurseId: string) => Promise<ChatRoom>;
+  getAvailability: (nurseId: string, startDate: string, endDate: string) => Promise<Availability[]>;
+  addAvailability: (availabilityData: Omit<Availability, 'id' | 'created_at' | 'updated_at'>) => Promise<Availability>;
+  updateAvailability: (id: string, availabilityData: Partial<Availability>) => Promise<void>;
+  deleteAvailability: (id: string) => Promise<void>;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   selectedNurseId: string | null;
@@ -115,6 +120,8 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       }
     ];
   });
+
+  const [availability, setAvailability] = useState<Availability[]>([]);
 
   // Global settings/view state
   const [activeTab, setActiveTab] = useState<string>('home');
@@ -439,6 +446,65 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return newRoom;
   };
 
+  // Availability functions
+  const getAvailability = async (nurseId: string, startDate: string, endDate: string): Promise<Availability[]> => {
+    const { data, error } = await supabase
+      .from('availability')
+      .select('*')
+      .eq('nurse_id', nurseId)
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  };
+
+  const addAvailability = async (availabilityData: Omit<Availability, 'id' | 'created_at' | 'updated_at'>): Promise<Availability> => {
+    const { data, error } = await supabase
+      .from('availability')
+      .insert(availabilityData)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    const newAvailability: Availability = {
+      id: data.id,
+      nurse_id: data.nurse_id,
+      date: data.date,
+      start_time: data.start_time,
+      end_time: data.end_time,
+      is_available: data.is_available,
+      notes: data.notes,
+      created_at: data.created_at,
+      updated_at: data.updated_at
+    };
+
+    setAvailability(prev => [...prev, newAvailability]);
+    return newAvailability;
+  };
+
+  const updateAvailability = async (id: string, availabilityData: Partial<Availability>): Promise<void> => {
+    const { error } = await supabase
+      .from('availability')
+      .update(availabilityData)
+      .eq('id', id);
+
+    if (error) throw error;
+    setAvailability(prev => prev.map(a => a.id === id ? { ...a, ...availabilityData } : a));
+  };
+
+  const deleteAvailability = async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('availability')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    setAvailability(prev => prev.filter(a => a.id !== id));
+  };
+
   return (
     <AppContext.Provider value={{
       profiles,
@@ -446,6 +512,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       bookings,
       messages,
       chatRooms,
+      availability,
       currentUser,
       currentNurse,
       switchUserRole,
@@ -455,6 +522,10 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       updateBookingStatus,
       sendMessage,
       getOrCreateChatRoom,
+      getAvailability,
+      addAvailability,
+      updateAvailability,
+      deleteAvailability,
       activeTab,
       setActiveTab,
       selectedNurseId,
