@@ -38,6 +38,7 @@ interface AppContextType {
   nurses: Nurse[];
   bookings: Booking[];
   currentUser: Profile | null;
+  switchUser: (profile: Profile) => void;
   currentNurse: Nurse | null;
   updateProfile: (profileData: Partial<Profile>) => void;
   updateNurseProfile: (nurseData: Partial<Nurse>) => void;
@@ -438,12 +439,18 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const switchUser = (profile: Profile) => {
+    setCurrentUser(profile);
+    setActiveTab('home');
+  };
+
   return (
     <AppContext.Provider value={{
       profiles,
       nurses,
       bookings,
       currentUser,
+      switchUser,
       currentNurse,
       updateProfile,
       updateNurseProfile,

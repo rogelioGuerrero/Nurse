@@ -34,7 +34,8 @@ function MarketplaceApp() {
   const { 
     nurses, 
     profiles, 
-    currentUser, 
+    currentUser,
+    switchUser,
     activeTab, 
     setActiveTab,
     selectedNurseId,
@@ -236,6 +237,25 @@ function MarketplaceApp() {
             )}
 
           </nav>
+
+          {/* Demo role switcher */}
+          <div className="hidden md:flex items-center gap-2 ml-2 pl-3 border-l border-slate-200">
+            <span className="text-[10px] font-bold text-slate-400 uppercase">Demo:</span>
+            <select
+              value={currentUser?.id || ''}
+              onChange={e => {
+                const p = profiles.find(p => p.id === e.target.value);
+                if (p) switchUser(p);
+              }}
+              className="text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none"
+            >
+              {profiles.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.role === 'nurse' ? '🏥' : '🏠'} {p.full_name}
+                </option>
+              ))}
+            </select>
+          </div>
 
         </div>
       </header>
