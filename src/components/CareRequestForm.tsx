@@ -328,8 +328,7 @@ export const CareRequestForm: FC = () => {
         </div>
       ) : (
         /* Form state */
-        <div className="grid md:grid-cols-3 gap-6">
-          <div className="md:col-span-2 space-y-5">
+        <div className="max-w-2xl mx-auto space-y-5">
           {/* Patient info */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
             <h2 className="font-bold text-slate-800 flex items-center gap-2">
@@ -416,9 +415,6 @@ export const CareRequestForm: FC = () => {
                   }`}
                 >
                   {spec}
-                  <span className={`block text-[10px] font-normal mt-0.5 ${specializationNeeded === spec ? 'text-indigo-200' : 'text-slate-400'}`}>
-                    ${getFamilyPrice(spec)}/h
-                  </span>
                 </button>
               ))}
             </div>
@@ -495,46 +491,13 @@ export const CareRequestForm: FC = () => {
           {/* Action button */}
           <button
             onClick={handlePublish}
-            disabled={!patientName || !patientCondition || slots.some(s => !s.date)}
+            disabled={!patientName || (conditionTags.length === 0 && !conditionExtra.trim()) || slots.some(s => !s.date)}
             className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
           >
             <Send className="h-5 w-5" />
             Enviar solicitud
           </button>
         </div>
-
-        {/* Sidebar - Price summary */}
-        <div className="space-y-4">
-          <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 space-y-3 sticky top-24">
-            <h3 className="font-bold text-indigo-900 text-sm">Resumen de costos</h3>
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-slate-600">Especialización</span>
-                <span className="font-bold text-slate-800">{specializationNeeded}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">Tarifa por hora</span>
-                <span className="font-bold text-slate-800">${familyPrice}/h</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">Días solicitados</span>
-                <span className="font-bold text-slate-800">{slots.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-600">Total horas</span>
-                <span className="font-bold text-slate-800">{totalHours.toFixed(1)}h</span>
-              </div>
-              <div className="border-t border-indigo-200 pt-2 flex justify-between">
-                <span className="font-bold text-slate-700">Estimado total</span>
-                <span className="font-black text-indigo-700 text-lg">${estimatedTotal.toFixed(0)}</span>
-              </div>
-            </div>
-            <p className="text-[10px] text-slate-500 leading-relaxed">
-              Tarifa estándar por especialización. El precio final se calcula según las horas confirmadas.
-            </p>
-          </div>
-        </div>
-      </div>
       )}
     </div>
   );
