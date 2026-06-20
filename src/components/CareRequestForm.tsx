@@ -1,7 +1,7 @@
 import { useState, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { getAllSpecializations, getFamilyPrice } from '../data/standardRates';
-import { Heart, MapPin, Calendar, Clock, PlusCircle, Trash2, Stethoscope, Star, CheckCircle2, AlertCircle, User, ChevronRight, Send } from 'lucide-react';
+import { Heart, MapPin, Calendar, Clock, PlusCircle, Trash2, Stethoscope, Star, CheckCircle2, AlertCircle, User, ChevronRight, Send, Crosshair, Loader2 } from 'lucide-react';
 
 interface CareRequestSlot {
   date: string;
@@ -32,6 +32,38 @@ export const CareRequestForm: FC = () => {
 
   const [published, setPublished] = useState(false);
   const [publishedRequestId, setPublishedRequestId] = useState<string | null>(null);
+  const [locating, setLocating] = useState(false);
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=16&addressdetails=1`,
+            { headers: { 'Accept-Language': 'es' } }
+          );
+          const data = await res.json();
+          const addr = data.address || {};
+          const parts = [
+            addr.road || addr.neighbourhood,
+            addr.suburb || addr.city_district,
+            addr.city || addr.town || addr.village || addr.municipality,
+            addr.state
+          ].filter(Boolean);
+          setLocationName(parts.join(', ') || data.display_name?.split(',').slice(0, 3).join(',') || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        } catch {
+          setLocationName(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const familyPrice = getFamilyPrice(specializationNeeded);
   const profileMap = new Map(profiles.map(p => [p.id, p]));
@@ -290,14 +322,25 @@ export const CareRequestForm: FC = () => {
               </div>
               <div>
                 <label className="text-xs font-semibold text-slate-600 mb-1 block">Ubicación</label>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <input
-                    value={locationName}
-                    onChange={e => setLocationName(e.target.value)}
-                    placeholder="San Salvador"
-                    className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                  />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      value={locationName}
+                      onChange={e => setLocationName(e.target.value)}
+                      placeholder="San Salvador"
+                      className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleUseMyLocation}
+                    disabled={locating}
+                    className="flex-shrink-0 px-3 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    title="Usar mi ubicación"
+                  >
+                    {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
+                  </button>
                 </div>
               </div>
             </div>
