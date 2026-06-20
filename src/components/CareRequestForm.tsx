@@ -1,7 +1,7 @@
 import { useState, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { getAllSpecializations, getFamilyPrice } from '../data/standardRates';
-import { Heart, MapPin, Calendar, Clock, PlusCircle, Trash2, Stethoscope, Star, CheckCircle2, AlertCircle, User, ChevronRight, Send, Crosshair, Loader2 } from 'lucide-react';
+import { Heart, MapPin, Calendar, Clock, PlusCircle, Trash2, Stethoscope, Star, CheckCircle2, AlertCircle, User, ChevronRight, Send, Crosshair, Loader2, ChevronLeft } from 'lucide-react';
 
 interface CareRequestSlot {
   date: string;
@@ -10,7 +10,9 @@ interface CareRequestSlot {
 }
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const DAY_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const MONTH_FULL = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
@@ -28,9 +30,11 @@ export const CareRequestForm: FC = () => {
   const [specializationNeeded, setSpecializationNeeded] = useState('Geriatría');
   const [locationName, setLocationName] = useState('San Salvador');
   const [notes, setNotes] = useState('');
-  const [slots, setSlots] = useState<CareRequestSlot[]>([
-    { date: '', start_time: '08:00', end_time: '14:00' }
-  ]);
+  const [slots, setSlots] = useState<CareRequestSlot[]>([]);
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
 
   const [published, setPublished] = useState(false);
   const [publishedRequestId, setPublishedRequestId] = useState<string | null>(null);
@@ -70,17 +74,57 @@ export const CareRequestForm: FC = () => {
   const familyPrice = getFamilyPrice(specializationNeeded);
   const profileMap = new Map(profiles.map(p => [p.id, p]));
 
-  const addSlot = () => {
-    setSlots(prev => [...prev, { date: '', start_time: '08:00', end_time: '14:00' }]);
+  const addSlot = (dateStr: string) => {
+    setSlots(prev => [...prev, { date: dateStr, start_time: '08:00', end_time: '14:00' }]);
   };
 
   const removeSlot = (index: number) => {
     setSlots(prev => prev.filter((_, i) => i !== index));
   };
 
+  const toggleDay = (dateStr: string) => {
+    const exists = slots.findIndex(s => s.date === dateStr);
+    if (exists >= 0) {
+      removeSlot(exists);
+    } else {
+      addSlot(dateStr);
+    }
+  };
+
   const updateSlot = (index: number, field: keyof CareRequestSlot, value: string) => {
     setSlots(prev => prev.map((s, i) => i === index ? { ...s, [field]: value } : s));
   };
+
+  const getCalendarDays = () => {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startWeekday = firstDay.getDay();
+    const daysInMonth = lastDay.getDate();
+    const days: (string | null)[] = [];
+    for (let i = 0; i < startWeekday; i++) days.push(null);
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      days.push(dateStr);
+    }
+    return days;
+  };
+
+  const isToday = (dateStr: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    return dateStr === today;
+  };
+
+  const isPast = (dateStr: string) => {
+    const today = new Date().toISOString().split('T')[0];
+    return dateStr < today;
+  };
+
+  const isDaySelected = (dateStr: string) => slots.some(s => s.date === dateStr);
+
+  const prevMonth = () => setCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
+  const nextMonth = () => setCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
 
   const COMMON_CONDITIONS = [
     'Alzheimer', 'Parkinson', 'Demencia', 'Accidente cerebrovascular (ACV)',
@@ -126,7 +170,7 @@ export const CareRequestForm: FC = () => {
     setConditionTags([]);
     setConditionExtra('');
     setNotes('');
-    setSlots([{ date: '', start_time: '08:00', end_time: '14:00' }]);
+    setSlots([]);
   };
 
   const getSlotOffers = (requestId: string, slotIndex: number) => {
@@ -420,61 +464,112 @@ export const CareRequestForm: FC = () => {
             </div>
           </div>
 
-          {/* Schedule slots */}
+          {/* Schedule - Calendar picker */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="font-bold text-slate-800 flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-indigo-600" />
-                Fechas y horarios necesitados
-              </h2>
-              <button
-                onClick={addSlot}
-                className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
-              >
-                <PlusCircle className="h-4 w-4" />
-                Agregar día
-              </button>
+            <h2 className="font-bold text-slate-800 flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-indigo-600" />
+              Selecciona los días que necesitas
+            </h2>
+
+            {/* Calendar */}
+            <div className="select-none">
+              {/* Month navigation */}
+              <div className="flex items-center justify-between mb-3">
+                <button
+                  type="button"
+                  onClick={prevMonth}
+                  className="p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
+                >
+                  <ChevronLeft className="h-5 w-5 text-slate-600" />
+                </button>
+                <span className="font-bold text-sm text-slate-800">
+                  {MONTH_FULL[calendarMonth.getMonth()]} {calendarMonth.getFullYear()}
+                </span>
+                <button
+                  type="button"
+                  onClick={nextMonth}
+                  className="p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
+                >
+                  <ChevronLeft className="h-5 w-5 text-slate-600 rotate-180" />
+                </button>
+              </div>
+
+              {/* Weekday headers */}
+              <div className="grid grid-cols-7 gap-1 mb-1">
+                {DAY_SHORT.map(d => (
+                  <div key={d} className="text-center text-[10px] font-bold text-slate-400 py-1">
+                    {d}
+                  </div>
+                ))}
+              </div>
+
+              {/* Calendar grid */}
+              <div className="grid grid-cols-7 gap-1">
+                {getCalendarDays().map((dateStr, i) => {
+                  if (!dateStr) return <div key={i} />;
+                  const selected = isDaySelected(dateStr);
+                  const past = isPast(dateStr);
+                  const today = isToday(dateStr);
+                  const dayNum = parseInt(dateStr.split('-')[2]);
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      disabled={past}
+                      onClick={() => toggleDay(dateStr)}
+                      className={`aspect-square rounded-xl text-xs font-bold transition flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                        selected
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : today
+                            ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200 hover:bg-indigo-100'
+                            : 'text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {dayNum}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
-            {slots.map((slot, i) => (
-              <div key={i} className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-                <div className="flex-1 w-full">
-                  <label className="text-xs font-semibold text-slate-600 mb-1 block">Fecha {slots.length > 1 ? `#${i + 1}` : ''}</label>
-                  <input
-                    type="date"
-                    value={slot.date}
-                    onChange={e => updateSlot(i, 'date', e.target.value)}
-                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-600 mb-1 block">Inicio</label>
-                  <input
-                    type="time"
-                    value={slot.start_time}
-                    onChange={e => updateSlot(i, 'start_time', e.target.value)}
-                    className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-600 mb-1 block">Fin</label>
-                  <input
-                    type="time"
-                    value={slot.end_time}
-                    onChange={e => updateSlot(i, 'end_time', e.target.value)}
-                    className="px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                  />
-                </div>
-                {slots.length > 1 && (
-                  <button
-                    onClick={() => removeSlot(i)}
-                    className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-xl transition cursor-pointer"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
+            {/* Selected days with times */}
+            {slots.length > 0 && (
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <p className="text-xs font-bold text-slate-600">Días seleccionados ({slots.length})</p>
+                {slots.map((slot, i) => (
+                  <div key={i} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3">
+                    <div className="flex-shrink-0 w-12 text-center">
+                      <div className="bg-indigo-600 text-white rounded-lg py-1 px-0.5">
+                        <div className="text-sm font-black">{new Date(slot.date + 'T00:00:00').getDate()}</div>
+                        <div className="text-[9px] font-bold uppercase opacity-80">{MONTH_NAMES[new Date(slot.date + 'T00:00:00').getMonth()]}</div>
+                      </div>
+                    </div>
+                    <div className="flex-1 flex items-center gap-2">
+                      <input
+                        type="time"
+                        value={slot.start_time}
+                        onChange={e => updateSlot(i, 'start_time', e.target.value)}
+                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-indigo-400"
+                      />
+                      <span className="text-slate-400 text-xs">→</span>
+                      <input
+                        type="time"
+                        value={slot.end_time}
+                        onChange={e => updateSlot(i, 'end_time', e.target.value)}
+                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-indigo-400"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeSlot(i)}
+                      className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition cursor-pointer flex-shrink-0"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
 
             <div>
               <label className="text-xs font-semibold text-slate-600 mb-1 block">Notas adicionales (opcional)</label>
@@ -491,7 +586,7 @@ export const CareRequestForm: FC = () => {
           {/* Action button */}
           <button
             onClick={handlePublish}
-            disabled={!patientName || (conditionTags.length === 0 && !conditionExtra.trim()) || slots.some(s => !s.date)}
+            disabled={!patientName || (conditionTags.length === 0 && !conditionExtra.trim()) || slots.length === 0}
             className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
           >
             <Send className="h-5 w-5" />
