@@ -55,6 +55,9 @@ export default function AvailabilityCalendar({ nurseId, isEditable = false }: Av
 
   const daysInMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0).getDate();
   const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1).getDay();
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear() === currentMonth.getFullYear() && today.getMonth() === currentMonth.getMonth();
+  const todayDate = isCurrentMonth ? today.getDate() : -1;
 
   const getAvailabilityForDay = (day: number) => {
     const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -154,6 +157,10 @@ export default function AvailabilityCalendar({ nurseId, isEditable = false }: Av
               <div
                 key={day}
                 className={`h-24 border rounded-lg p-2 ${
+                  day === todayDate
+                    ? 'ring-2 ring-indigo-400 border-indigo-300 '
+                    : ''
+                }${
                   hasAvailability
                     ? isFullyAvailable
                       ? 'bg-emerald-50 border-emerald-200'
@@ -163,7 +170,10 @@ export default function AvailabilityCalendar({ nurseId, isEditable = false }: Av
                     : 'bg-slate-50 border-slate-200'
                 }`}
               >
-                <div className="font-semibold text-sm mb-1">{day}</div>
+                <div className="font-semibold text-sm mb-1">
+                  {day}
+                  {day === todayDate && <span className="text-[8px] font-black text-indigo-600 uppercase ml-1">Hoy</span>}
+                </div>
                 {hasAvailability && (
                   <div className="space-y-1">
                     {dayAvailability.slice(0, 2).map(avail => (

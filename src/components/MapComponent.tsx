@@ -44,9 +44,16 @@ export const MapComponent = ({ filteredNurses }: MapComponentProps) => {
   const { profiles, selectedNurseId, setSelectedNurseId, setActiveTab } = useApp();
   const [filterRadius, setFilterRadius] = useState<number>(10);
 
+  // O(1) profile lookup
+  const profileMap = useMemo(() => {
+    const map = new Map<string, typeof profiles[number]>();
+    profiles.forEach(p => map.set(p.id, p));
+    return map;
+  }, [profiles]);
+
   const mapItems = useMemo(() => {
     return filteredNurses.map(nurse => {
-      const profile = profiles.find(p => p.id === nurse.user_id);
+      const profile = profileMap.get(nurse.user_id);
       const distance = getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, nurse.lat, nurse.lng);
       const isWithinRadius = distance <= filterRadius;
 
@@ -57,7 +64,7 @@ export const MapComponent = ({ filteredNurses }: MapComponentProps) => {
         isWithinRadius
       };
     });
-  }, [filteredNurses, profiles, filterRadius]);
+  }, [filteredNurses, profileMap, filterRadius]);
 
   const handleInspectNurse = (nurseId: string) => {
     setSelectedNurseId(nurseId);

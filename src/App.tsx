@@ -8,11 +8,13 @@ import { AppContextProvider, useApp } from './context/AppContext';
 import { MapComponent } from './components/MapComponent';
 import { SearchFilters } from './components/SearchFilters';
 import { ToastProvider } from './components/Toast';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { getDistanceKm, USER_COORDS } from './lib/distance';
 import { 
   Stethoscope, Calendar, 
   Star, Sparkles,
-  Heart, Users, ChevronRight, GraduationCap, Network, MapPinned, MessageCircle
+  Heart, Users, ChevronRight, GraduationCap, Network, MapPinned, MessageCircle,
+  Menu, X, Search, Inbox
 } from 'lucide-react';
 
 const LoadingSpinner = () => (
@@ -25,6 +27,8 @@ const NurseDetail = lazy(() => import('./components/NurseDetail').then(m => ({ d
 const BookingsManager = lazy(() => import('./components/BookingsManager').then(m => ({ default: m.BookingsManager })));
 const NurseProfileEdit = lazy(() => import('./components/NurseProfileEdit').then(m => ({ default: m.NurseProfileEdit })));
 const ClinicalAI = lazy(() => import('./components/ClinicalAI'));
+const CareRequestForm = lazy(() => import('./components/CareRequestForm').then(m => ({ default: m.CareRequestForm })));
+const NurseInbox = lazy(() => import('./components/NurseInbox').then(m => ({ default: m.NurseInbox })));
 
 function MarketplaceApp() {
   const { 
@@ -43,12 +47,20 @@ function MarketplaceApp() {
   const [selectedSpecialization, setSelectedSpecialization] = useState<string>('');
   const [maxRate, setMaxRate] = useState<number>(30);
   const [sortBy, setSortBy] = useState<string>('distance');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Debounce search input (300ms)
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(searchQuery), 300);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Profile lookup map for O(1) access instead of find() in loops
+  const profileMap = useMemo(() => {
+    const map = new Map<string, typeof profiles[number]>();
+    profiles.forEach(p => map.set(p.id, p));
+    return map;
+  }, [profiles]);
 
   // Extract all distinct specializations for robust select dropdowns
   const allSpecializations = useMemo(() => {
@@ -67,7 +79,7 @@ function MarketplaceApp() {
     if (debouncedSearch.trim()) {
       const q = debouncedSearch.toLowerCase();
       result = result.filter(nurse => {
-        const prof = profiles.find(p => p.id === nurse.user_id);
+        const prof = profileMap.get(nurse.user_id);
         const nameMatch = prof?.full_name.toLowerCase().includes(q) || false;
         const bioMatch = nurse.bio.toLowerCase().includes(q);
         const certMatch = nurse.certifications.some(c => c.toLowerCase().includes(q));
@@ -98,7 +110,7 @@ function MarketplaceApp() {
     }
 
     return result;
-  }, [nurses, profiles, debouncedSearch, selectedSpecialization, maxRate, sortBy]);
+  }, [nurses, profileMap, debouncedSearch, selectedSpecialization, maxRate, sortBy]);
 
   const handleInspectNurse = (id: string) => {
     setSelectedNurseId(id);
@@ -112,25 +124,50 @@ function MarketplaceApp() {
       <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40" id="main-header">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           
-          {/* Brand/Product Logo */}
-          <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => { setSelectedNurseId(null); setActiveTab('home'); }}>
-            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center transform hover:scale-105 transition-all duration-200 border border-indigo-700 shadow-sm">
-              <div className="w-4.5 h-4.5 border border-white rounded-full flex items-center justify-center">
-                <Stethoscope className="h-2.5 w-2.5 text-white" />
+          {/* Brand/Product Logo + Mobile toggle */}
+          <div className="flex items-center justify-between gap-3 cursor-pointer select-none">
+            <div className="flex items-center gap-3" onClick={() => { setSelectedNurseId(null); setActiveTab('home'); setMobileMenuOpen(false); }}>
+              <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center transform hover:scale-105 transition-all duration-200 border border-indigo-700 shadow-sm">
+                <div className="w-4.5 h-4.5 border border-white rounded-full flex items-center justify-center">
+                  <Stethoscope className="h-2.5 w-2.5 text-white" />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xl font-bold font-serif italic tracking-tight text-slate-900">LocalNurse</span>
+                </div>
+                <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Cuidado del Adulto Mayor</p>
               </div>
             </div>
-            <div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xl font-bold font-serif italic tracking-tight text-slate-900">LocalNurse</span>
-              </div>
-              <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Cuidado del Adulto Mayor</p>
-            </div>
+            
+            {/* Mobile menu toggle button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="sm:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              id="btn-mobile-menu-toggle"
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
           </div>
 
           {/* Navigation Control Buttons */}
-          <nav className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs">
+          <nav className={`flex flex-wrap items-center gap-1 sm:gap-2 text-xs ${mobileMenuOpen ? 'flex' : 'hidden sm:flex'}`}>
             <button
-              onClick={() => { setSelectedNurseId(null); setActiveTab('home'); }}
+              onClick={() => { setSelectedNurseId(null); setActiveTab('care-request'); setMobileMenuOpen(false); }}
+              className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'care-request'
+                  ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
+                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+              }`}
+              id="tab-btn-care-request"
+            >
+              <Search className="h-4 w-4" />
+              <span>Solicitar Cuidado</span>
+            </button>
+
+            <button
+              onClick={() => { setSelectedNurseId(null); setActiveTab('home'); setMobileMenuOpen(false); }}
               className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'home' || activeTab === 'nurse-detail'
                   ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
@@ -143,7 +180,7 @@ function MarketplaceApp() {
             </button>
 
             <button
-              onClick={() => setActiveTab('bookings')}
+              onClick={() => { setActiveTab('bookings'); setMobileMenuOpen(false); }}
               className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'bookings'
                   ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
@@ -155,8 +192,23 @@ function MarketplaceApp() {
               <span>Mis Reservas</span>
             </button>
 
+            {currentUser?.role === 'nurse' && (
+              <button
+                onClick={() => { setActiveTab('nurse-inbox'); setMobileMenuOpen(false); }}
+                className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                  activeTab === 'nurse-inbox'
+                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                }`}
+                id="tab-btn-nurse-inbox"
+              >
+                <Inbox className="h-4 w-4" />
+                <span>Solicitudes</span>
+              </button>
+            )}
+
             <button
-              onClick={() => setActiveTab('clinical-ai')}
+              onClick={() => { setActiveTab('clinical-ai'); setMobileMenuOpen(false); }}
               className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
                 activeTab === 'clinical-ai'
                   ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
@@ -170,7 +222,7 @@ function MarketplaceApp() {
 
             {currentUser?.role === 'nurse' && (
               <button
-                onClick={() => setActiveTab('nurse-profile-edit')}
+                onClick={() => { setActiveTab('nurse-profile-edit'); setMobileMenuOpen(false); }}
                 className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
                   activeTab === 'nurse-profile-edit'
                     ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
@@ -240,7 +292,7 @@ function MarketplaceApp() {
                 ) : (
                   <div className="space-y-4" id="nurses-catalog-list">
                     {filteredNurses.map((nurse) => {
-                      const profile = profiles.find(p => p.id === nurse.user_id);
+                      const profile = profileMap.get(nurse.user_id);
                       if (!profile) return null;
 
                       const isSelected = selectedNurseId === nurse.id;
@@ -360,28 +412,52 @@ function MarketplaceApp() {
           </div>
         )}
 
+        {activeTab === 'care-request' && (
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingSpinner />}>
+              <CareRequestForm />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+
+        {activeTab === 'nurse-inbox' && (
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingSpinner />}>
+              <NurseInbox />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+
         {activeTab === 'nurse-detail' && (
-          <Suspense fallback={<LoadingSpinner />}>
-            <NurseDetail />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingSpinner />}>
+              <NurseDetail />
+            </Suspense>
+          </ErrorBoundary>
         )}
 
         {activeTab === 'bookings' && (
-          <Suspense fallback={<LoadingSpinner />}>
-            <BookingsManager />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingSpinner />}>
+              <BookingsManager />
+            </Suspense>
+          </ErrorBoundary>
         )}
 
         {activeTab === 'clinical-ai' && (
-          <Suspense fallback={<LoadingSpinner />}>
-            <ClinicalAI />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingSpinner />}>
+              <ClinicalAI />
+            </Suspense>
+          </ErrorBoundary>
         )}
 
         {activeTab === 'nurse-profile-edit' && (
-          <Suspense fallback={<LoadingSpinner />}>
-            <NurseProfileEdit />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingSpinner />}>
+              <NurseProfileEdit />
+            </Suspense>
+          </ErrorBoundary>
         )}
 
       </main>

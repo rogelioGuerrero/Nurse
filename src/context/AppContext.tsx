@@ -3,10 +3,35 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createContext, useContext, useState, useEffect, type FC, type ReactNode } from 'react';
-import { Profile, Nurse, Booking, BookingStatus, Availability } from '../types';
+import { createContext, useContext, useState, useEffect, useCallback, type FC, type ReactNode } from 'react';
+import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareOffer } from '../types';
 import { INITIAL_PROFILES, INITIAL_NURSES } from '../data/nurses';
 import { supabase } from '../lib/supabase';
+import { getResponseDeadline } from '../data/platformSettings';
+
+// Safe localStorage parser - prevents crash on corrupted data
+function safeParse<T>(key: string, fallback: T): T {
+  try {
+    const saved = localStorage.getItem(key);
+    if (!saved) return fallback;
+    return JSON.parse(saved) as T;
+  } catch {
+    console.warn(`Corrupted localStorage key "${key}", resetting to default.`);
+    localStorage.removeItem(key);
+    return fallback;
+  }
+}
+
+export interface CareLog {
+  bookingId: string;
+  bloodPressure: string;
+  heartRate: string;
+  glucose: string;
+  temperature: string;
+  mood: string;
+  remarks: string;
+  updatedAt: string;
+}
 
 interface AppContextType {
   profiles: Profile[];
@@ -20,6 +45,13 @@ interface AppContextType {
   updateBookingStatus: (bookingId: string, status: BookingStatus) => Promise<void>;
   getAvailability: (nurseId: string, startDate: string, endDate: string) => Promise<Availability[]>;
   addAvailability: (availabilityData: Omit<Availability, 'id' | 'created_at' | 'updated_at'>) => Promise<Availability>;
+  careLogs: Record<string, CareLog>;
+  saveCareLog: (bookingId: string, log: Omit<CareLog, 'bookingId' | 'updatedAt'>) => void;
+  careRequests: CareRequest[];
+  createCareRequest: (data: Omit<CareRequest, 'id' | 'user_id' | 'created_at' | 'status' | 'response_deadline'>) => CareRequest;
+  careOffers: CareOffer[];
+  createCareOffer: (data: Omit<CareOffer, 'id' | 'created_at' | 'status'>) => CareOffer;
+  acceptCareOffer: (offerId: string) => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   selectedNurseId: string | null;
@@ -29,20 +61,14 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
-  // Load or seed data from local storage
-  const [profiles, setProfiles] = useState<Profile[]>(() => {
-    const saved = localStorage.getItem('localnurse_profiles');
-    return saved ? JSON.parse(saved) : INITIAL_PROFILES;
-  });
+  // Load or seed data from local storage (with safe parsing)
+  const [profiles, setProfiles] = useState<Profile[]>(() => safeParse('localnurse_profiles', INITIAL_PROFILES));
 
-  const [nurses, setNurses] = useState<Nurse[]>(() => {
-    const saved = localStorage.getItem('localnurse_nurses');
-    return saved ? JSON.parse(saved) : INITIAL_NURSES;
-  });
+  const [nurses, setNurses] = useState<Nurse[]>(() => safeParse('localnurse_nurses', INITIAL_NURSES));
 
   const [bookings, setBookings] = useState<Booking[]>(() => {
-    const saved = localStorage.getItem('localnurse_bookings');
-    if (saved) return JSON.parse(saved);
+    const saved = safeParse<Booking[] | null>('localnurse_bookings', null);
+    if (saved) return saved;
     // Seed default bookings for demo
     return [
       {
@@ -82,8 +108,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
 
   const [currentUser, setCurrentUser] = useState<Profile | null>(() => {
-    const saved = localStorage.getItem('localnurse_current_user');
-    if (saved) return JSON.parse(saved);
+    const saved = safeParse<Profile | null>('localnurse_current_user', null);
+    if (saved) return saved;
     return {
       id: '00000000-0000-0000-0000-000000000001',
       email: 'familia.gomez.servicios@gmail.com',
@@ -98,6 +124,90 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
 
   const [currentNurse, setCurrentNurse] = useState<Nurse | null>(null);
 
+  // Care logs state (moved from BookingsManager for centralized access)
+  const [careLogs, setCareLogs] = useState<Record<string, CareLog>>(() => {
+    const saved = safeParse<Record<string, CareLog> | null>('localnurse_carelogs', null);
+    if (saved) return saved;
+    return {
+      'b-demo-2': {
+        bookingId: 'b-demo-2',
+        bloodPressure: '120/80 mmHg',
+        heartRate: '72 lpm',
+        glucose: '115 mg/dL',
+        temperature: '36.6 °C',
+        mood: 'Alegre',
+        remarks: 'Paciente completó con éxito su almuerzo y caminó en el jardín por 15 minutos. Nivel de oxígeno estable. Se tomó su recordatorio de medicina puntual.',
+        updatedAt: new Date(Date.now() - 86400000 * 3).toISOString()
+      }
+    };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('localnurse_carelogs', JSON.stringify(careLogs));
+  }, [careLogs]);
+
+  const saveCareLog = useCallback((bookingId: string, log: Omit<CareLog, 'bookingId' | 'updatedAt'>) => {
+    setCareLogs(prev => ({
+      ...prev,
+      [bookingId]: {
+        ...log,
+        bookingId,
+        updatedAt: new Date().toISOString()
+      }
+    }));
+  }, []);
+
+  // Care requests state (family posts what they need)
+  const [careRequests, setCareRequests] = useState<CareRequest[]>(() => safeParse('localnurse_carerequests', []));
+
+  useEffect(() => {
+    localStorage.setItem('localnurse_carerequests', JSON.stringify(careRequests));
+  }, [careRequests]);
+
+  const [careOffers, setCareOffers] = useState<CareOffer[]>(() => safeParse('localnurse_careoffers', []));
+
+  useEffect(() => {
+    localStorage.setItem('localnurse_careoffers', JSON.stringify(careOffers));
+  }, [careOffers]);
+
+  const createCareRequest = useCallback((data: Omit<CareRequest, 'id' | 'user_id' | 'created_at' | 'status' | 'response_deadline'>): CareRequest => {
+    if (!currentUser) throw new Error('Debes iniciar sesión para publicar una solicitud.');
+    const now = new Date().toISOString();
+    const newRequest: CareRequest = {
+      ...data,
+      id: `cr-${Date.now()}`,
+      user_id: currentUser.id,
+      status: 'open',
+      response_deadline: getResponseDeadline(now),
+      created_at: now
+    };
+    setCareRequests(prev => [newRequest, ...prev]);
+    return newRequest;
+  }, [currentUser]);
+
+  const createCareOffer = useCallback((data: Omit<CareOffer, 'id' | 'created_at' | 'status'>): CareOffer => {
+    const newOffer: CareOffer = {
+      ...data,
+      id: `co-${Date.now()}`,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    };
+    setCareOffers(prev => [newOffer, ...prev]);
+    return newOffer;
+  }, []);
+
+  const acceptCareOffer = useCallback((offerId: string) => {
+    setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'accepted' } : { ...o, status: o.status === 'pending' ? 'rejected' : o.status }));
+    // Mark the care request as matched
+    setCareOffers(prev => {
+      const offer = prev.find(o => o.id === offerId);
+      if (offer) {
+        setCareRequests(reqs => reqs.map(r => r.id === offer.request_id ? { ...r, status: 'matched' } : r));
+      }
+      return prev;
+    });
+  }, []);
+
   // Synchronize dynamic nurse profile if active user role is 'nurse'
   useEffect(() => {
     if (currentUser && currentUser.role === 'nurse') {
@@ -107,6 +217,22 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       setCurrentNurse(null);
     }
   }, [currentUser, nurses]);
+
+  // Auto-expire pending bookings older than 24 hours
+  useEffect(() => {
+    const now = Date.now();
+    const expired = bookings.filter(b => 
+      b.status === 'pending' && 
+      now - new Date(b.created_at).getTime() > 86400000
+    );
+    if (expired.length > 0) {
+      setBookings(prev => prev.map(b => 
+        b.status === 'pending' && now - new Date(b.created_at).getTime() > 86400000
+          ? { ...b, status: 'cancelled' as BookingStatus }
+          : b
+      ));
+    }
+  }, []); // Run once on mount
 
   // Save to Local Storage whenever states change
   useEffect(() => {
@@ -129,12 +255,16 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [currentUser]);
 
-  // Action: Update profiles
+  // Action: Update profiles (also syncs currentNurse if user is a nurse)
   const updateProfile = (profileData: Partial<Profile>) => {
     if (!currentUser) return;
     const updated = { ...currentUser, ...profileData, updated_at: new Date().toISOString() };
     setCurrentUser(updated);
     setProfiles(prev => prev.map(p => p.id === updated.id ? updated : p));
+    // Immediately sync currentNurse if the updated user is a nurse
+    if (updated.role === 'nurse') {
+      setCurrentNurse(prev => prev ? { ...prev } : prev);
+    }
   };
 
   // Action: Update nurse rates, bios, specializations
@@ -147,6 +277,18 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   // Action: Create high fidelity booking (with localStorage fallback for demo mode)
   const createBooking = async (bookingData: Omit<Booking, 'id' | 'user_id' | 'created_at' | 'status'>) => {
     if (!currentUser) throw new Error('Debes iniciar sesión para agendar.');
+    
+    // Validate no double-booking: same nurse, same date, overlapping time
+    const overlapping = bookings.find(b => 
+      b.nurse_id === bookingData.nurse_id &&
+      b.date === bookingData.date &&
+      b.status !== 'cancelled' &&
+      bookingData.start_time < b.end_time &&
+      bookingData.end_time > b.start_time
+    );
+    if (overlapping) {
+      throw new Error('Esta enfermera ya tiene una reserva en ese horario. Elige otra fecha u hora.');
+    }
     
     const newBooking: Booking = {
       ...bookingData,
@@ -191,8 +333,9 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Action: Update state of booking (with localStorage fallback)
+  // Action: Update state of booking (optimistic update with rollback)
   const updateBookingStatus = async (bookingId: string, status: BookingStatus) => {
+    const prevBookings = bookings;
     setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status } : b));
 
     try {
@@ -203,11 +346,46 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
 
       if (error) throw error;
     } catch {
-      // Fallback: state already updated above for demo mode
+      // Rollback on failure
+      setBookings(prevBookings);
+      console.warn('Booking status update failed, rolled back to previous state.');
     }
   };
 
   // Availability functions (with localStorage fallback for demo mode)
+  // Seed availability for demo nurses if none exists
+  const [availabilityCache, setAvailabilityCache] = useState<Availability[]>(() => {
+    const saved = safeParse<Availability[] | null>('localnurse_availability', null);
+    if (saved) return saved;
+    // Generate seed availability for demo nurses: next 30 days, 06:00-18:00
+    const seed: Availability[] = [];
+    const today = new Date();
+    for (const nurse of INITIAL_NURSES) {
+      for (let d = 0; d < 30; d++) {
+        const date = new Date(today);
+        date.setDate(date.getDate() + d);
+        const dateStr = date.toISOString().split('T')[0];
+        // Skip Sundays for variety
+        if (date.getDay() === 0) continue;
+        seed.push({
+          id: `av-seed-${nurse.id}-${dateStr}`,
+          nurse_id: nurse.id,
+          date: dateStr,
+          start_time: '06:00',
+          end_time: '18:00',
+          is_available: true,
+          created_at: today.toISOString(),
+          updated_at: today.toISOString()
+        });
+      }
+    }
+    return seed;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('localnurse_availability', JSON.stringify(availabilityCache));
+  }, [availabilityCache]);
+
   const getAvailability = async (nurseId: string, startDate: string, endDate: string): Promise<Availability[]> => {
     try {
       const { data, error } = await supabase
@@ -221,7 +399,13 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       if (error) throw error;
       return data || [];
     } catch {
-      return [];
+      // Fallback to localStorage cache
+      return availabilityCache.filter(
+        a => a.nurse_id === nurseId &&
+        a.date >= startDate &&
+        a.date <= endDate &&
+        a.is_available
+      );
     }
   };
 
@@ -232,6 +416,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
+    setAvailabilityCache(prev => [...prev, newAvailability]);
 
     try {
       const { data, error } = await supabase
@@ -266,6 +451,13 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       updateBookingStatus,
       getAvailability,
       addAvailability,
+      careLogs,
+      saveCareLog,
+      careRequests,
+      createCareRequest,
+      careOffers,
+      createCareOffer,
+      acceptCareOffer,
       activeTab,
       setActiveTab,
       selectedNurseId,

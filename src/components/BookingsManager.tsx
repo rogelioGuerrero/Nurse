@@ -3,10 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, type FC } from 'react';
-import { useApp } from '../context/AppContext';
+import { useState, useEffect, useMemo, useRef, type FC } from 'react';
+import { useApp, type CareLog } from '../context/AppContext';
 import { Booking, BookingStatus } from '../types';
 import { groqChat } from '../lib/groq';
+import { parsePatientCondition } from '../lib/patientData';
 import { 
   Calendar, User, HeartPulse, CheckCircle, 
   CheckCircle2,
@@ -14,52 +15,46 @@ import {
   Printer, Phone
 } from 'lucide-react';
 
-interface CareLog {
-  bookingId: string;
-  bloodPressure: string; // e.g., 120/80 mmHg
-  heartRate: string; // e.g., 75 lpm
-  glucose: string; // e.g., 110 mg/dL
-  temperature: string; // e.g., 36.5 °C
-  mood: string; // Alegre, Somnoliento, etc.
-  remarks: string;
-  updatedAt: string;
-}
-
 export const BookingsManager: FC = () => {
   const { 
     bookings, 
     nurses, 
     profiles, 
     currentUser, 
-    updateBookingStatus 
+    updateBookingStatus,
+    careLogs,
+    saveCareLog
   } = useApp();
 
   const isNurseView = currentUser?.role === 'nurse';
 
+  // O(1) lookup maps to avoid repeated find() calls inside loops
+  const profileMap = useMemo(() => {
+    const map = new Map<string, typeof profiles[number]>();
+    profiles.forEach(p => map.set(p.id, p));
+    return map;
+  }, [profiles]);
+
+  const nurseMap = useMemo(() => {
+    const map = new Map<string, typeof nurses[number]>();
+    nurses.forEach(n => map.set(n.id, n));
+    return map;
+  }, [nurses]);
+
   const [selectedReceiptBooking, setSelectedReceiptBooking] = useState<Booking | null>(null);
+  const receiptModalRef = useRef<HTMLDivElement>(null);
 
-  const [careLogs, setCareLogs] = useState<Record<string, CareLog>>(() => {
-    const saved = localStorage.getItem('localnurse_carelogs');
-    if (saved) return JSON.parse(saved);
-    // Seed default logs for demo completed booking
-    return {
-      'b-demo-2': {
-        bookingId: 'b-demo-2',
-        bloodPressure: '120/80 mmHg',
-        heartRate: '72 lpm',
-        glucose: '115 mg/dL',
-        temperature: '36.6 °C',
-        mood: 'Alegre',
-        remarks: 'Paciente completó con éxito su almuerzo y caminó en el jardín por 15 minutos. Nivel de oxígeno estable. Se tomó su recordatorio de medicina puntual.',
-        updatedAt: new Date(Date.now() - 86400000 * 3).toISOString()
-      }
-    };
-  });
-
+  // Close receipt modal on Escape key and click-outside
   useEffect(() => {
-    localStorage.setItem('localnurse_carelogs', JSON.stringify(careLogs));
-  }, [careLogs]);
+    if (!selectedReceiptBooking) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedReceiptBooking(null);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedReceiptBooking]);
 
+  // Care logs now managed by AppContext
   // Forms for editing/creating care log
   const [editingBookingId, setEditingBookingId] = useState<string | null>(null);
   const [formBloodPressure, setFormBloodPressure] = useState('');
@@ -88,19 +83,14 @@ export const BookingsManager: FC = () => {
   };
 
   const handleSaveLog = (bookingId: string) => {
-    setCareLogs(prev => ({
-      ...prev,
-      [bookingId]: {
-        bookingId,
-        bloodPressure: formBloodPressure,
-        heartRate: formHeartRate,
-        glucose: formGlucose,
-        temperature: formTemperature,
-        mood: formMood,
-        remarks: formRemarks,
-        updatedAt: new Date().toISOString()
-      }
-    }));
+    saveCareLog(bookingId, {
+      bloodPressure: formBloodPressure,
+      heartRate: formHeartRate,
+      glucose: formGlucose,
+      temperature: formTemperature,
+      mood: formMood,
+      remarks: formRemarks
+    });
     setEditingBookingId(null);
   };
 
@@ -137,49 +127,6 @@ export const BookingsManager: FC = () => {
       setAiReportContent('Ocurrió un error al contactar con el Asistente Clínico Llama-3. Asegúrate de que tu clave Groq API Key sea válida.');
     } finally {
       setAiReportLoading(false);
-    }
-  };
-
-  const parsePatientCondition = (condition: string) => {
-    if (!condition) {
-      return { raw: '', diagnosis: 'No especificado', autonomy: 'No especificada', allergies: 'Ninguna', medications: 'Ninguna', emergency: 'No proporcionado' };
-    }
-    
-    if (!condition.includes('[Autonomía:')) {
-      return {
-        raw: condition,
-        diagnosis: condition,
-        autonomy: 'No especificada',
-        allergies: 'Ninguna',
-        medications: 'Ninguna',
-        emergency: 'No proporcionado'
-      };
-    }
-    
-    try {
-      const diagMatch = condition.match(/^([^[]+)/);
-      const autonomyMatch = condition.match(/\[Autonomía:\s*([^\]]+)\]/);
-      const allergiesMatch = condition.match(/\[Alergias:\s*([^\]]+)\]/);
-      const medsMatch = condition.match(/\[Medicamentos:\s*([^\]]+)\]/);
-      const emergencyMatch = condition.match(/\[Emergencia:\s*([^\]]+)\]/);
-      
-      return {
-        raw: condition,
-        diagnosis: diagMatch ? diagMatch[1].trim() : condition,
-        autonomy: autonomyMatch ? autonomyMatch[1].trim() : 'No especificada',
-        allergies: allergiesMatch ? allergiesMatch[1].trim() : 'Ninguna',
-        medications: medsMatch ? medsMatch[1].trim() : 'Ninguno',
-        emergency: emergencyMatch ? emergencyMatch[1].trim() : 'No proporcionado'
-      };
-    } catch {
-      return {
-        raw: condition,
-        diagnosis: condition,
-        autonomy: 'No especificada',
-        allergies: 'Ninguna',
-        medications: 'Ninguna',
-        emergency: 'No proporcionado'
-      };
     }
   };
 
@@ -294,15 +241,17 @@ export const BookingsManager: FC = () => {
         <div className="space-y-4">
           {filteredBookings.map((b) => {
             // Find opposite party profile
-            const clientProfile = profiles.find(p => p.id === b.user_id);
+            const clientProfile = profileMap.get(b.user_id);
+            const nurseRec = nurseMap.get(b.nurse_id);
+            const nurseProfile = nurseRec ? profileMap.get(nurseRec.user_id) : null;
             const counterPartyName = isNurseView
               ? (clientProfile?.full_name ?? 'Familia Visitada')
-              : (profiles.find(p => p.id === nurses.find(n => n.id === b.nurse_id)?.user_id)?.full_name ?? 'Caretaker Profesional');
+              : (nurseProfile?.full_name ?? 'Caretaker Profesional');
             const counterPartyAvatar = isNurseView
               ? (clientProfile?.avatar_url ?? 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=200')
-              : (profiles.find(p => p.id === nurses.find(n => n.id === b.nurse_id)?.user_id)?.avatar_url ?? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200');
+              : (nurseProfile?.avatar_url ?? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200');
             const counterPartySpecializations = !isNurseView
-              ? (nurses.find(n => n.id === b.nurse_id)?.specialization ?? [])
+              ? (nurseRec?.specialization ?? [])
               : [];
 
             return (
@@ -700,9 +649,9 @@ export const BookingsManager: FC = () => {
       {/* RECIBO DE HONORARIOS MODAL OVERLAY */}
       {selectedReceiptBooking && (() => {
         const b = selectedReceiptBooking;
-        const nurseRec = nurses.find(n => n.id === b.nurse_id);
-        const nurseProfile = nurseRec ? profiles.find(p => p.id === nurseRec.user_id) : null;
-        const clientProfile = profiles.find(p => p.id === b.user_id);
+        const nurseRec = nurseMap.get(b.nurse_id);
+        const nurseProfile = nurseRec ? profileMap.get(nurseRec.user_id) : null;
+        const clientProfile = profileMap.get(b.user_id);
         
         const emisorName = nurseProfile ? nurseProfile.full_name : 'Cuidadores Profesionales de El Salvador';
         const receptorName = clientProfile ? clientProfile.full_name : 'Familia Ramírez Gómez';
@@ -712,8 +661,12 @@ export const BookingsManager: FC = () => {
         const liquido = subtotal * 0.9;
 
         return (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" id="receipt-modal-overlay">
-            <div className="bg-white rounded-3xl max-w-xl w-full border border-slate-200 shadow-2xl p-6 md:p-8 space-y-6 relative overflow-hidden">
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" 
+            id="receipt-modal-overlay"
+            onClick={(e) => { if (e.target === e.currentTarget) setSelectedReceiptBooking(null); }}
+          >
+            <div ref={receiptModalRef} className="bg-white rounded-3xl max-w-xl w-full border border-slate-200 shadow-2xl p-6 md:p-8 space-y-6 relative overflow-hidden">
               
               {/* Receipt Header Banner */}
               <div className="flex justify-between items-start border-b border-slate-100 pb-4">

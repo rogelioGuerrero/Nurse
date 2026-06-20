@@ -7,6 +7,10 @@ export type UserRole = 'user' | 'nurse' | 'admin';
 
 export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
+export type CareRequestStatus = 'open' | 'matched' | 'closed' | 'expired';
+
+export type CareOfferStatus = 'pending' | 'accepted' | 'rejected';
+
 export interface Profile {
   id: string; // auth.user FK
   email: string;
@@ -47,6 +51,13 @@ export interface Booking {
   notes?: string;
   patient_name: string;
   patient_condition: string;
+  patient_data?: {
+    diagnosis: string;
+    autonomy: string;
+    allergies: string;
+    medications: string;
+    emergency_contact: string;
+  };
   created_at: string;
 }
 
@@ -60,4 +71,41 @@ export interface Availability {
   notes?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface CareRequestSlot {
+  date: string; // YYYY-MM-DD
+  start_time: string; // HH:MM
+  end_time: string; // HH:MM
+}
+
+export interface CareRequest {
+  id: string;
+  user_id: string; // family profile who posted
+  patient_name: string;
+  patient_condition: string;
+  patient_data?: {
+    diagnosis: string;
+    autonomy: string;
+    allergies: string;
+    medications: string;
+    emergency_contact: string;
+  };
+  specialization_needed: string; // e.g., "Geriatría"
+  slots: CareRequestSlot[]; // multiple dates/times needed
+  location_name: string;
+  notes?: string;
+  status: CareRequestStatus;
+  response_deadline: string; // ISO datetime when the response window closes
+  created_at: string;
+}
+
+export interface CareOffer {
+  id: string;
+  request_id: string; // CareRequest FK
+  nurse_id: string; // nurse who offered
+  slot_index: number; // which slot in CareRequest.slots this offer is for
+  message: string;
+  status: CareOfferStatus;
+  created_at: string;
 }
