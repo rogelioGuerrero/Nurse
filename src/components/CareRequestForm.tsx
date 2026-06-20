@@ -468,7 +468,7 @@ export const CareRequestForm: FC = () => {
           <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4">
             <h2 className="font-bold text-slate-800 flex items-center gap-2">
               <Calendar className="h-4 w-4 text-indigo-600" />
-              Selecciona los días que necesitas
+              Selecciona los días y horarios
             </h2>
 
             {/* Calendar */}
@@ -507,17 +507,19 @@ export const CareRequestForm: FC = () => {
               <div className="grid grid-cols-7 gap-1">
                 {getCalendarDays().map((dateStr, i) => {
                   if (!dateStr) return <div key={i} />;
-                  const selected = isDaySelected(dateStr);
+                  const slotIndex = slots.findIndex(s => s.date === dateStr);
+                  const selected = slotIndex >= 0;
                   const past = isPast(dateStr);
                   const today = isToday(dateStr);
                   const dayNum = parseInt(dateStr.split('-')[2]);
+                  const slot = selected ? slots[slotIndex] : null;
                   return (
                     <button
                       key={i}
                       type="button"
                       disabled={past}
                       onClick={() => toggleDay(dateStr)}
-                      className={`aspect-square rounded-xl text-xs font-bold transition flex items-center justify-center cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
+                      className={`aspect-square rounded-xl text-xs font-bold transition flex flex-col items-center justify-center gap-0.5 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed ${
                         selected
                           ? 'bg-indigo-600 text-white shadow-sm'
                           : today
@@ -525,39 +527,47 @@ export const CareRequestForm: FC = () => {
                             : 'text-slate-700 hover:bg-slate-100'
                       }`}
                     >
-                      {dayNum}
+                      <span>{dayNum}</span>
+                      {selected && slot && (
+                        <span className={`text-[8px] font-normal leading-none ${selected ? 'text-indigo-200' : 'text-slate-400'}`}>
+                          {slot.start_time}-{slot.end_time}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* Selected days with times */}
-            {slots.length > 0 && (
+            {/* Selected days with editable times */}
+            {slots.length > 0 ? (
               <div className="space-y-2 pt-2 border-t border-slate-100">
                 <p className="text-xs font-bold text-slate-600">Días seleccionados ({slots.length})</p>
                 {slots.map((slot, i) => (
-                  <div key={i} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3">
+                  <div key={i} className="flex items-center gap-3 bg-indigo-50/50 border border-indigo-100 rounded-xl p-3">
                     <div className="flex-shrink-0 w-12 text-center">
                       <div className="bg-indigo-600 text-white rounded-lg py-1 px-0.5">
                         <div className="text-sm font-black">{new Date(slot.date + 'T00:00:00').getDate()}</div>
                         <div className="text-[9px] font-bold uppercase opacity-80">{MONTH_NAMES[new Date(slot.date + 'T00:00:00').getMonth()]}</div>
                       </div>
                     </div>
-                    <div className="flex-1 flex items-center gap-2">
-                      <input
-                        type="time"
-                        value={slot.start_time}
-                        onChange={e => updateSlot(i, 'start_time', e.target.value)}
-                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-indigo-400"
-                      />
-                      <span className="text-slate-400 text-xs">→</span>
-                      <input
-                        type="time"
-                        value={slot.end_time}
-                        onChange={e => updateSlot(i, 'end_time', e.target.value)}
-                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-indigo-400"
-                      />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[10px] font-bold text-slate-500 mb-1">{DAY_NAMES[new Date(slot.date + 'T00:00:00').getDay()]}</div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="time"
+                          value={slot.start_time}
+                          onChange={e => updateSlot(i, 'start_time', e.target.value)}
+                          className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-indigo-400 bg-white"
+                        />
+                        <span className="text-slate-400 text-xs">→</span>
+                        <input
+                          type="time"
+                          value={slot.end_time}
+                          onChange={e => updateSlot(i, 'end_time', e.target.value)}
+                          className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-indigo-400 bg-white"
+                        />
+                      </div>
                     </div>
                     <button
                       type="button"
@@ -568,6 +578,10 @@ export const CareRequestForm: FC = () => {
                     </button>
                   </div>
                 ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-xs text-slate-400">
+                Toca un día en el calendario para agregarlo
               </div>
             )}
 
