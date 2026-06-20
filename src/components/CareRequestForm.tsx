@@ -23,6 +23,8 @@ export const CareRequestForm: FC = () => {
 
   const [patientName, setPatientName] = useState('');
   const [patientCondition, setPatientCondition] = useState('');
+  const [conditionTags, setConditionTags] = useState<string[]>([]);
+  const [conditionExtra, setConditionExtra] = useState('');
   const [specializationNeeded, setSpecializationNeeded] = useState('Geriatría');
   const [locationName, setLocationName] = useState('San Salvador');
   const [notes, setNotes] = useState('');
@@ -80,11 +82,33 @@ export const CareRequestForm: FC = () => {
     setSlots(prev => prev.map((s, i) => i === index ? { ...s, [field]: value } : s));
   };
 
+  const COMMON_CONDITIONS = [
+    'Alzheimer', 'Parkinson', 'Demencia', 'Accidente cerebrovascular (ACV)',
+    'Postoperatorio', 'Fractura de cadera', 'Diabetes', 'Hipertensión',
+    'Movilización reducida', 'Sondaje', 'Oxígeno permanente',
+    'Demencia senil', 'Cuidados paliativos', 'Herida crónica',
+    'Silla de ruedas', 'Encamado'
+  ];
+
+  const toggleConditionTag = (tag: string) => {
+    setConditionTags(prev =>
+      prev.includes(tag)
+        ? prev.filter(t => t !== tag)
+        : [...prev, tag]
+    );
+  };
+
   const handlePublish = () => {
-    if (!patientName || !patientCondition || slots.some(s => !s.date)) return;
+    if (!patientName || slots.some(s => !s.date)) return;
+    const condition = [
+      ...conditionTags,
+      conditionExtra.trim()
+    ].filter(Boolean).join('; ');
+    if (!condition) return;
+    setPatientCondition(condition);
     const request = createCareRequest({
       patient_name: patientName,
-      patient_condition: patientCondition,
+      patient_condition: condition,
       specialization_needed: specializationNeeded,
       slots,
       location_name: locationName,
@@ -99,6 +123,8 @@ export const CareRequestForm: FC = () => {
     setPublishedRequestId(null);
     setPatientName('');
     setPatientCondition('');
+    setConditionTags([]);
+    setConditionExtra('');
     setNotes('');
     setSlots([{ date: '', start_time: '08:00', end_time: '14:00' }]);
   };
@@ -344,13 +370,29 @@ export const CareRequestForm: FC = () => {
                 </div>
               </div>
             </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-600 mb-1 block">Condición del paciente</label>
+            <div className="space-y-3">
+              <label className="text-xs font-semibold text-slate-600 block">Condición del paciente</label>
+              <div className="flex flex-wrap gap-2">
+                {COMMON_CONDITIONS.map(cond => (
+                  <button
+                    key={cond}
+                    type="button"
+                    onClick={() => toggleConditionTag(cond)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold transition cursor-pointer ${
+                      conditionTags.includes(cond)
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
+                    }`}
+                  >
+                    {cond}
+                  </button>
+                ))}
+              </div>
               <textarea
-                value={patientCondition}
-                onChange={e => setPatientCondition(e.target.value)}
-                placeholder="Ej: Etapa inicial de Alzheimer, requiere ayuda con movilización e hidratación..."
-                rows={3}
+                value={conditionExtra}
+                onChange={e => setConditionExtra(e.target.value)}
+                placeholder="Algo más que la enfermera deba saber? (opcional)"
+                rows={2}
                 className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-none"
               />
             </div>
