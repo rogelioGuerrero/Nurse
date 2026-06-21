@@ -124,7 +124,7 @@ export const BookingsManager: FC = () => {
       );
       setAiReportContent(content);
     } catch {
-      setAiReportContent('Ocurrió un error al contactar con el Asistente Clínico Llama-3. Asegúrate de que tu clave Groq API Key sea válida.');
+      setAiReportContent('Ocurrió un error al contactar con el Apoyo Clínico. Asegúrate de que tu clave Groq API Key sea válida.');
     } finally {
       setAiReportLoading(false);
     }
@@ -524,7 +524,7 @@ export const BookingsManager: FC = () => {
                                   {aiReportLoading ? (
                                     <div className="flex items-center gap-2 text-xs text-indigo-600 py-2">
                                       <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                                      <span>Llama-3 está revisando el reporte geriátrico...</span>
+                                      <span>Revisando el reporte...</span>
                                     </div>
                                   ) : (
                                     <p className="text-xs text-slate-700 font-medium leading-relaxed whitespace-pre-line bg-white/70 p-3 rounded-xl border border-white">
@@ -689,7 +689,7 @@ export const BookingsManager: FC = () => {
               <div className="space-y-4 text-xs text-slate-700 relative">
                 {/* Simulated Watermark background */}
                 <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] select-none pointer-events-none transform -rotate-12">
-                  <span className="text-8xl font-black font-serif text-indigo-600">LOCALNURSE</span>
+                  <span className="text-8xl font-black font-serif text-indigo-600">BIENCUIDAR</span>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 border-b border-slate-50 pb-4">
@@ -735,7 +735,7 @@ export const BookingsManager: FC = () => {
 
               {/* Legal Notice */}
               <p className="text-[10px] leading-relaxed text-slate-400 text-justify italic">
-                *Nota Legal: Este comprobante ha sido generado automáticamente por LocalNurse Inc. en representación del emisor, de conformidad al artículo 156 del Código Tributario de la República de El Salvador. El emisor autoriza la respectiva retención del 10% del I.S.R. por servicios profesionales independientes.
+                *Nota Legal: Este comprobante ha sido generado automáticamente por BienCuidar en representación del emisor, de conformidad al artículo 156 del Código Tributario de la República de El Salvador. El emisor autoriza la respectiva retención del 10% del I.S.R. por servicios profesionales independientes.
               </p>
 
               {/* Control triggers */}

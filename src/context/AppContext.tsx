@@ -63,12 +63,12 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
   // Load or seed data from local storage (with safe parsing)
-  const [profiles, setProfiles] = useState<Profile[]>(() => safeParse('localnurse_profiles', INITIAL_PROFILES));
+  const [profiles, setProfiles] = useState<Profile[]>(() => safeParse('biencuidar_profiles', INITIAL_PROFILES));
 
-  const [nurses, setNurses] = useState<Nurse[]>(() => safeParse('localnurse_nurses', INITIAL_NURSES));
+  const [nurses, setNurses] = useState<Nurse[]>(() => safeParse('biencuidar_nurses', INITIAL_NURSES));
 
   const [bookings, setBookings] = useState<Booking[]>(() => {
-    const saved = safeParse<Booking[] | null>('localnurse_bookings', null);
+    const saved = safeParse<Booking[] | null>('biencuidar_bookings', null);
     if (saved) return saved;
     // Seed default bookings for demo
     return [
@@ -109,7 +109,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
 
   const [currentUser, setCurrentUser] = useState<Profile | null>(() => {
-    const saved = safeParse<Profile | null>('localnurse_current_user', null);
+    const saved = safeParse<Profile | null>('biencuidar_current_user', null);
     if (saved) return saved;
     return {
       id: '00000000-0000-0000-0000-000000000001',
@@ -127,7 +127,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
 
   // Care logs state (moved from BookingsManager for centralized access)
   const [careLogs, setCareLogs] = useState<Record<string, CareLog>>(() => {
-    const saved = safeParse<Record<string, CareLog> | null>('localnurse_carelogs', null);
+    const saved = safeParse<Record<string, CareLog> | null>('biencuidar_carelogs', null);
     if (saved) return saved;
     return {
       'b-demo-2': {
@@ -144,7 +144,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   });
 
   useEffect(() => {
-    localStorage.setItem('localnurse_carelogs', JSON.stringify(careLogs));
+    localStorage.setItem('biencuidar_carelogs', JSON.stringify(careLogs));
   }, [careLogs]);
 
   const saveCareLog = useCallback((bookingId: string, log: Omit<CareLog, 'bookingId' | 'updatedAt'>) => {
@@ -159,16 +159,16 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   // Care requests state (family posts what they need)
-  const [careRequests, setCareRequests] = useState<CareRequest[]>(() => safeParse('localnurse_carerequests', []));
+  const [careRequests, setCareRequests] = useState<CareRequest[]>(() => safeParse('biencuidar_carerequests', []));
 
   useEffect(() => {
-    localStorage.setItem('localnurse_carerequests', JSON.stringify(careRequests));
+    localStorage.setItem('biencuidar_carerequests', JSON.stringify(careRequests));
   }, [careRequests]);
 
-  const [careOffers, setCareOffers] = useState<CareOffer[]>(() => safeParse('localnurse_careoffers', []));
+  const [careOffers, setCareOffers] = useState<CareOffer[]>(() => safeParse('biencuidar_careoffers', []));
 
   useEffect(() => {
-    localStorage.setItem('localnurse_careoffers', JSON.stringify(careOffers));
+    localStorage.setItem('biencuidar_careoffers', JSON.stringify(careOffers));
   }, [careOffers]);
 
   const createCareRequest = useCallback((data: Omit<CareRequest, 'id' | 'user_id' | 'created_at' | 'status' | 'response_deadline'>): CareRequest => {
@@ -237,22 +237,22 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
 
   // Save to Local Storage whenever states change
   useEffect(() => {
-    localStorage.setItem('localnurse_profiles', JSON.stringify(profiles));
+    localStorage.setItem('biencuidar_profiles', JSON.stringify(profiles));
   }, [profiles]);
 
   useEffect(() => {
-    localStorage.setItem('localnurse_nurses', JSON.stringify(nurses));
+    localStorage.setItem('biencuidar_nurses', JSON.stringify(nurses));
   }, [nurses]);
 
   useEffect(() => {
-    localStorage.setItem('localnurse_bookings', JSON.stringify(bookings));
+    localStorage.setItem('biencuidar_bookings', JSON.stringify(bookings));
   }, [bookings]);
 
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem('localnurse_current_user', JSON.stringify(currentUser));
+      localStorage.setItem('biencuidar_current_user', JSON.stringify(currentUser));
     } else {
-      localStorage.removeItem('localnurse_current_user');
+      localStorage.removeItem('biencuidar_current_user');
     }
   }, [currentUser]);
 
@@ -356,7 +356,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   // Availability functions (with localStorage fallback for demo mode)
   // Seed availability for demo nurses if none exists
   const [availabilityCache, setAvailabilityCache] = useState<Availability[]>(() => {
-    const saved = safeParse<Availability[] | null>('localnurse_availability', null);
+    const saved = safeParse<Availability[] | null>('biencuidar_availability', null);
     if (saved) return saved;
     // Generate seed availability for demo nurses: next 30 days, 06:00-18:00
     const seed: Availability[] = [];
@@ -384,7 +384,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   });
 
   useEffect(() => {
-    localStorage.setItem('localnurse_availability', JSON.stringify(availabilityCache));
+    localStorage.setItem('biencuidar_availability', JSON.stringify(availabilityCache));
   }, [availabilityCache]);
 
   const getAvailability = async (nurseId: string, startDate: string, endDate: string): Promise<Availability[]> => {

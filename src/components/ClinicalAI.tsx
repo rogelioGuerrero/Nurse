@@ -109,7 +109,7 @@ export default function ClinicalAI() {
             Apoyo Clínico por Inteligencia Artificial
           </div>
           <h2 className="text-3xl font-bold font-serif italic">
-            Asistente Clínico Llama-3 Geriátrico
+            Apoyo Clínico
           </h2>
           <p className="text-sm text-slate-200 leading-relaxed max-w-3xl">
             {isNurseView 
@@ -153,7 +153,7 @@ export default function ClinicalAI() {
               <span>Aviso Regulatorio de Salud</span>
             </div>
             <p>
-              El Asistente Clínico de IA de LocalNurse es una herramienta de consulta de segunda opinión clínica que recopila información científica pública. No sustituye las recetas médicas dadas por su centro hospitalario o médico de cabecera en El Salvador.
+              El Apoyo Clínico de BienCuidar es una herramienta de consulta de segunda opinión clínica que recopila información científica pública. No sustituye las recetas médicas dadas por su centro hospitalario o médico de cabecera en El Salvador.
             </p>
           </div>
         </div>
@@ -191,13 +191,13 @@ export default function ClinicalAI() {
               <div className="bg-indigo-50/20 border border-indigo-100/40 rounded-2xl p-4.5 space-y-3">
                 <div className="flex items-center gap-2">
                   <Activity className="h-4 w-4 text-indigo-600 animate-pulse" />
-                  <span className="text-xs font-extrabold text-indigo-950 uppercase tracking-wider block">Respuesta Asistente Clínico Llama-3</span>
+                  <span className="text-xs font-extrabold text-indigo-950 uppercase tracking-wider block">Respuesta del Apoyo Clínico</span>
                 </div>
 
                 {loading ? (
                   <div className="flex items-center gap-2.5 text-xs text-indigo-600 font-bold py-4">
                     <div className="w-4.5 h-4.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                    <span>Llama-3 formulando recomendación médica profesional...</span>
+                    <span>Generando recomendación médica profesional...</span>
                   </div>
                 ) : (
                   <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line font-medium bg-white p-3.5 rounded-xl border border-white">

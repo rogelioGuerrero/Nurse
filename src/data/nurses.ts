@@ -8,7 +8,7 @@ import { Profile, Nurse } from '../types';
 export const INITIAL_PROFILES: Profile[] = [
   {
     id: '00000000-0000-0000-0000-000000000002',
-    email: 'elena.gomez@localnurse.com',
+    email: 'elena.gomez@biencuidar.com',
     role: 'nurse',
     full_name: 'Lic. Elena Gómez',
     avatar_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
@@ -18,7 +18,7 @@ export const INITIAL_PROFILES: Profile[] = [
   },
   {
     id: '00000000-0000-0000-0000-000000000003',
-    email: 'carlos.mendoza@localnurse.com',
+    email: 'carlos.mendoza@biencuidar.com',
     role: 'nurse',
     full_name: 'Enf. Carlos Mendoza',
     avatar_url: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=200',
@@ -28,7 +28,7 @@ export const INITIAL_PROFILES: Profile[] = [
   },
   {
     id: '00000000-0000-0000-0000-000000000004',
-    email: 'sofia.rodriguez@localnurse.com',
+    email: 'sofia.rodriguez@biencuidar.com',
     role: 'nurse',
     full_name: 'Mtra. Sofía Rodríguez',
     avatar_url: 'https://images.unsplash.com/photo-1594824813573-246434de83fb?auto=format&fit=crop&q=80&w=200',
@@ -38,7 +38,7 @@ export const INITIAL_PROFILES: Profile[] = [
   },
   {
     id: '00000000-0000-0000-0000-000000000005',
-    email: 'miguel.angel@localnurse.com',
+    email: 'miguel.angel@biencuidar.com',
     role: 'nurse',
     full_name: 'Enf. Miguel Ángel Ramos',
     avatar_url: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=200',
@@ -48,7 +48,7 @@ export const INITIAL_PROFILES: Profile[] = [
   },
   {
     id: '00000000-0000-0000-0000-000000000006',
-    email: 'isabel.castro@localnurse.com',
+    email: 'isabel.castro@biencuidar.com',
     role: 'nurse',
     full_name: 'Dra. Isabel Castro',
     avatar_url: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=200',

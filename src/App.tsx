@@ -135,7 +135,7 @@ function MarketplaceApp() {
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xl font-bold font-serif italic tracking-tight text-slate-900">LocalNurse</span>
+                  <span className="text-xl font-bold font-serif italic tracking-tight text-slate-900">BienCuidar</span>
                 </div>
                 <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Cuidado del Adulto Mayor</p>
               </div>
@@ -489,10 +489,10 @@ function MarketplaceApp() {
             <div className="h-7 w-7 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
               <Stethoscope className="h-3.5 w-3.5" />
             </div>
-            <span className="text-white font-bold text-sm">LocalNurse</span>
+            <span className="text-white font-bold text-sm">BienCuidar</span>
             <span className="text-slate-600">| Cuidado del Adulto Mayor en El Salvador</span>
           </div>
-          <p>© 2026 LocalNurse · Hecho en El Salvador</p>
+          <p>© 2026 BienCuidar · Hecho en El Salvador</p>
         </div>
       </footer>
 

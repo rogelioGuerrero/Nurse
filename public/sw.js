@@ -1,4 +1,4 @@
-const CACHE_NAME = 'localnurse-v1';
+const CACHE_NAME = 'biencuidar-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

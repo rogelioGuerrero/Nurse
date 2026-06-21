@@ -1,11 +1,11 @@
 {
-  "name": "LocalNurse - Cuidado del Adulto Mayor",
-  "short_name": "LocalNurse",
-  "description": "Plataforma para conectar familias con enfermeras profesionales en El Salvador",
+  "name": "BienCuidar - Cuidado del Adulto Mayor",
+  "short_name": "BienCuidar",
+  "description": "Conecta familias con enfermeras profesionales para el cuidado del adulto mayor en El Salvador",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F5F5F0",
-  "theme_color": "#0d9488",
+  "theme_color": "#4f46e5",
   "lang": "es-SV",
   "icons": [
     {
