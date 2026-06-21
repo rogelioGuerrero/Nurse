@@ -445,7 +445,7 @@ export const NurseProfileEdit: FC = () => {
                 </div>
               </div>
               <p className="text-[10px] text-slate-400 leading-relaxed pt-1">
-                Los $5 cubren impuestos (IVA), comisión de la tarjeta de crédito y emisión de factura. Los $2 van directo a Hacienda como retención de renta — si facturaras por tu cuenta, tendrías que pagarlos igual.
+                Los $5 cubren impuestos (IVA), comisión de la tarjeta de crédito y emisión de factura. Los $2 van directo a Hacienda como retención de renta. Si cobras directamente, tú debes declarar y pagar tus impuestos. BienCuidar se encarga de todo eso por ti y evita problemas por evasión de impuestos.
               </p>
             </div>
           )}
