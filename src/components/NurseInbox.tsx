@@ -48,6 +48,18 @@ export const NurseInbox: FC = () => {
     );
   };
 
+  // Check if nurse already accepted ANY slot on the same date (double-booking prevention)
+  const isDateBooked = (dateStr: string): boolean => {
+    return careOffers.some(o => {
+      if (o.nurse_id !== myNurse?.id) return false;
+      if (o.status !== 'accepted') return false;
+      const req = careRequests.find(r => r.id === o.request_id);
+      if (!req) return false;
+      const slot = req.slots[o.slot_index];
+      return slot?.date === dateStr;
+    });
+  };
+
   const getOfferForSlot = (requestId: string, slotIndex: number) => {
     return careOffers.find(
       o => o.request_id === requestId &&
@@ -158,6 +170,7 @@ export const NurseInbox: FC = () => {
                   {req.slots.map((slot, idx) => {
                     const offer = getOfferForSlot(req.id, idx);
                     const responded = hasOffered(req.id, idx);
+                    const dateConflict = isDateBooked(slot.date) && !responded;
                     const [sh, sm] = slot.start_time.split(':').map(Number);
                     const [eh, em] = slot.end_time.split(':').map(Number);
                     const hours = (eh + em / 60) - (sh + sm / 60);
@@ -190,6 +203,12 @@ export const NurseInbox: FC = () => {
                             <span className="font-bold text-slate-600">{hours.toFixed(1)}h</span>
                             <span className="font-bold text-indigo-600">${payout.toFixed(0)}</span>
                           </div>
+                          {dateConflict && (
+                            <div className="text-[10px] font-bold text-amber-600 mt-1 flex items-center gap-1">
+                              <AlertCircle className="h-3 w-3" />
+                              Ya tienes una visita aceptada este día
+                            </div>
+                          )}
                         </div>
 
                         {/* Action buttons or status */}
@@ -197,7 +216,8 @@ export const NurseInbox: FC = () => {
                           <div className="flex items-center gap-2 flex-shrink-0">
                             <button
                               onClick={() => handleAccept(req, idx)}
-                              className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1 cursor-pointer"
+                              disabled={dateConflict}
+                              className="bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-200 disabled:cursor-not-allowed text-white text-xs font-bold px-3 py-2 rounded-xl transition flex items-center gap-1 cursor-pointer"
                             >
                               <CheckCircle2 className="h-3.5 w-3.5" />
                               Aceptar

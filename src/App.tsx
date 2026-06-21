@@ -29,6 +29,7 @@ const NurseProfileEdit = lazy(() => import('./components/NurseProfileEdit').then
 const ClinicalAI = lazy(() => import('./components/ClinicalAI'));
 const CareRequestForm = lazy(() => import('./components/CareRequestForm').then(m => ({ default: m.CareRequestForm })));
 const NurseInbox = lazy(() => import('./components/NurseInbox').then(m => ({ default: m.NurseInbox })));
+const PlanReview = lazy(() => import('./components/PlanReview').then(m => ({ default: m.PlanReview })));
 
 function MarketplaceApp() {
   const { 
@@ -49,6 +50,20 @@ function MarketplaceApp() {
   const [maxRate, setMaxRate] = useState<number>(30);
   const [sortBy, setSortBy] = useState<string>('distance');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // URL hash routing: #/enfermera switches to nurse mode
+  useEffect(() => {
+    const checkHash = () => {
+      const hash = window.location.hash.toLowerCase();
+      if (hash.includes('enfermera') && currentUser?.role !== 'nurse') {
+        const firstNurse = profiles.find(p => p.role === 'nurse');
+        if (firstNurse) switchUser(firstNurse);
+      }
+    };
+    checkHash();
+    window.addEventListener('hashchange', checkHash);
+    return () => window.removeEventListener('hashchange', checkHash);
+  }, [profiles, currentUser, switchUser]);
 
   // Debounce search input (300ms)
   useEffect(() => {
@@ -155,20 +170,35 @@ function MarketplaceApp() {
           {/* Navigation Control Buttons */}
           <nav className={`flex flex-wrap items-center gap-1 sm:gap-2 text-xs ${mobileMenuOpen ? 'flex' : 'hidden sm:flex'}`}>
             
-            {/* Familiar: only care request */}
+            {/* Familiar: care request + plan review */}
             {currentUser?.role !== 'nurse' && (
-              <button
-                onClick={() => { setSelectedNurseId(null); setActiveTab('care-request'); setMobileMenuOpen(false); }}
-                className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                  activeTab === 'care-request'
-                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-                id="tab-btn-care-request"
-              >
-                <Search className="h-4 w-4" />
-                <span>Solicitar Cuidado</span>
-              </button>
+              <>
+                <button
+                  onClick={() => { setSelectedNurseId(null); setActiveTab('care-request'); setMobileMenuOpen(false); }}
+                  className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    activeTab === 'care-request'
+                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                  id="tab-btn-care-request"
+                >
+                  <Search className="h-4 w-4" />
+                  <span>Solicitar Cuidado</span>
+                </button>
+
+                <button
+                  onClick={() => { setSelectedNurseId(null); setActiveTab('plan-review'); setMobileMenuOpen(false); }}
+                  className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    activeTab === 'plan-review'
+                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                  id="tab-btn-plan-review"
+                >
+                  <Calendar className="h-4 w-4" />
+                  <span>Mi Plan</span>
+                </button>
+              </>
             )}
 
             {/* Nurse: inbox + profile + clinical AI */}
@@ -423,6 +453,14 @@ function MarketplaceApp() {
           <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner />}>
               <NurseInbox />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+
+        {activeTab === 'plan-review' && (
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingSpinner />}>
+              <PlanReview />
             </Suspense>
           </ErrorBoundary>
         )}
