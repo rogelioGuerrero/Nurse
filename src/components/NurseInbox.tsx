@@ -1,4 +1,4 @@
-import { useMemo, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { calculateNurseNet } from '../data/standardRates';
 import { getDistanceKm, USER_COORDS } from '../lib/distance';
@@ -16,6 +16,10 @@ function formatDate(dateStr: string): string {
 
 export const NurseInbox: FC = () => {
   const { careRequests, careOffers, nurses, profiles, currentUser, createCareOffer } = useApp();
+
+  // Modal de ajuste de tarifa
+  const [acceptModal, setAcceptModal] = useState<{ request: CareRequest; slotIndex: number } | null>(null);
+  const [offerRate, setOfferRate] = useState<number>(0);
 
   // Find the current nurse's record
   const myNurse = useMemo(
@@ -69,12 +73,8 @@ export const NurseInbox: FC = () => {
 
   const handleAccept = (request: CareRequest, slotIndex: number) => {
     if (!myNurse) return;
-    createCareOffer({
-      request_id: request.id,
-      nurse_id: myNurse.id,
-      slot_index: slotIndex,
-      message: 'Confirmo disponibilidad para esta visita.'
-    });
+    setAcceptModal({ request, slotIndex });
+    setOfferRate(myNurse.shift_rate);
   };
 
   const handleDecline = (request: CareRequest, slotIndex: number) => {
@@ -83,9 +83,23 @@ export const NurseInbox: FC = () => {
       request_id: request.id,
       nurse_id: myNurse.id,
       slot_index: slotIndex,
+      offered_rate: myNurse.shift_rate,
       message: 'No tengo disponibilidad para esta fecha.',
       status: 'rejected'
     });
+  };
+
+  const handleConfirmOffer = () => {
+    if (!acceptModal || !myNurse) return;
+    const { request, slotIndex } = acceptModal;
+    createCareOffer({
+      request_id: request.id,
+      nurse_id: myNurse.id,
+      slot_index: slotIndex,
+      offered_rate: offerRate,
+      message: 'Confirmo disponibilidad para esta visita.'
+    });
+    setAcceptModal(null);
   };
 
   if (!myNurse) {
@@ -257,6 +271,49 @@ export const NurseInbox: FC = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal de ajuste de tarifa */}
+      {acceptModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) setAcceptModal(null); }}>
+          <div className="bg-white rounded-2xl max-w-sm w-full border border-slate-200 shadow-2xl p-5 space-y-4">
+            <div>
+              <h3 className="text-lg font-bold text-slate-800">Ajustar tarifa para esta visita</h3>
+              <p className="text-xs text-slate-500 mt-1">Puedes ajustar tu tarifa según el servicio específico.</p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tarifa por turno (US$)</label>
+              <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                <span className="absolute inset-y-0 left-3 flex items-center text-slate-400 font-bold">$</span>
+                <input
+                  type="number"
+                  min="15"
+                  max="50"
+                  value={offerRate}
+                  onChange={e => setOfferRate(Number(e.target.value))}
+                  className="w-full bg-transparent pl-7 pr-3 py-3 outline-none font-bold text-slate-800 text-sm"
+                />
+              </div>
+              <p className="text-[10px] text-slate-400 mt-1">Tu tarifa base: US$ {myNurse?.shift_rate}</p>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setAcceptModal(null)}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-xl text-xs cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmOffer}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl text-xs cursor-pointer"
+              >
+                Ofertar US$ {offerRate}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

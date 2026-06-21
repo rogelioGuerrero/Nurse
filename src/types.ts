@@ -123,6 +123,7 @@ export interface CareOffer {
   nurse_id: string; // nurse who offered
   slot_index: number; // which slot in CareRequest.slots this offer is for
   message: string;
+  offered_rate: number; // rate offered by nurse for this specific request
   status: CareOfferStatus;
   created_at: string;
 }

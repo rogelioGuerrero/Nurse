@@ -4,7 +4,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, useCallback, type FC, type ReactNode } from 'react';
-import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareOffer, ShiftType } from '../types';
+import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareOffer, ShiftType, SHIFTS } from '../types';
 import { INITIAL_PROFILES, INITIAL_NURSES } from '../data/nurses';
 import { supabase } from '../lib/supabase';
 import { getResponseDeadline } from '../data/platformSettings';
@@ -216,18 +216,6 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     return newOffer;
   }, []);
 
-  const acceptCareOffer = useCallback((offerId: string) => {
-    setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'accepted' } : { ...o, status: o.status === 'pending' ? 'rejected' : o.status }));
-    // Mark the care request as matched
-    setCareOffers(prev => {
-      const offer = prev.find(o => o.id === offerId);
-      if (offer) {
-        setCareRequests(reqs => reqs.map(r => r.id === offer.request_id ? { ...r, status: 'matched' } : r));
-      }
-      return prev;
-    });
-  }, []);
-
   // Synchronize dynamic nurse profile if active user role is 'nurse'
   useEffect(() => {
     if (currentUser && currentUser.role === 'nurse') {
@@ -352,6 +340,38 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       return newBooking;
     }
   };
+
+  const acceptCareOffer = useCallback(async (offerId: string) => {
+    const offer = careOffers.find(o => o.id === offerId);
+    if (!offer) return;
+
+    // Marcar offer como aceptado y otros como rechazados
+    setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'accepted' } : { ...o, status: o.status === 'pending' ? 'rejected' : o.status }));
+    
+    // Marcar request como matched
+    setCareRequests(reqs => reqs.map(r => r.id === offer.request_id ? { ...r, status: 'matched' } : r));
+
+    // Crear booking automaticamente usando offered_rate
+    const request = careRequests.find(r => r.id === offer.request_id);
+    if (request) {
+      const slot = request.slots[offer.slot_index];
+      const shift = SHIFTS[slot.shift];
+      const hours = 8; // cada turno son 8 horas
+      const totalPrice = offer.offered_rate * hours;
+      
+      await createBooking({
+        nurse_id: offer.nurse_id,
+        date: slot.date,
+        start_time: shift.start,
+        end_time: shift.end,
+        hours,
+        total_price: totalPrice,
+        patient_name: request.patient_name,
+        patient_condition: request.patient_condition,
+        notes: request.notes
+      });
+    }
+  }, [careOffers, careRequests, createBooking]);
 
   // Action: Update state of booking (optimistic update with rollback)
   const updateBookingStatus = async (bookingId: string, status: BookingStatus) => {
