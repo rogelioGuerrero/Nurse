@@ -8,13 +8,14 @@ import { useApp } from '../context/AppContext';
 import AvailabilityCalendar from './AvailabilityCalendar';
 import {
   Star, Clock, ChevronLeft, ChevronRight, MapPin, Award, ShieldCheck,
-  Stethoscope, AlertCircle, Heart, CheckCircle2, MessageCircle
+  Stethoscope, AlertCircle, Heart, CheckCircle2, MessageCircle, BadgeCheck, FileText
 } from 'lucide-react';
 
 export const NurseDetail: FC = () => {
   const {
     nurses,
     profiles,
+    bookings,
     selectedNurseId,
     setSelectedNurseId,
     createBooking,
@@ -282,61 +283,110 @@ export const NurseDetail: FC = () => {
                 </ul>
               </div>
 
-              {/* Sello de Confianza y Seguridad El Salvador */}
-              <div className="pt-4 border-t border-slate-100 space-y-3.5">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                  <ShieldCheck className="h-4.5 w-4.5 text-indigo-600" />
-                  Sello de Seguridad y Confianza El Salvador
-                </h4>
-                <div className="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/60 space-y-3">
-                  <p className="text-[11px] text-indigo-950 font-normal leading-relaxed">
-                    Para la absoluta tranquilidad de tu familia, todos nuestros cuidadores en El Salvador pasan por filtros de seguridad rigurosos antes de ser admitidos en la plataforma:
-                  </p>
-                  
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
-                      <span className="w-5 h-5 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-[10px] font-bold">✓</span>
-                      <div>
-                        <span className="text-[10px] font-black text-slate-800 block">Solvencia de la PNC</span>
-                        <span className="text-[9px] text-slate-400 font-semibold block">Policía Nacional Civil</span>
-                      </div>
+              {/* Verifications (optional, only show what nurse has provided) */}
+              {nurse.verifications && (nurse.verifications.college_registration || nurse.verifications.pnc_clearance_date || nurse.verifications.criminal_record_date || nurse.verifications.cssp_registration) ? (
+                <div className="pt-4 border-t border-slate-100 space-y-3.5">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                    <ShieldCheck className="h-4.5 w-4.5 text-indigo-600" />
+                    Verificaciones de la enfermera
+                  </h4>
+                  <div className="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/60 space-y-3">
+                    <p className="text-[11px] text-slate-600 font-normal leading-relaxed">
+                      Esta enfermera ha compartido voluntariamente los siguientes documentos:
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {nurse.verifications.college_registration && (
+                        <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
+                          <BadgeCheck className="h-5 w-5 text-emerald-600 shrink-0" />
+                          <div>
+                            <span className="text-[10px] font-black text-slate-800 block">Registro del Colegio</span>
+                            <span className="text-[9px] text-slate-400 font-semibold block">{nurse.verifications.college_registration}</span>
+                          </div>
+                        </div>
+                      )}
+                      {nurse.verifications.pnc_clearance_date && (
+                        <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
+                          <BadgeCheck className="h-5 w-5 text-emerald-600 shrink-0" />
+                          <div>
+                            <span className="text-[10px] font-black text-slate-800 block">Solvencia PNC</span>
+                            <span className="text-[9px] text-slate-400 font-semibold block">{new Date(nurse.verifications.pnc_clearance_date + 'T00:00:00').toLocaleDateString('es-SV')}</span>
+                          </div>
+                        </div>
+                      )}
+                      {nurse.verifications.criminal_record_date && (
+                        <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
+                          <BadgeCheck className="h-5 w-5 text-emerald-600 shrink-0" />
+                          <div>
+                            <span className="text-[10px] font-black text-slate-800 block">Antecedentes Penales</span>
+                            <span className="text-[9px] text-slate-400 font-semibold block">{new Date(nurse.verifications.criminal_record_date + 'T00:00:00').toLocaleDateString('es-SV')}</span>
+                          </div>
+                        </div>
+                      )}
+                      {nurse.verifications.cssp_registration && (
+                        <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
+                          <BadgeCheck className="h-5 w-5 text-emerald-600 shrink-0" />
+                          <div>
+                            <span className="text-[10px] font-black text-slate-800 block">Registro CSSP</span>
+                            <span className="text-[9px] text-slate-400 font-semibold block">{nurse.verifications.cssp_registration}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-
-                    <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
-                      <span className="w-5 h-5 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-[10px] font-bold">✓</span>
-                      <div>
-                        <span className="text-[10px] font-black text-slate-800 block">Antecedentes Penales</span>
-                        <span className="text-[9px] text-slate-400 font-semibold block">Dirección Gral. de Penales</span>
+                    {nurse.wants_invoicing && (
+                      <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-emerald-100 shadow-sm">
+                        <FileText className="h-5 w-5 text-emerald-600 shrink-0" />
+                        <div>
+                          <span className="text-[10px] font-black text-slate-800 block">Factura electrónica disponible</span>
+                          <span className="text-[9px] text-slate-400 font-semibold block">BienCuidar factura por ella</span>
+                        </div>
                       </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
-                      <span className="w-5 h-5 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-[10px] font-bold">✓</span>
-                      <div>
-                        <span className="text-[10px] font-black text-slate-800 block">Registro del CSSP</span>
-                        <span className="text-[9px] text-slate-400 font-semibold block">Consejo Superior de Salud Pública</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
-                      <span className="w-5 h-5 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center text-[10px] font-bold">✓</span>
-                      <div>
-                        <span className="text-[10px] font-black text-slate-800 block">Verificación de DUI</span>
-                        <span className="text-[9px] text-slate-400 font-semibold block">Doc. Único de Identidad</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-[10px] text-slate-500 font-medium italic flex items-start gap-1">
-                    <span className="text-amber-500 font-black">ⓘ</span>
-                    <span>Los enfermeros autorizan periódicamente la actualización de sus antecedentes legales salvadoreños ante nuestro equipo regulador.</span>
+                    )}
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="pt-4 border-t border-slate-100">
+                  <p className="text-[10px] text-slate-400 italic">Esta enfermera aún no ha compartido verificaciones. Puedes preguntarle directamente.</p>
+                </div>
+              )}
             </div>
 
             {/* Availability Calendar */}
             <AvailabilityCalendar nurseId={nurse.id} isEditable={false} />
+
+            {/* Portfolio: completed services track record */}
+            {(() => {
+              const completedBookings = bookings.filter(b => b.nurse_id === nurse.id && b.status === 'completed');
+              if (completedBookings.length === 0) return null;
+              return (
+                <div className="pt-4 border-t border-slate-100">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+                    <Award className="h-4 w-4 text-amber-500" />
+                    Portafolio de Servicios ({completedBookings.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {completedBookings.slice(0, 8).map((b) => {
+                      const familyProfile = profiles.find(p => p.id === b.user_id);
+                      return (
+                        <div key={b.id} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3 border border-slate-100">
+                          <div className="flex-shrink-0 w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+                            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-xs font-bold text-slate-700 truncate">
+                              {b.patient_name || 'Paciente'}
+                            </div>
+                            <div className="text-[10px] text-slate-400">
+                              {new Date(b.date + 'T00:00:00').toLocaleDateString('es-SV', { day: 'numeric', month: 'short', year: 'numeric' })} · {b.hours}h · {b.patient_condition || 'Cuidado general'}
+                            </div>
+                          </div>
+                          <span className="text-xs font-bold text-emerald-700">${b.total_price}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
           </div>
 

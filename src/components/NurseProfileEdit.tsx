@@ -5,7 +5,7 @@
 
 import { useState, type FC, type FormEvent } from 'react';
 import { useApp } from '../context/AppContext';
-import { Save, Edit3, CheckCircle2, Calculator, Sun, Moon, Sunset } from 'lucide-react';
+import { Save, Edit3, CheckCircle2, Calculator, Sun, Moon, Sunset, ShieldCheck, FileText, BadgeCheck } from 'lucide-react';
 import { SHIFTS, type ShiftType, type WeekDay } from '../types';
 
 const allSpecialtyTags = [
@@ -45,6 +45,13 @@ export const NurseProfileEdit: FC = () => {
   const [selectedSpecs, setSelectedSpecs] = useState<string[]>(currentNurse?.specialization || []);
   const [showNotify, setShowNotify] = useState(false);
 
+  // Optional verifications
+  const [collegeReg, setCollegeReg] = useState<string>(currentNurse?.verifications?.college_registration || '');
+  const [pncDate, setPncDate] = useState<string>(currentNurse?.verifications?.pnc_clearance_date || '');
+  const [criminalDate, setCriminalDate] = useState<string>(currentNurse?.verifications?.criminal_record_date || '');
+  const [csspReg, setCsspReg] = useState<string>(currentNurse?.verifications?.cssp_registration || '');
+  const [wantsInvoicing, setWantsInvoicing] = useState<boolean>(currentNurse?.wants_invoicing || false);
+
   if (!currentNurse || !currentUser) return null;
 
   const handleToggleSpec = (tag: string) => {
@@ -77,7 +84,14 @@ export const NurseProfileEdit: FC = () => {
       available_days: selectedDays,
       bio,
       experience_years: Number(experienceYears),
-      specialization: selectedSpecs
+      specialization: selectedSpecs,
+      verifications: {
+        college_registration: collegeReg.trim() || undefined,
+        pnc_clearance_date: pncDate || undefined,
+        criminal_record_date: criminalDate || undefined,
+        cssp_registration: csspReg.trim() || undefined,
+      },
+      wants_invoicing: wantsInvoicing,
     });
 
     updateProfile({
@@ -335,6 +349,79 @@ export const NurseProfileEdit: FC = () => {
             className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-4 py-3 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition resize-none leading-relaxed"
             id="input-edit-bio"
           />
+        </div>
+
+        {/* Optional verifications */}
+        <div className="space-y-3 pt-4 border-t border-slate-50">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-indigo-500" />
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Verificaciones (Opcional)
+            </label>
+          </div>
+          <p className="text-[10px] text-slate-400">Si tienes estos documentos, compártelos. Las familias verán badges de confianza en tu perfil. No es obligatorio.</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Registro del Colegio/Asociación</label>
+              <input
+                type="text"
+                value={collegeReg}
+                onChange={(e) => setCollegeReg(e.target.value)}
+                placeholder="Ej: ENF-2024-0123"
+                className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-3 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Solvencia PNC (fecha)</label>
+              <input
+                type="date"
+                value={pncDate}
+                onChange={(e) => setPncDate(e.target.value)}
+                className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-3 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Antecedentes Penales (fecha)</label>
+              <input
+                type="date"
+                value={criminalDate}
+                onChange={(e) => setCriminalDate(e.target.value)}
+                className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-3 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Registro CSSP</label>
+              <input
+                type="text"
+                value={csspReg}
+                onChange={(e) => setCsspReg(e.target.value)}
+                placeholder="Ej: CSSP-2024-456"
+                className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-3 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Invoicing option */}
+        <div className="pt-4 border-t border-slate-50">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={wantsInvoicing}
+              onChange={(e) => setWantsInvoicing(e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-indigo-600 cursor-pointer"
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5 text-indigo-500" />
+                <span className="text-xs font-bold text-slate-700">Quiero que BienCuidar facture por mí</span>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
+                BienCuidar emite factura electrónica al familiar y te transfiere tu pago neto. No necesitas inscribirte en Hacienda ni manejar facturación. Se aplica una comisión de $1 por factura emitida.
+              </p>
+            </div>
+          </label>
         </div>
 
         {/* Speciality selections list */}
