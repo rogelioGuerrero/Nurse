@@ -290,7 +290,7 @@ export const PlanReview: FC = () => {
                   <span className="text-xs font-bold text-emerald-700">Factura de Consumidor Final incluida</span>
                 </div>
                 <p className="text-[10px] text-slate-500 leading-relaxed pl-6">
-                  Este gasto es <strong>100% deducible de tu Impuesto sobre la Renta</strong>. BienCuidar emite la factura electrónica válida ante el Ministerio de Hacienda. Si pagas en efectivo directamente, ese gasto no es deducible.
+                  Este gasto es <strong>100% deducible de tu Impuesto sobre la Renta</strong>. BienCuidar emite la factura electrónica válida ante el Ministerio de Hacienda. El pago debe realizarse a través de la plataforma — no se permite pago directo en efectivo a la enfermera.
                 </p>
               </div>
             )}

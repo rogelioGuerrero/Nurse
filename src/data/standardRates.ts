@@ -4,7 +4,7 @@ export interface StandardRate {
 }
 
 export const PLATFORM_COMMISSION = 5; // fixed $5 per shift when invoicing
-export const IVA_RATE = 0; // IVA exento para servicios de salud en El Salvador
+export const IVA_RATE = 0.13; // 13% IVA sobre comision de intermediacion (NO sobre servicio de salud)
 export const RETENTION_RATE = 0.10; // 10% retencion de ISR (Impuesto sobre la Renta)
 export const STRIPE_RATE = 0.035; // ~3.5% Stripe card fee
 
@@ -36,10 +36,12 @@ export function getSuggestedRate(specialization: string): number {
   return getRate(specialization).suggestedRate;
 }
 
-// What the family pays total per shift (no IVA - servicios de salud exentos)
+// What the family pays total per shift
+// Servicio de enfermeria: IVA 0% (exento). Comision de intermediacion: IVA 13%
 export function calculateFamilyPrice(nurseRate: number, wantsInvoicing: boolean): number {
   if (!wantsInvoicing) return nurseRate;
-  return nurseRate + PLATFORM_COMMISSION;
+  const commissionWithIVA = PLATFORM_COMMISSION * (1 + IVA_RATE);
+  return nurseRate + commissionWithIVA;
 }
 
 // What the nurse receives net per shift
@@ -48,13 +50,14 @@ export function calculateNurseNet(nurseRate: number, wantsInvoicing: boolean): n
   return nurseRate * (1 - RETENTION_RATE);
 }
 
-// What BienCuidar keeps per shift
+// What BienCuidar keeps per shift (commission minus IVA to pay, minus Stripe)
 export function calculatePlatformRevenue(nurseRate: number, wantsInvoicing: boolean, withCard: boolean = true): number {
   if (!wantsInvoicing) return 0;
   const familyPrice = calculateFamilyPrice(nurseRate, wantsInvoicing);
   const retention = nurseRate * RETENTION_RATE;
+  const ivaOnCommission = PLATFORM_COMMISSION * IVA_RATE;
   const stripe = withCard ? familyPrice * STRIPE_RATE : 0;
-  return familyPrice - nurseRate - retention - stripe;
+  return familyPrice - nurseRate - retention - ivaOnCommission - stripe;
 }
 
 export function calculateShiftPrice(nurseRate: number, shiftCount: number = 1, wantsInvoicing: boolean = false): number {

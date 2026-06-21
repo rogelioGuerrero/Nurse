@@ -442,7 +442,7 @@ export const NurseProfileEdit: FC = () => {
                 </div>
               </div>
               <p className="text-[10px] text-slate-400 leading-relaxed pt-1">
-                El familiar paga tu tarifa más ${PLATFORM_COMMISSION} de comisión de la plataforma. De tu tarifa, se retiene {RETENTION_RATE * 100}% de ISR (Impuesto sobre la Renta) que va directo al Ministerio de Hacienda. BienCuidar emite la Factura de Sujeto Excluido (FSE) a tu nombre. Si cobras directamente, tú debes declarar y pagar tus impuestos. BienCuidar se encarga de todo eso por ti y evita problemas por evasión de impuestos.
+                El familiar paga tu tarifa (servicio de salud, IVA 0%) más ${PLATFORM_COMMISSION} de comisión de BienCuidar + IVA 13% sobre esa comisión. De tu tarifa, se retiene {RETENTION_RATE * 100}% de ISR que va al Ministerio de Hacienda. BienCuidar emite la FSE a tu nombre y la Factura de Consumidor Final al familiar. Si cobras directo en efectivo, tú debes declarar y pagar tus impuestos, y el familiar pierde su deducción de Renta.
               </p>
             </div>
           )}
