@@ -235,18 +235,18 @@ export const NurseProfileEdit: FC = () => {
             <div className="grid grid-cols-3 gap-2.5 text-center text-[11px]">
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Turno (8h)</span>
-                <span className="font-black text-slate-800 block mt-0.5">US$ {(shiftRate * 0.9).toFixed(2)}</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">(Bruto: US$ {shiftRate.toFixed(0)})</span>
+                <span className="font-black text-slate-800 block mt-0.5">US$ {wantsInvoicing ? (shiftRate - 2).toFixed(2) : shiftRate.toFixed(2)}</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate})` : '(Sin factura)'}</span>
               </div>
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Semana (5 turnos)</span>
-                <span className="font-black text-slate-800 block mt-0.5">US$ {(shiftRate * 5 * 0.9).toFixed(2)}</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">(Bruto: US$ {(shiftRate * 5).toFixed(0)})</span>
+                <span className="font-black text-slate-800 block mt-0.5">US$ {wantsInvoicing ? ((shiftRate - 2) * 5).toFixed(2) : (shiftRate * 5).toFixed(2)}</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate * 5})` : '(Sin factura)'}</span>
               </div>
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Mes (20 turnos)</span>
-                <span className="font-black text-indigo-600 block mt-0.5">US$ {(shiftRate * 20 * 0.9).toFixed(2)}</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">(Bruto: US$ {(shiftRate * 20).toFixed(0)})</span>
+                <span className="font-black text-indigo-600 block mt-0.5">US$ {wantsInvoicing ? ((shiftRate - 2) * 20).toFixed(2) : (shiftRate * 20).toFixed(2)}</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate * 20})` : '(Sin factura)'}</span>
               </div>
             </div>
           </div>
@@ -404,7 +404,7 @@ export const NurseProfileEdit: FC = () => {
         </div>
 
         {/* Invoicing option */}
-        <div className="pt-4 border-t border-slate-50">
+        <div className="pt-4 border-t border-slate-50 space-y-3">
           <label className="flex items-start gap-3 cursor-pointer">
             <input
               type="checkbox"
@@ -418,10 +418,37 @@ export const NurseProfileEdit: FC = () => {
                 <span className="text-xs font-bold text-slate-700">Quiero que BienCuidar facture por mí</span>
               </div>
               <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
-                BienCuidar emite factura electrónica al familiar y te transfiere tu pago neto. No necesitas inscribirte en Hacienda ni manejar facturación. Se aplica una comisión de $1 por factura emitida.
+                BienCuidar emite factura electrónica al familiar y te transfiere tu pago neto. No necesitas inscribirte en Hacienda ni manejar facturación.
               </p>
             </div>
           </label>
+
+          {wantsInvoicing && (
+            <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-2">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Ejemplo: turno de $25</p>
+              <div className="space-y-1 text-[11px] text-slate-600">
+                <div className="flex justify-between">
+                  <span>Familiar paga</span>
+                  <span className="font-bold text-slate-800">$25.00</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>IVA (13%) + factura electrónica + comisión tarjeta</span>
+                  <span>-$5.00</span>
+                </div>
+                <div className="flex justify-between text-slate-400">
+                  <span>Retención de renta (paga Hacienda)</span>
+                  <span>-$2.00</span>
+                </div>
+                <div className="border-t border-slate-200 pt-1.5 flex justify-between">
+                  <span className="font-bold text-slate-700">Tú recibes neto</span>
+                  <span className="font-black text-emerald-600">$18.00</span>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-400 leading-relaxed pt-1">
+                Los $5 cubren impuestos (IVA), comisión de la tarjeta de crédito y emisión de factura. Los $2 van directo a Hacienda como retención de renta — si facturaras por tu cuenta, tendrías que pagarlos igual.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Speciality selections list */}
