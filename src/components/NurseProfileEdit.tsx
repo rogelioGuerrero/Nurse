@@ -46,11 +46,12 @@ export const NurseProfileEdit: FC = () => {
   const [selectedSpecs, setSelectedSpecs] = useState<string[]>(currentNurse?.specialization || []);
   const [showNotify, setShowNotify] = useState(false);
 
-  // Optional verifications
+  // CSSP obligatorio + verificaciones opcionales
+  const [csspReg, setCsspReg] = useState<string>(currentNurse?.cssp_registration || '');
+  const [csspLevel, setCsspLevel] = useState<string>(currentNurse?.cssp_level || 'Licenciada');
   const [collegeReg, setCollegeReg] = useState<string>(currentNurse?.verifications?.college_registration || '');
   const [pncDate, setPncDate] = useState<string>(currentNurse?.verifications?.pnc_clearance_date || '');
   const [criminalDate, setCriminalDate] = useState<string>(currentNurse?.verifications?.criminal_record_date || '');
-  const [csspReg, setCsspReg] = useState<string>(currentNurse?.verifications?.cssp_registration || '');
 
   if (!currentNurse || !currentUser) return null;
 
@@ -85,11 +86,12 @@ export const NurseProfileEdit: FC = () => {
       bio,
       experience_years: Number(experienceYears),
       specialization: selectedSpecs,
+      cssp_registration: csspReg.trim(),
+      cssp_level: csspLevel as 'Licenciada' | 'Tecnóloga' | 'Técnica' | 'Auxiliar',
       verifications: {
         college_registration: collegeReg.trim() || undefined,
         pnc_clearance_date: pncDate || undefined,
         criminal_record_date: criminalDate || undefined,
-        cssp_registration: csspReg.trim() || undefined,
       },
     });
 
@@ -355,10 +357,10 @@ export const NurseProfileEdit: FC = () => {
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-indigo-500" />
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Verificaciones (Opcional)
+              Registro CSSP (Obligatorio)
             </label>
           </div>
-          <p className="text-[10px] text-slate-400">Si tienes estos documentos, compártelos. Las familias verán sellos de verificación en tu perfil. No es obligatorio.</p>
+          <p className="text-[10px] text-slate-400">Tu número de registro del CSSP es obligatorio para ejercer legalmente en El Salvador. Sin este registro no puedes activar tu perfil.</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
@@ -390,14 +392,27 @@ export const NurseProfileEdit: FC = () => {
               />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Registro CSSP</label>
+              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Número de registro CSSP *</label>
               <input
                 type="text"
                 value={csspReg}
                 onChange={(e) => setCsspReg(e.target.value)}
-                placeholder="Ej: CSSP-2024-456"
-                className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-3 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                placeholder="Ej: CSSP-ENF-2024-0456"
+                className={`w-full text-xs font-medium bg-slate-50 border outline-none rounded-xl px-3 py-2.5 focus:bg-white focus:ring-1 transition ${csspReg.trim() ? 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-500' : 'border-red-300 focus:border-red-500 focus:ring-red-500'}`}
               />
+            </div>
+            <div>
+              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Nivel profesional *</label>
+              <select
+                value={csspLevel}
+                onChange={(e) => setCsspLevel(e.target.value)}
+                className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-3 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+              >
+                <option value="Licenciada">Licenciada en Enfermería</option>
+                <option value="Tecnóloga">Tecnóloga en Enfermería</option>
+                <option value="Técnica">Técnica en Enfermería</option>
+                <option value="Auxiliar">Auxiliar de Enfermería</option>
+              </select>
             </div>
           </div>
         </div>

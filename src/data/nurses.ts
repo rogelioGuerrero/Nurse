@@ -77,7 +77,9 @@ export const INITIAL_NURSES: Nurse[] = [
       'Licenciatura en Enfermería',
       'Diplomado en Cuidado Integral del Adulto Mayor',
       'Certificación internacional de atención en Alzheimer y Demencias'
-    ]
+    ],
+    cssp_registration: 'CSSP-ENF-2016-0142',
+    cssp_level: 'Licenciada'
   },
   {
     id: '00000000-0000-0000-0000-000000000012',
@@ -97,7 +99,9 @@ export const INITIAL_NURSES: Nurse[] = [
       'Técnico Superior Universitario en Enfermería',
       'Certificación avalada en Soporte Vital Avanzado (ACLS)',
       'Especialista en Cuidados Críticos y Terapia de Infusión'
-    ]
+    ],
+    cssp_registration: 'CSSP-ENF-2018-0387',
+    cssp_level: 'Técnica'
   },
   {
     id: '00000000-0000-0000-0000-000000000013',
@@ -117,7 +121,9 @@ export const INITIAL_NURSES: Nurse[] = [
       'Licenciatura en Enfermería y Obstetricia',
       'Maestría en Tanatología y Acompañamiento Emocional',
       'Curso Superior Universitario de Farmacología en Terapia Paliativa'
-    ]
+    ],
+    cssp_registration: 'CSSP-ENF-2012-0094',
+    cssp_level: 'Licenciada'
   },
   {
     id: '00000000-0000-0000-0000-000000000014',
@@ -137,7 +143,9 @@ export const INITIAL_NURSES: Nurse[] = [
       'Licenciatura y Cédula Profesional Federal de Enfermería',
       'Certificado en Atención Integral al Paciente Diabético',
       'Taller Avanzado en RCP y Primeros Auxilios'
-    ]
+    ],
+    cssp_registration: 'CSSP-ENF-2019-0521',
+    cssp_level: 'Tecnóloga'
   },
   {
     id: '00000000-0000-0000-0000-000000000015',
@@ -157,6 +165,8 @@ export const INITIAL_NURSES: Nurse[] = [
       'Título Profesional en Medicina y Enfermería',
       'Especialidad Certificada en Nutrición Clínica del Adulto Mayor',
       'Registro y Cédula del Consejo de Gerontología'
-    ]
+    ],
+    cssp_registration: 'CSSP-ENF-2009-0078',
+    cssp_level: 'Licenciada'
   }
 ];

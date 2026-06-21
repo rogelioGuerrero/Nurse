@@ -30,13 +30,13 @@ const ClinicalAI = lazy(() => import('./components/ClinicalAI'));
 const CareRequestForm = lazy(() => import('./components/CareRequestForm').then(m => ({ default: m.CareRequestForm })));
 const NurseInbox = lazy(() => import('./components/NurseInbox').then(m => ({ default: m.NurseInbox })));
 const PlanReview = lazy(() => import('./components/PlanReview').then(m => ({ default: m.PlanReview })));
+import { LandingPage } from './components/LandingPage';
 
 function MarketplaceApp() {
   const { 
     nurses, 
     profiles, 
     currentUser,
-    switchUser,
     activeTab, 
     setActiveTab,
     selectedNurseId,
@@ -51,19 +51,12 @@ function MarketplaceApp() {
   const [sortBy, setSortBy] = useState<string>('distance');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // URL hash routing: #/enfermera switches to nurse mode
+  // Si no hay usuario, mostrar landing page
   useEffect(() => {
-    const checkHash = () => {
-      const hash = window.location.hash.toLowerCase();
-      if (hash.includes('enfermera') && currentUser?.role !== 'nurse') {
-        const firstNurse = profiles.find(p => p.role === 'nurse');
-        if (firstNurse) switchUser(firstNurse);
-      }
-    };
-    checkHash();
-    window.addEventListener('hashchange', checkHash);
-    return () => window.removeEventListener('hashchange', checkHash);
-  }, [profiles, currentUser, switchUser]);
+    if (!currentUser) {
+      setActiveTab('landing');
+    }
+  }, [currentUser]);
 
   // Debounce search input (300ms)
   useEffect(() => {
@@ -136,7 +129,8 @@ function MarketplaceApp() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col selection:bg-indigo-100" id="main-layout-root">
 
-      {/* Main Premium Navbar */}
+      {/* Main Premium Navbar - hidden on landing */}
+      {activeTab !== 'landing' && (
       <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40" id="main-header">
         <div className="max-w-2xl mx-auto px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           
@@ -286,31 +280,21 @@ function MarketplaceApp() {
 
           </nav>
 
-          {/* Demo role switcher */}
-          <div className="hidden md:flex items-center gap-2 ml-2 pl-3 border-l border-slate-200">
-            <span className="text-[10px] font-bold text-slate-400 uppercase">Demo:</span>
-            <select
-              value={currentUser?.id || ''}
-              onChange={e => {
-                const p = profiles.find(p => p.id === e.target.value);
-                if (p) switchUser(p);
-              }}
-              className="text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none"
-            >
-              {profiles.map(p => (
-                <option key={p.id} value={p.id}>
-                  {p.role === 'nurse' ? '🏥' : '🏠'} {p.full_name}
-                </option>
-              ))}
-            </select>
-          </div>
-
         </div>
       </header>
+      )}
 
       {/* Main Content Pane */}
       <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-4" id="main-content-layout">
         
+        {/* Landing page when no user */}
+        {activeTab === 'landing' && (
+          <LandingPage
+            onFamily={() => setActiveTab('care-request')}
+            onNurse={() => setActiveTab('nurse-profile-edit')}
+          />
+        )}
+
         {/* Dynamic active view routing switch */}
         {activeTab === 'home' && (
           <div className="space-y-6">

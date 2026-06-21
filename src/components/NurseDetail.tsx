@@ -283,17 +283,55 @@ export const NurseDetail: FC = () => {
                 </ul>
               </div>
 
-              {/* Verifications (optional, only show what nurse has provided) */}
-              {nurse.verifications && (nurse.verifications.college_registration || nurse.verifications.pnc_clearance_date || nurse.verifications.criminal_record_date || nurse.verifications.cssp_registration) ? (
+              {/* CSSP obligatorio */}
+              <div className="pt-4 border-t border-slate-100 space-y-3.5">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                  <ShieldCheck className="h-4.5 w-4.5 text-indigo-600" />
+                  Registro profesional
+                </h4>
+                <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100/60 space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-emerald-100 shadow-sm">
+                      <BadgeCheck className="h-5 w-5 text-emerald-600 shrink-0" />
+                      <div>
+                        <span className="text-[10px] font-black text-slate-800 block">Registro CSSP</span>
+                        <span className="text-[9px] text-slate-400 font-semibold block">{nurse.cssp_registration}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-emerald-100 shadow-sm">
+                      <BadgeCheck className="h-5 w-5 text-emerald-600 shrink-0" />
+                      <div>
+                        <span className="text-[10px] font-black text-slate-800 block">Nivel profesional</span>
+                        <span className="text-[9px] text-slate-400 font-semibold block">{nurse.cssp_level}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <a
+                    href="https://cssp.gob.sv/profesionales/faces/consulta/buscar.xhtml"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[10px] text-indigo-600 font-bold hover:underline flex items-center gap-1"
+                  >
+                    Verificar en el portal del CSSP →
+                  </a>
+                  <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-emerald-100 shadow-sm">
+                    <FileText className="h-5 w-5 text-emerald-600 shrink-0" />
+                    <div>
+                      <span className="text-[10px] font-black text-slate-800 block">Pago con FSE</span>
+                      <span className="text-[9px] text-slate-400 font-semibold block">BienCuidar gestiona FSE e ISR</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Verificaciones opcionales */}
+              {nurse.verifications && (nurse.verifications.college_registration || nurse.verifications.pnc_clearance_date || nurse.verifications.criminal_record_date) ? (
                 <div className="pt-4 border-t border-slate-100 space-y-3.5">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                     <ShieldCheck className="h-4.5 w-4.5 text-indigo-600" />
-                    Verificaciones de la enfermera
+                    Verificaciones adicionales
                   </h4>
                   <div className="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/60 space-y-3">
-                    <p className="text-[11px] text-slate-600 font-normal leading-relaxed">
-                      Esta enfermera ha compartido voluntariamente los siguientes documentos:
-                    </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {nurse.verifications.college_registration && (
                         <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
@@ -322,30 +360,10 @@ export const NurseDetail: FC = () => {
                           </div>
                         </div>
                       )}
-                      {nurse.verifications.cssp_registration && (
-                        <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
-                          <BadgeCheck className="h-5 w-5 text-emerald-600 shrink-0" />
-                          <div>
-                            <span className="text-[10px] font-black text-slate-800 block">Registro CSSP</span>
-                            <span className="text-[9px] text-slate-400 font-semibold block">{nurse.verifications.cssp_registration}</span>
-                          </div>
-                        </div>
-                      )}
                     </div>
-                    <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-emerald-100 shadow-sm">
-                        <FileText className="h-5 w-5 text-emerald-600 shrink-0" />
-                        <div>
-                          <span className="text-[10px] font-black text-slate-800 block">Pago con FSE</span>
-                          <span className="text-[9px] text-slate-400 font-semibold block">BienCuidar gestiona FSE e ISR</span>
-                        </div>
-                      </div>
                   </div>
                 </div>
-              ) : (
-                <div className="pt-4 border-t border-slate-100">
-                  <p className="text-[10px] text-slate-400 italic">Esta enfermera aún no ha compartido verificaciones. Puedes preguntarle directamente.</p>
-                </div>
-              )}
+              ) : null}
             </div>
 
             {/* Availability Calendar */}

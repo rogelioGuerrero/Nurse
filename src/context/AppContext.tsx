@@ -105,22 +105,12 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     ];
   });
 
-  const [activeTab, setActiveTab] = useState<string>('care-request');
+  const [activeTab, setActiveTab] = useState<string>('landing');
   const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
 
   const [currentUser, setCurrentUser] = useState<Profile | null>(() => {
     const saved = safeParse<Profile | null>('biencuidar_current_user', null);
-    if (saved) return saved;
-    return {
-      id: '00000000-0000-0000-0000-000000000001',
-      email: 'familia.gomez.servicios@gmail.com',
-      role: 'user',
-      full_name: 'Familia Ramírez Gómez',
-      avatar_url: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&q=80&w=200',
-      phone: '+503 2222 9999',
-      location_name: 'San Salvador',
-      updated_at: new Date().toISOString()
-    };
+    return saved || null;
   });
 
   const [currentNurse, setCurrentNurse] = useState<Nurse | null>(null);
