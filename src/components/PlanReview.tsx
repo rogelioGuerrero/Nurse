@@ -284,14 +284,19 @@ export const PlanReview: FC = () => {
               <span className="text-xl font-black text-indigo-700">${totalPrice.toFixed(2)}</span>
             </div>
             {slotDetails.some(s => s.wantsInvoicing) && (
-              <div className="bg-white rounded-xl p-3 border border-emerald-200 mt-2 space-y-1.5">
+              <div className="bg-white rounded-xl p-3 border border-emerald-200 mt-2 space-y-2">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-emerald-600 shrink-0" />
                   <span className="text-xs font-bold text-emerald-700">Factura de Consumidor Final incluida</span>
                 </div>
-                <p className="text-[10px] text-slate-500 leading-relaxed pl-6">
-                  Este gasto es <strong>100% deducible de tu Impuesto sobre la Renta</strong>. BienCuidar emite la factura electrónica válida ante el Ministerio de Hacienda. El pago debe realizarse a través de la plataforma — no se permite pago directo en efectivo a la enfermera.
-                </p>
+                <div className="space-y-1 pl-6">
+                  <p className="text-[10px] text-slate-600 leading-relaxed">
+                    <strong>Beneficio fiscal:</strong> Este gasto es 100% deducible de tu Impuesto sobre la Renta. BienCuidar emite la factura electrónica válida ante el Ministerio de Hacienda.
+                  </p>
+                  <p className="text-[10px] text-amber-600 leading-relaxed">
+                    <strong>Importante:</strong> El pago debe realizarse únicamente a través de BienCuidar. Pagar en efectivo directamente a la enfermera evade la retención de impuestos y no genera factura deducible.
+                  </p>
+                </div>
               </div>
             )}
           </div>

@@ -360,7 +360,7 @@ export const NurseProfileEdit: FC = () => {
               Verificaciones (Opcional)
             </label>
           </div>
-          <p className="text-[10px] text-slate-400">Si tienes estos documentos, compártelos. Las familias verán badges de confianza en tu perfil. No es obligatorio.</p>
+          <p className="text-[10px] text-slate-400">Si tienes estos documentos, compártelos. Las familias verán sellos de verificación en tu perfil. No es obligatorio.</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
