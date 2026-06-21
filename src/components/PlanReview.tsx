@@ -1,7 +1,7 @@
 import { useState, useMemo, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { getFamilyPrice } from '../data/standardRates';
-import { CheckCircle2, XCircle, Clock, MapPin, Calendar, Star, User, Phone, Heart, Send, ChevronLeft } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, MapPin, Calendar, Star, User, Phone, Heart, Send, ChevronLeft, Share2 } from 'lucide-react';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -288,22 +288,43 @@ export const PlanReview: FC = () => {
 
       {/* Action buttons */}
       {allCovered && (
-        <div className="flex gap-3 mt-4">
-          <button
-            onClick={() => setRejected(true)}
-            className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
+        <>
+          <div className="flex gap-3 mt-4">
+            <button
+              onClick={() => setRejected(true)}
+              className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <XCircle className="h-5 w-5" />
+              Rechazar
+            </button>
+            <button
+              onClick={() => setAccepted(true)}
+              className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <CheckCircle2 className="h-5 w-5" />
+              Aceptar plan
+            </button>
+          </div>
+
+          {/* WhatsApp share button */}
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent(
+              `Hola, te comparto el plan de atención de BienCuidar:\n\n` +
+              `📍 Ubicación: ${myRequest.location_name}\n` +
+              `🩺 Condiciones: ${myRequest.patient_condition}\n` +
+              `📅 Fechas: ${slotDetails.length} día(s)\n` +
+              `⏱️ Total horas: ${totalHours.toFixed(1)}h\n` +
+              `💰 Total: $${totalPrice.toFixed(0)}\n\n` +
+              `Revisa el plan completo aquí: ${window.location.origin}/#/plan`
+            )}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer text-sm mt-2"
           >
-            <XCircle className="h-5 w-5" />
-            Rechazar
-          </button>
-          <button
-            onClick={() => setAccepted(true)}
-            className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <CheckCircle2 className="h-5 w-5" />
-            Aceptar plan
-          </button>
-        </div>
+            <Share2 className="h-4 w-4" />
+            Compartir plan por WhatsApp
+          </a>
+        </>
       )}
     </div>
   );

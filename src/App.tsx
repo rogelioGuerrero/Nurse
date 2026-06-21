@@ -138,7 +138,7 @@ function MarketplaceApp() {
 
       {/* Main Premium Navbar */}
       <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40" id="main-header">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="max-w-2xl mx-auto px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           
           {/* Brand/Product Logo + Mobile toggle */}
           <div className="flex items-center justify-between gap-3 cursor-pointer select-none">
@@ -270,7 +270,7 @@ function MarketplaceApp() {
       </header>
 
       {/* Main Content Pane */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 md:px-6 py-6" id="main-content-layout">
+      <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-4" id="main-content-layout">
         
         {/* Dynamic active view routing switch */}
         {activeTab === 'home' && (
@@ -501,7 +501,7 @@ function MarketplaceApp() {
 
       {/* Footer */}
       <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 py-8 mt-12 shrink-0">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-[11px] text-slate-500">
+        <div className="max-w-2xl mx-auto px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-[11px] text-slate-500">
           <div className="flex items-center gap-2.5">
             <div className="h-7 w-7 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
               <Stethoscope className="h-3.5 w-3.5" />
