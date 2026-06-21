@@ -44,6 +44,7 @@ export const NurseProfileEdit: FC = () => {
   const [locating, setLocating] = useState(false);
 
   const [selectedSpecs, setSelectedSpecs] = useState<string[]>(currentNurse?.specialization || []);
+  const [customSpec, setCustomSpec] = useState<string>('');
   const [showNotify, setShowNotify] = useState(false);
 
   // CSSP obligatorio + verificaciones opcionales
@@ -97,6 +98,13 @@ export const NurseProfileEdit: FC = () => {
         ? prev.filter(t => t !== tag) 
         : [...prev, tag]
     );
+  };
+
+  const handleAddCustomSpec = () => {
+    if (customSpec.trim() && !selectedSpecs.includes(customSpec.trim())) {
+      setSelectedSpecs(prev => [...prev, customSpec.trim()]);
+      setCustomSpec('');
+    }
   };
 
   const toggleShift = (shift: ShiftType) => {
@@ -192,7 +200,7 @@ export const NurseProfileEdit: FC = () => {
                   <input
                     type="number"
                     required
-                    min="15"
+                    min="10"
                     max="50"
                     value={shiftRate}
                     onChange={(e) => setShiftRate(Number(e.target.value))}
@@ -302,6 +310,37 @@ export const NurseProfileEdit: FC = () => {
                     </button>
                   );
                 })}
+              </div>
+              <div className="mt-3">
+                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Agregar especialidad personalizada</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customSpec}
+                    onChange={(e) => setCustomSpec(e.target.value)}
+                    placeholder="Ej. Oncología, Traumatología..."
+                    className="flex-1 bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium outline-none focus:border-indigo-500"
+                    id="input-custom-spec"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomSpec}
+                    disabled={!customSpec.trim()}
+                    className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-200 disabled:cursor-not-allowed text-white text-xs font-bold px-3 py-2 rounded-lg transition cursor-pointer"
+                  >
+                    Agregar
+                  </button>
+                </div>
+                {selectedSpecs.filter(s => !allSpecialtyTags.includes(s)).length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1">
+                    {selectedSpecs.filter(s => !allSpecialtyTags.includes(s)).map(s => (
+                      <span key={s} className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded-lg border border-emerald-100 flex items-center gap-1">
+                        {s}
+                        <button type="button" onClick={() => handleToggleSpec(s)} className="hover:text-emerald-900 cursor-pointer">×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
