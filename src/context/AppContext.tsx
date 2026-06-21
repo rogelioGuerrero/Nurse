@@ -105,7 +105,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     ];
   });
 
-  const [activeTab, setActiveTab] = useState<string>('home');
+  const [activeTab, setActiveTab] = useState<string>('care-request');
   const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
 
   const [currentUser, setCurrentUser] = useState<Profile | null>(() => {
@@ -441,7 +441,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
 
   const switchUser = (profile: Profile) => {
     setCurrentUser(profile);
-    setActiveTab('home');
+    setActiveTab(profile.role === 'nurse' ? 'nurse-inbox' : 'care-request');
   };
 
   return (
