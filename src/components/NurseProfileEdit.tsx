@@ -325,7 +325,7 @@ export const NurseProfileEdit: FC = () => {
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Turnos disponibles
               </label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 {(Object.keys(SHIFTS) as ShiftType[]).map(shift => {
                   const Icon = SHIFT_ICONS[shift];
                   const isSelected = selectedShifts.includes(shift);
@@ -334,14 +334,14 @@ export const NurseProfileEdit: FC = () => {
                       key={shift}
                       type="button"
                       onClick={() => toggleShift(shift)}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                      className={`flex items-center justify-center gap-2 py-3 rounded-xl border text-xs font-bold transition cursor-pointer ${
                         isSelected
                           ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                           : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
                       }`}
                     >
-                      <Icon className="h-3.5 w-3.5" />
-                      {SHIFTS[shift].label}
+                      <Icon className="h-4 w-4" />
+                      <span>{SHIFTS[shift].label}</span>
                       <span className="text-[9px] opacity-70">{SHIFTS[shift].start}-{SHIFTS[shift].end}</span>
                     </button>
                   );
