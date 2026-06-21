@@ -111,6 +111,29 @@ export const NurseProfileEdit: FC = () => {
     );
   };
 
+  // Calcular rango de tarifa sugerido según especialidades
+  const getSuggestedRateRange = () => {
+    const specs = selectedSpecs;
+    if (specs.length === 0) return { min: 15, max: 35, label: 'ajusta según tu experiencia' };
+
+    const hasCompanion = specs.some(s => s === 'Acompañamiento');
+    const hasPhysio = specs.some(s => s === 'Fisioterapia Básica');
+    const hasClinical = specs.some(s =>
+      ['Geriatría', 'Demencia y Alzheimer', 'Cuidados Paliativos', 'Inyecciones',
+       'Postoperatorio', 'Curaciones complejas', 'Manejo de Sondas',
+       'Monitoreo Cardíaco', 'Control de Diabetes'].includes(s)
+    );
+
+    if (hasPhysio) return { min: 30, max: 45, label: 'fisioterapia requiere especialización' };
+    if (hasClinical && !hasCompanion) return { min: 22, max: 35, label: 'cuidado clínico especializado' };
+    if (hasCompanion && !hasClinical) return { min: 12, max: 22, label: 'acompañamiento' };
+    if (hasCompanion && hasClinical) return { min: 18, max: 30, label: 'cuidado integral' };
+
+    return { min: 15, max: 35, label: 'ajusta según tu experiencia' };
+  };
+
+  const rateRange = getSuggestedRateRange();
+
   const handleProfileSave = (e: FormEvent) => {
     e.preventDefault();
 
@@ -192,15 +215,15 @@ export const NurseProfileEdit: FC = () => {
                   <input
                     type="number"
                     required
-                    min="15"
-                    max="50"
+                    min={rateRange.min}
+                    max={rateRange.max}
                     value={shiftRate}
                     onChange={(e) => setShiftRate(Number(e.target.value))}
                     className="w-full bg-transparent pl-7 pr-3 py-2.5 outline-none font-bold text-slate-800 text-sm"
                     id="input-edit-rate"
                   />
                 </div>
-                <p className="text-[10px] text-slate-400 leading-normal">Cada turno son 8 horas. Se sugiere entre US$ 20 y US$ 35.</p>
+                <p className="text-[10px] text-slate-400 leading-normal">Cada turno son 8 horas. Sugerido: US$ {rateRange.min}-{rateRange.max} ({rateRange.label}).</p>
               </div>
 
               <div className="bg-slate-50/50 p-4 border border-slate-200 rounded-2xl relative space-y-1.5">
