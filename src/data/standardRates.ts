@@ -1,25 +1,24 @@
 export interface StandardRate {
   specialization: string;
-  familyPrice: number; // what the family pays per hour
-  nursePayout: number; // what the nurse receives per hour
-  commission: number; // platform commission per hour
+  familyPrice: number; // what the family pays per 8-hour shift
+  nursePayout: number; // what the nurse receives per shift
+  commission: number; // platform commission per shift
 }
 
-// Standard rates by specialization - platform-controlled pricing
-// Prevents price wars between nurses and ensures consistent pricing for families
+// Standard rates by specialization - per 8-hour shift (not per hour)
 export const STANDARD_RATES: StandardRate[] = [
-  { specialization: 'Geriatría', familyPrice: 15, nursePayout: 12, commission: 3 },
-  { specialization: 'Demencia y Alzheimer', familyPrice: 17, nursePayout: 13, commission: 4 },
-  { specialization: 'Postoperatorio', familyPrice: 18, nursePayout: 14, commission: 4 },
-  { specialization: 'Cuidados Paliativos', familyPrice: 20, nursePayout: 16, commission: 4 },
-  { specialization: 'Curaciones complejas', familyPrice: 16, nursePayout: 12, commission: 4 },
-  { specialization: 'Fisioterapia Básica', familyPrice: 14, nursePayout: 11, commission: 3 },
-  { specialization: 'Inyecciones', familyPrice: 12, nursePayout: 10, commission: 2 },
-  { specialization: 'Manejo de Sondas', familyPrice: 16, nursePayout: 13, commission: 3 },
-  { specialization: 'Monitoreo Cardíaco', familyPrice: 18, nursePayout: 14, commission: 4 },
-  { specialization: 'Control de Diabetes', familyPrice: 14, nursePayout: 11, commission: 3 },
-  { specialization: 'Nutrición asistida', familyPrice: 13, nursePayout: 10, commission: 3 },
-  { specialization: 'Cuidado general', familyPrice: 12, nursePayout: 10, commission: 2 },
+  { specialization: 'Geriatría', familyPrice: 25, nursePayout: 20, commission: 5 },
+  { specialization: 'Demencia y Alzheimer', familyPrice: 28, nursePayout: 23, commission: 5 },
+  { specialization: 'Postoperatorio', familyPrice: 30, nursePayout: 25, commission: 5 },
+  { specialization: 'Cuidados Paliativos', familyPrice: 35, nursePayout: 28, commission: 7 },
+  { specialization: 'Curaciones complejas', familyPrice: 27, nursePayout: 22, commission: 5 },
+  { specialization: 'Fisioterapia Básica', familyPrice: 22, nursePayout: 18, commission: 4 },
+  { specialization: 'Inyecciones', familyPrice: 20, nursePayout: 16, commission: 4 },
+  { specialization: 'Manejo de Sondas', familyPrice: 27, nursePayout: 22, commission: 5 },
+  { specialization: 'Monitoreo Cardíaco', familyPrice: 32, nursePayout: 26, commission: 6 },
+  { specialization: 'Control de Diabetes', familyPrice: 22, nursePayout: 18, commission: 4 },
+  { specialization: 'Nutrición asistida', familyPrice: 20, nursePayout: 16, commission: 4 },
+  { specialization: 'Cuidado general', familyPrice: 20, nursePayout: 16, commission: 4 },
 ];
 
 const rateMap = new Map<string, StandardRate>(
@@ -38,8 +37,8 @@ export function getNursePayout(specialization: string): number {
   return getRate(specialization).nursePayout;
 }
 
-export function calculateSlotPrice(specialization: string, hours: number): number {
-  return getFamilyPrice(specialization) * hours;
+export function calculateShiftPrice(specialization: string, shiftCount: number = 1): number {
+  return getFamilyPrice(specialization) * shiftCount;
 }
 
 export function getAllSpecializations(): string[] {

@@ -47,7 +47,7 @@ function MarketplaceApp() {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [debouncedSearch, setDebouncedSearch] = useState<string>('');
   const [selectedSpecialization, setSelectedSpecialization] = useState<string>('');
-  const [maxRate, setMaxRate] = useState<number>(30);
+  const [maxRate, setMaxRate] = useState<number>(40);
   const [sortBy, setSortBy] = useState<string>('distance');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -109,8 +109,8 @@ function MarketplaceApp() {
       result = result.filter(n => n.specialization.includes(selectedSpecialization));
     }
 
-    // Filter by maximum rate per hour
-    result = result.filter(n => n.hourly_rate <= maxRate);
+    // Filter by maximum rate per shift
+    result = result.filter(n => n.shift_rate <= maxRate);
 
     // Sort accordingly
     if (sortBy === 'distance') {
@@ -118,9 +118,9 @@ function MarketplaceApp() {
     } else if (sortBy === 'rating') {
       result.sort((a, b) => b.rating - a.rating);
     } else if (sortBy === 'rate-asc') {
-      result.sort((a, b) => a.hourly_rate - b.hourly_rate);
+      result.sort((a, b) => a.shift_rate - b.shift_rate);
     } else if (sortBy === 'rate-desc') {
-      result.sort((a, b) => b.hourly_rate - a.hourly_rate);
+      result.sort((a, b) => b.shift_rate - a.shift_rate);
     } else if (sortBy === 'experience') {
       result.sort((a, b) => b.experience_years - a.experience_years);
     }
@@ -369,7 +369,7 @@ function MarketplaceApp() {
                                 </p>
                               </div>
                               <div className="text-slate-800 text-right shrink-0">
-                                <span className="text-indigo-600 font-black text-lg block">US$ {nurse.hourly_rate}<span className="text-xs font-normal text-slate-400">/hr</span></span>
+                                <span className="text-indigo-600 font-black text-lg block">US$ {nurse.shift_rate}<span className="text-xs font-normal text-slate-400">/turno</span></span>
                               </div>
                             </div>
 

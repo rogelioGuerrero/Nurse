@@ -1,18 +1,20 @@
-import type { Nurse, CareRequest, CareRequestSlot, Availability } from '../types';
+import type { Nurse, CareRequest, CareRequestSlot, Availability, ShiftType } from '../types';
+import { SHIFTS } from '../types';
 import { getDistanceKm, USER_COORDS } from './distance';
+import { getFamilyPrice } from '../data/standardRates';
 
 export interface VisitPlanSlot {
   slot: CareRequestSlot;
   nurse: Nurse | null;
   distance: number;
-  hours: number;
+  shiftHours: number;
   price: number;
   reason?: string;
 }
 
 export interface VisitPlan {
   slots: VisitPlanSlot[];
-  totalHours: number;
+  totalShifts: number;
   totalPrice: number;
   assignedNurses: Nurse[];
   uncoveredSlots: number;
@@ -23,30 +25,21 @@ export function buildVisitPlan(
   request: CareRequest,
   nurses: Nurse[],
   availability: Availability[],
-  familyPricePerHour: number
 ): VisitPlan {
   const slots: VisitPlanSlot[] = [];
   const assignedNurseIds = new Set<string>();
+  const familyPrice = getFamilyPrice(request.specialization_needed);
 
   for (const slot of request.slots) {
-    const [sh, sm] = slot.start_time.split(':').map(Number);
-    const [eh, em] = slot.end_time.split(':').map(Number);
-    const hours = (eh + em / 60) - (sh + sm / 60);
+    const shiftInfo = SHIFTS[slot.shift as ShiftType];
+    const shiftHours = shiftInfo.hours;
 
     const candidates = nurses
       .filter(n => n.specialization.includes(request.specialization_needed))
+      .filter(n => n.available_shifts.includes(slot.shift as ShiftType))
       .filter(n => {
         const distance = getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, n.lat, n.lng);
         return distance <= n.coverage_radius;
-      })
-      .filter(n => {
-        return availability.some(
-          a => a.nurse_id === n.id &&
-          a.date === slot.date &&
-          a.is_available &&
-          a.start_time <= slot.start_time &&
-          a.end_time >= slot.end_time
-        );
       })
       .map(n => {
         const distance = getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, n.lat, n.lng);
@@ -65,22 +58,22 @@ export function buildVisitPlan(
         slot,
         nurse: best.nurse,
         distance: best.distance,
-        hours: parseFloat(hours.toFixed(1)),
-        price: parseFloat((hours * familyPricePerHour).toFixed(0))
+        shiftHours,
+        price: familyPrice
       });
     } else {
       slots.push({
         slot,
         nurse: null,
         distance: 0,
-        hours: parseFloat(hours.toFixed(1)),
+        shiftHours,
         price: 0,
-        reason: 'No hay enfermeras disponibles para esta fecha/hora'
+        reason: 'No hay enfermeras disponibles para este turno'
       });
     }
   }
 
-  const totalHours = slots.reduce((sum, s) => sum + s.hours, 0);
+  const totalShifts = slots.length;
   const totalPrice = slots.reduce((sum, s) => sum + s.price, 0);
   const uncoveredSlots = slots.filter(s => s.nurse === null).length;
   const assignedNurses = Array.from(assignedNurseIds)
@@ -89,7 +82,7 @@ export function buildVisitPlan(
 
   return {
     slots,
-    totalHours: parseFloat(totalHours.toFixed(1)),
+    totalShifts,
     totalPrice: parseFloat(totalPrice.toFixed(0)),
     assignedNurses,
     uncoveredSlots
@@ -101,19 +94,17 @@ export function buildFinalPlanFromOffers(
   request: CareRequest,
   offers: { request_id: string; nurse_id: string; slot_index: number; status: string }[],
   nurses: Nurse[],
-  familyPricePerHour: number
 ): VisitPlan {
   const nurseMap = new Map(nurses.map(n => [n.id, n]));
   const slots: VisitPlanSlot[] = [];
   const assignedNurseIds = new Set<string>();
+  const familyPrice = getFamilyPrice(request.specialization_needed);
 
   for (let i = 0; i < request.slots.length; i++) {
     const slot = request.slots[i];
-    const [sh, sm] = slot.start_time.split(':').map(Number);
-    const [eh, em] = slot.end_time.split(':').map(Number);
-    const hours = (eh + em / 60) - (sh + sm / 60);
+    const shiftInfo = SHIFTS[slot.shift as ShiftType];
+    const shiftHours = shiftInfo.hours;
 
-    // Find accepted offers for this slot
     const acceptedOffers = offers.filter(
       o => o.request_id === request.id &&
       o.slot_index === i &&
@@ -125,14 +116,13 @@ export function buildFinalPlanFromOffers(
         slot,
         nurse: null,
         distance: 0,
-        hours: parseFloat(hours.toFixed(1)),
+        shiftHours,
         price: 0,
-        reason: 'Ninguna enfermera confirmó esta fecha'
+        reason: 'Ninguna enfermera confirmó este turno'
       });
       continue;
     }
 
-    // Pick the best accepted nurse: closest + highest rating
     const candidates = acceptedOffers
       .map(o => {
         const nurse = nurseMap.get(o.nurse_id);
@@ -153,22 +143,22 @@ export function buildFinalPlanFromOffers(
         slot,
         nurse: best.nurse,
         distance: best.distance,
-        hours: parseFloat(hours.toFixed(1)),
-        price: parseFloat((hours * familyPricePerHour).toFixed(0))
+        shiftHours,
+        price: familyPrice
       });
     } else {
       slots.push({
         slot,
         nurse: null,
         distance: 0,
-        hours: parseFloat(hours.toFixed(1)),
+        shiftHours,
         price: 0,
-        reason: 'Ninguna enfermera confirmó esta fecha'
+        reason: 'Ninguna enfermera confirmó este turno'
       });
     }
   }
 
-  const totalHours = slots.reduce((sum, s) => sum + s.hours, 0);
+  const totalShifts = slots.length;
   const totalPrice = slots.reduce((sum, s) => sum + s.price, 0);
   const uncoveredSlots = slots.filter(s => s.nurse === null).length;
   const assignedNurses = Array.from(assignedNurseIds)
@@ -177,7 +167,7 @@ export function buildFinalPlanFromOffers(
 
   return {
     slots,
-    totalHours: parseFloat(totalHours.toFixed(1)),
+    totalShifts,
     totalPrice: parseFloat(totalPrice.toFixed(0)),
     assignedNurses,
     uncoveredSlots

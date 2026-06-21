@@ -5,7 +5,8 @@
 
 import { useState, type FC, type FormEvent } from 'react';
 import { useApp } from '../context/AppContext';
-import { Save, Edit3, CheckCircle2, Calculator } from 'lucide-react';
+import { Save, Edit3, CheckCircle2, Calculator, Sun, Moon, Sunset } from 'lucide-react';
+import { SHIFTS, type ShiftType, type WeekDay } from '../types';
 
 const allSpecialtyTags = [
   'Geriatría', 'Demencia y Alzheimer', 'Inyecciones', 'Postoperatorio', 
@@ -13,12 +14,29 @@ const allSpecialtyTags = [
   'Cuidados Paliativos', 'Monitoreo Cardíaco', 'Control de Diabetes', 'Nutrición asistida'
 ];
 
+const DAY_LABELS: { day: WeekDay; label: string }[] = [
+  { day: 1, label: 'Lun' },
+  { day: 2, label: 'Mar' },
+  { day: 3, label: 'Mié' },
+  { day: 4, label: 'Jue' },
+  { day: 5, label: 'Vie' },
+  { day: 6, label: 'Sáb' },
+  { day: 0, label: 'Dom' },
+];
+
+const SHIFT_ICONS: Record<ShiftType, typeof Sun> = {
+  morning: Sun,
+  afternoon: Sunset,
+  night: Moon,
+};
+
 export const NurseProfileEdit: FC = () => {
   const { currentNurse, currentUser, updateNurseProfile, updateProfile } = useApp();
 
-  const [hourlyRate, setHourlyRate] = useState<number>(currentNurse?.hourly_rate || 12);
+  const [shiftRate, setShiftRate] = useState<number>(currentNurse?.shift_rate || 25);
   const [coverageRadius, setCoverageRadius] = useState<number>(currentNurse?.coverage_radius || 5);
-  const [availability, setAvailability] = useState<string>(currentNurse?.availability || 'Lunes a Viernes, Turno Completo');
+  const [selectedShifts, setSelectedShifts] = useState<ShiftType[]>(currentNurse?.available_shifts || ['morning']);
+  const [selectedDays, setSelectedDays] = useState<WeekDay[]>(currentNurse?.available_days || [1, 2, 3, 4, 5]);
   const [bio, setBio] = useState<string>(currentNurse?.bio || '');
   const [experienceYears, setExperienceYears] = useState<number>(currentNurse?.experience_years || 5);
   const [phone, setPhone] = useState<string>(currentUser?.phone || '');
@@ -37,20 +55,31 @@ export const NurseProfileEdit: FC = () => {
     );
   };
 
+  const toggleShift = (shift: ShiftType) => {
+    setSelectedShifts(prev =>
+      prev.includes(shift) ? prev.filter(s => s !== shift) : [...prev, shift]
+    );
+  };
+
+  const toggleDay = (day: WeekDay) => {
+    setSelectedDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    );
+  };
+
   const handleProfileSave = (e: FormEvent) => {
     e.preventDefault();
 
-    // Save Nurse specific specs
     updateNurseProfile({
-      hourly_rate: Number(hourlyRate),
+      shift_rate: Number(shiftRate),
       coverage_radius: Number(coverageRadius),
-      availability,
+      available_shifts: selectedShifts,
+      available_days: selectedDays,
       bio,
       experience_years: Number(experienceYears),
       specialization: selectedSpecs
     });
 
-    // Save Profile demographics coordinates
     updateProfile({
       phone,
       location_name: locationName
@@ -91,22 +120,22 @@ export const NurseProfileEdit: FC = () => {
           {/* Rate Card */}
           <div className="bg-slate-50/50 p-4 border border-slate-200 rounded-2xl relative space-y-1.5">
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-              Tarifa por Hora (US$)
+              Tarifa por Turno (US$)
             </label>
             <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
               <span className="absolute inset-y-0 left-3 flex items-center text-slate-400 font-bold">$</span>
               <input
                 type="number"
                 required
-                min="5"
+                min="15"
                 max="50"
-                value={hourlyRate}
-                onChange={(e) => setHourlyRate(Number(e.target.value))}
+                value={shiftRate}
+                onChange={(e) => setShiftRate(Number(e.target.value))}
                 className="w-full bg-transparent pl-7 pr-3 py-2.5 outline-none font-bold text-slate-800 text-sm"
                 id="input-edit-rate"
               />
             </div>
-            <p className="text-[10px] text-slate-400 leading-normal">Se aconseja entre US$ 10 y US$ 25 dependiendo de tu especialización geriátrica en El Salvador.</p>
+            <p className="text-[10px] text-slate-400 leading-normal">Cada turno son 8 horas. Se sugiere entre US$ 20 y US$ 35 según especialización.</p>
           </div>
 
           {/* Travel Radius km */}
@@ -168,20 +197,20 @@ export const NurseProfileEdit: FC = () => {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-slate-700 font-medium">
             <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Tu Tarifa Bruta / Hora</span>
-              <span className="text-base font-black text-slate-800">US$ {hourlyRate.toFixed(2)}</span>
-              <span className="text-[9px] text-slate-400 block mt-1">Ingreso bruto acordado</span>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Tu Tarifa Bruta / Turno</span>
+              <span className="text-base font-black text-slate-800">US$ {shiftRate.toFixed(2)}</span>
+              <span className="text-[9px] text-slate-400 block mt-1">Ingreso bruto por 8 horas</span>
             </div>
 
             <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
               <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Retención del Renta (10%)</span>
-              <span className="text-base font-black text-rose-600">-(US$ {(hourlyRate * 0.1).toFixed(2)})</span>
+              <span className="text-base font-black text-rose-600">-(US$ {(shiftRate * 0.1).toFixed(2)})</span>
               <span className="text-[9px] text-slate-400 block mt-1">Retención que realiza la familia</span>
             </div>
 
             <div className="bg-white p-3.5 rounded-xl border border-indigo-100 shadow-sm bg-indigo-50/20">
-              <span className="text-[10px] uppercase font-bold text-indigo-700 block mb-1">Tu Tarifa Neta Líquida / Hora</span>
-              <span className="text-base font-black text-indigo-700">US$ {(hourlyRate * 0.9).toFixed(2)}</span>
+              <span className="text-[10px] uppercase font-bold text-indigo-700 block mb-1">Tu Tarifa Neta / Turno</span>
+              <span className="text-base font-black text-indigo-700">US$ {(shiftRate * 0.9).toFixed(2)}</span>
               <span className="text-[9px] text-indigo-600 block mt-1">Monto neto que ingresa a tu cuenta</span>
             </div>
           </div>
@@ -191,19 +220,19 @@ export const NurseProfileEdit: FC = () => {
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Simulación de Ganancias Estimadas (Neto Líquido)</span>
             <div className="grid grid-cols-3 gap-2.5 text-center text-[11px]">
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
-                <span className="font-bold text-slate-500 block text-[9px] uppercase">Turno de 8 Horas</span>
-                <span className="font-black text-slate-800 block mt-0.5 text-slate-800">US$ {(hourlyRate * 8 * 0.9).toFixed(2)} netos</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">(Bruto: US$ {(hourlyRate * 8).toFixed(0)})</span>
+                <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Turno (8h)</span>
+                <span className="font-black text-slate-800 block mt-0.5">US$ {(shiftRate * 0.9).toFixed(2)}</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">(Bruto: US$ {shiftRate.toFixed(0)})</span>
               </div>
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
-                <span className="font-bold text-slate-500 block text-[9px] uppercase">Turno de 12 Horas</span>
-                <span className="font-black text-slate-800 block mt-0.5 text-slate-800">US$ {(hourlyRate * 12 * 0.9).toFixed(2)} netos</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">(Bruto: US$ {(hourlyRate * 12).toFixed(0)})</span>
+                <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Día (3 turnos)</span>
+                <span className="font-black text-slate-800 block mt-0.5">US$ {(shiftRate * 3 * 0.9).toFixed(2)}</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">(Bruto: US$ {(shiftRate * 3).toFixed(0)})</span>
               </div>
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
-                <span className="font-bold text-slate-500 block text-[9px] uppercase">Mensual (120 Horas)</span>
-                <span className="font-black text-slate-800 block mt-0.5 text-indigo-600">US$ {(hourlyRate * 120 * 0.9).toFixed(2)} netos</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">(Bruto: US$ {(hourlyRate * 120).toFixed(0)})</span>
+                <span className="font-bold text-slate-500 block text-[9px] uppercase">Mensual (30 turnos)</span>
+                <span className="font-black text-indigo-600 block mt-0.5">US$ {(shiftRate * 30 * 0.9).toFixed(2)}</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">(Bruto: US$ {(shiftRate * 30).toFixed(0)})</span>
               </div>
             </div>
           </div>
@@ -240,20 +269,57 @@ export const NurseProfileEdit: FC = () => {
 
         </div>
 
-        {/* Availability details */}
-        <div className="space-y-2">
+        {/* Availability: Weekly shift calendar */}
+        <div className="space-y-3">
           <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-            Detalle de Disponibilidad Semanal
+            Disponibilidad Semanal
           </label>
-          <input
-            type="text"
-            required
-            placeholder="Ej; Lunes a Sábado, Turno Vespertino o Nocturno flexible..."
-            value={availability}
-            onChange={(e) => setAvailability(e.target.value)}
-            className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-4 py-3 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
-            id="input-edit-availability"
-          />
+          <p className="text-[10px] text-slate-400">Marca los días y turnos en los que estás disponible para aceptar visitas.</p>
+
+          {/* Shift toggles */}
+          <div className="flex gap-2">
+            {(Object.keys(SHIFTS) as ShiftType[]).map(shift => {
+              const Icon = SHIFT_ICONS[shift];
+              const isSelected = selectedShifts.includes(shift);
+              return (
+                <button
+                  key={shift}
+                  type="button"
+                  onClick={() => toggleShift(shift)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                    isSelected
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                      : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {SHIFTS[shift].label}
+                  <span className="text-[9px] opacity-70">{SHIFTS[shift].start}-{SHIFTS[shift].end}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Day toggles */}
+          <div className="flex gap-1.5">
+            {DAY_LABELS.map(({ day, label }) => {
+              const isSelected = selectedDays.includes(day);
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => toggleDay(day)}
+                  className={`flex-1 py-2.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                    isSelected
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                      : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Bio description */}

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Profile, Nurse } from '../types';
+import { Profile, Nurse, ShiftType, WeekDay } from '../types';
 
 export const INITIAL_PROFILES: Profile[] = [
   {
@@ -63,9 +63,10 @@ export const INITIAL_NURSES: Nurse[] = [
     id: '00000000-0000-0000-0000-000000000011',
     user_id: '00000000-0000-0000-0000-000000000002',
     specialization: ['Geriatría', 'Demencia y Alzheimer', 'Inyecciones'],
-    hourly_rate: 12,
+    shift_rate: 25,
     coverage_radius: 8,
-    availability: 'Lunes a Viernes (08:00 - 18:00)',
+    available_shifts: ['morning', 'afternoon'] as ShiftType[],
+    available_days: [1, 2, 3, 4, 5] as WeekDay[],
     rating: 4.9,
     review_count: 24,
     lat: 13.6929,
@@ -82,9 +83,10 @@ export const INITIAL_NURSES: Nurse[] = [
     id: '00000000-0000-0000-0000-000000000012',
     user_id: '00000000-0000-0000-0000-000000000003',
     specialization: ['Postoperatorio', 'Curaciones complejas', 'Fisioterapia Básica'],
-    hourly_rate: 15,
+    shift_rate: 30,
     coverage_radius: 5,
-    availability: 'Lunes a Sábado, Turno Nocturno (20:00 - 06:00)',
+    available_shifts: ['night'] as ShiftType[],
+    available_days: [1, 2, 3, 4, 5, 6] as WeekDay[],
     rating: 4.8,
     review_count: 18,
     lat: 13.9919,
@@ -101,9 +103,10 @@ export const INITIAL_NURSES: Nurse[] = [
     id: '00000000-0000-0000-0000-000000000013',
     user_id: '00000000-0000-0000-0000-000000000004',
     specialization: ['Geriatría', 'Manejo de Sondas', 'Cuidados Paliativos'],
-    hourly_rate: 14,
+    shift_rate: 35,
     coverage_radius: 12,
-    availability: 'Fin de Semana Completo (Sáb/Dom 24 hrs)',
+    available_shifts: ['morning', 'afternoon', 'night'] as ShiftType[],
+    available_days: [0, 6] as WeekDay[],
     rating: 5.0,
     review_count: 32,
     lat: 13.4833,
@@ -120,9 +123,10 @@ export const INITIAL_NURSES: Nurse[] = [
     id: '00000000-0000-0000-0000-000000000014',
     user_id: '00000000-0000-0000-0000-000000000005',
     specialization: ['Monitoreo Cardíaco', 'Postoperatorio', 'Control de Diabetes'],
-    hourly_rate: 13,
+    shift_rate: 32,
     coverage_radius: 6,
-    availability: 'Flexible (Días hábiles y fines de semana)',
+    available_shifts: ['morning', 'afternoon', 'night'] as ShiftType[],
+    available_days: [1, 2, 3, 4, 5, 6, 0] as WeekDay[],
     rating: 4.7,
     review_count: 15,
     lat: 13.6742,
@@ -139,9 +143,10 @@ export const INITIAL_NURSES: Nurse[] = [
     id: '00000000-0000-0000-0000-000000000015',
     user_id: '00000000-0000-0000-0000-000000000006',
     specialization: ['Geriatría', 'Nutrición asistida', 'Demencia y Alzheimer'],
-    hourly_rate: 18,
+    shift_rate: 28,
     coverage_radius: 10,
-    availability: 'Lunes a Viernes (09:00 - 15:00)',
+    available_shifts: ['morning'] as ShiftType[],
+    available_days: [1, 2, 3, 4, 5] as WeekDay[],
     rating: 4.9,
     review_count: 40,
     lat: 13.6929,

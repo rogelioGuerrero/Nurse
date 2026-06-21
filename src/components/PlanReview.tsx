@@ -1,7 +1,8 @@
 import { useState, useMemo, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { getFamilyPrice } from '../data/standardRates';
-import { CheckCircle2, XCircle, Clock, MapPin, Calendar, Star, User, Phone, Heart, Send, ChevronLeft, Share2 } from 'lucide-react';
+import { SHIFTS, type ShiftType } from '../types';
+import { CheckCircle2, XCircle, Clock, MapPin, Calendar, Star, User, Phone, Heart, Send, ChevronLeft, Share2, Sun, Sunset, Moon } from 'lucide-react';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -46,15 +47,13 @@ export const PlanReview: FC = () => {
     const acceptedOffer = offers.find(o => o.status === 'accepted');
     const nurse = acceptedOffer ? nurses.find(n => n.id === acceptedOffer.nurse_id) : null;
     const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
-    const [sh, sm] = slot.start_time.split(':').map(Number);
-    const [eh, em] = slot.end_time.split(':').map(Number);
-    const hours = (eh + em / 60) - (sh + sm / 60);
-    const price = hours * familyPrice;
-    return { slot, nurse, nurseProfile, hours, price, hasNurse: !!nurse };
+    const shiftInfo = SHIFTS[slot.shift as ShiftType];
+    const price = familyPrice;
+    return { slot, nurse, nurseProfile, shiftInfo, price, hasNurse: !!nurse };
   });
 
   const allCovered = slotDetails.every(s => s.hasNurse);
-  const totalHours = slotDetails.reduce((sum, s) => sum + s.hours, 0);
+  const totalShifts = slotDetails.length;
   const totalPrice = slotDetails.reduce((sum, s) => sum + s.price, 0);
 
   // Rejected state
@@ -92,7 +91,7 @@ export const PlanReview: FC = () => {
               <p><span className="font-semibold">Paciente:</span> {patientName}</p>
               {patientAge && <p><span className="font-semibold">Edad:</span> {patientAge} años</p>}
               <p><span className="font-semibold">Contacto de emergencia:</span> {emergencyContact}</p>
-              <p><span className="font-semibold">Total:</span> ${totalPrice.toFixed(0)} · {totalHours.toFixed(1)}h</p>
+              <p><span className="font-semibold">Total:</span> ${totalPrice.toFixed(0)} · {totalShifts} turno(s)</p>
             </div>
           </div>
         </div>
@@ -236,7 +235,7 @@ export const PlanReview: FC = () => {
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="text-xs text-slate-500 font-semibold">
-                    {DAY_NAMES[new Date(detail.slot.date + 'T00:00:00').getDay()]} · {detail.slot.start_time} - {detail.slot.end_time} · {detail.hours.toFixed(1)}h
+                    {DAY_NAMES[new Date(detail.slot.date + 'T00:00:00').getDay()]} · {detail.shiftInfo.label} ({detail.shiftInfo.start}-{detail.shiftInfo.end})
                   </div>
 
                   {detail.hasNurse && detail.nurse && detail.nurseProfile ? (
@@ -271,12 +270,12 @@ export const PlanReview: FC = () => {
         {allCovered && (
           <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 space-y-2">
             <div className="flex justify-between text-xs">
-              <span className="text-slate-600">Total de horas</span>
-              <span className="font-bold text-slate-700">{totalHours.toFixed(1)}h</span>
+              <span className="text-slate-600">Total de turnos</span>
+              <span className="font-bold text-slate-700">{totalShifts}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-slate-600">Tarifa por hora</span>
-              <span className="font-bold text-slate-700">${familyPrice.toFixed(0)}/h</span>
+              <span className="text-slate-600">Tarifa por turno</span>
+              <span className="font-bold text-slate-700">${familyPrice.toFixed(0)}/turno</span>
             </div>
             <div className="border-t border-indigo-200 pt-2 flex justify-between items-center">
               <span className="text-sm font-bold text-slate-700">Total a pagar</span>
@@ -313,7 +312,7 @@ export const PlanReview: FC = () => {
               `📍 Ubicación: ${myRequest.location_name}\n` +
               `🩺 Condiciones: ${myRequest.patient_condition}\n` +
               `📅 Fechas: ${slotDetails.length} día(s)\n` +
-              `⏱️ Total horas: ${totalHours.toFixed(1)}h\n` +
+              `📅 Turnos: ${totalShifts}\n` +
               `💰 Total: $${totalPrice.toFixed(0)}\n\n` +
               `Revisa el plan completo aquí: ${window.location.origin}/#/plan`
             )}`}

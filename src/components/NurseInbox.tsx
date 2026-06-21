@@ -3,7 +3,8 @@ import { useApp } from '../context/AppContext';
 import { getFamilyPrice } from '../data/standardRates';
 import { getDistanceKm, USER_COORDS } from '../lib/distance';
 import type { CareRequest } from '../types';
-import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User } from 'lucide-react';
+import { SHIFTS, type ShiftType } from '../types';
+import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User, Sun, Sunset, Moon } from 'lucide-react';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -171,10 +172,11 @@ export const NurseInbox: FC = () => {
                     const offer = getOfferForSlot(req.id, idx);
                     const responded = hasOffered(req.id, idx);
                     const dateConflict = isDateBooked(slot.date) && !responded;
-                    const [sh, sm] = slot.start_time.split(':').map(Number);
-                    const [eh, em] = slot.end_time.split(':').map(Number);
-                    const hours = (eh + em / 60) - (sh + sm / 60);
-                    const payout = hours * familyPrice;
+                    const shiftInfo = SHIFTS[slot.shift as ShiftType];
+                    const payout = familyPrice;
+
+                    const SHIFT_ICON: Record<ShiftType, typeof Sun> = { morning: Sun, afternoon: Sunset, night: Moon };
+                    const ShiftIcon = SHIFT_ICON[slot.shift as ShiftType];
 
                     return (
                       <div key={idx} className="p-4 flex items-center gap-4">
@@ -197,10 +199,9 @@ export const NurseInbox: FC = () => {
                           </div>
                           <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
                             <span className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {slot.start_time} - {slot.end_time}
+                              <ShiftIcon className="h-3 w-3" />
+                              {shiftInfo.label} ({shiftInfo.start}-{shiftInfo.end})
                             </span>
-                            <span className="font-bold text-slate-600">{hours.toFixed(1)}h</span>
                             <span className="font-bold text-indigo-600">${payout.toFixed(0)}</span>
                           </div>
                           {dateConflict && (

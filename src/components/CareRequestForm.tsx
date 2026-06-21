@@ -1,12 +1,12 @@
 import { useState, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { getAllSpecializations } from '../data/standardRates';
-import { MapPin, Calendar, Trash2, Stethoscope, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check } from 'lucide-react';
+import { SHIFTS, type ShiftType } from '../types';
+import { MapPin, Calendar, Trash2, Stethoscope, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Sunset, Moon, Clock } from 'lucide-react';
 
-interface CareRequestSlot {
+interface DaySelection {
   date: string;
-  start_time: string;
-  end_time: string;
+  shifts: ShiftType[]; // which shifts are needed: morning/afternoon/night. All 3 = 24h
 }
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -38,7 +38,7 @@ export const CareRequestForm: FC = () => {
   const [specializationNeeded, setSpecializationNeeded] = useState('');
   const [otherSpecialization, setOtherSpecialization] = useState('');
   const [notes, setNotes] = useState('');
-  const [slots, setSlots] = useState<CareRequestSlot[]>([]);
+  const [selectedDays, setSelectedDays] = useState<DaySelection[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -84,15 +84,32 @@ export const CareRequestForm: FC = () => {
     );
   };
 
-  const addSlot = (dateStr: string) => setSlots(prev => [...prev, { date: dateStr, start_time: '08:00', end_time: '14:00' }]);
-  const removeSlot = (index: number) => setSlots(prev => prev.filter((_, i) => i !== index));
+  const addDay = (dateStr: string) => setSelectedDays(prev => [...prev, { date: dateStr, shifts: ['morning'] }]);
+  const removeDay = (dateStr: string) => setSelectedDays(prev => prev.filter(d => d.date !== dateStr));
   const toggleDay = (dateStr: string) => {
-    const exists = slots.findIndex(s => s.date === dateStr);
-    if (exists >= 0) removeSlot(exists); else addSlot(dateStr);
+    const exists = selectedDays.find(d => d.date === dateStr);
+    if (exists) removeDay(dateStr); else addDay(dateStr);
   };
-  const updateSlot = (index: number, field: keyof CareRequestSlot, value: string) => {
-    setSlots(prev => prev.map((s, i) => i === index ? { ...s, [field]: value } : s));
+  const toggleShiftInDay = (dateStr: string, shift: ShiftType) => {
+    setSelectedDays(prev => prev.map(d => {
+      if (d.date !== dateStr) return d;
+      const has = d.shifts.includes(shift);
+      return { ...d, shifts: has ? d.shifts.filter(s => s !== shift) : [...d.shifts, shift] };
+    }));
   };
+  const toggleAllShifts = (dateStr: string) => {
+    setSelectedDays(prev => prev.map(d => {
+      if (d.date !== dateStr) return d;
+      const allThree = d.shifts.length === 3;
+      return { ...d, shifts: allThree ? ['morning'] : ['morning', 'afternoon', 'night'] };
+    }));
+  };
+
+  // Expand selected days into slot list for submission
+  const slots = selectedDays.flatMap(d => d.shifts.map(s => ({ date: d.date, shift: s })));
+
+  const SHIFT_ICONS: Record<ShiftType, typeof Sun> = { morning: Sun, afternoon: Sunset, night: Moon };
+  const SHIFT_LABELS: Record<ShiftType, string> = { morning: 'Mañana', afternoon: 'Tarde', night: 'Noche' };
 
   const getCalendarDays = () => {
     const year = calendarMonth.getFullYear();
@@ -115,7 +132,7 @@ export const CareRequestForm: FC = () => {
   const nextMonth = () => setCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
 
   const canNextStep1 = conditionTags.length > 0 || conditionExtra.trim().length > 0;
-  const canNextStep2 = slots.length > 0;
+  const canNextStep2 = selectedDays.length > 0;
   const canSubmit = phone.trim().length >= 8 && locationName.trim().length > 0;
 
   const handleSubmit = () => {
@@ -141,7 +158,7 @@ export const CareRequestForm: FC = () => {
     setSpecializationNeeded('');
     setOtherSpecialization('');
     setNotes('');
-    setSlots([]);
+    setSelectedDays([]);
     setLocationName('');
     setPhone('');
   };
@@ -165,7 +182,7 @@ export const CareRequestForm: FC = () => {
             <div className="text-xs text-slate-600 space-y-1">
               <p><span className="font-semibold">Condiciones:</span> {[...conditionTags, conditionExtra.trim()].filter(Boolean).join(', ')}</p>
               <p><span className="font-semibold">Especialización:</span> {otherSpecialization.trim() || specializationNeeded || 'Geriatría'}</p>
-              <p><span className="font-semibold">Fechas:</span> {slots.length} día(s) seleccionado(s)</p>
+              <p><span className="font-semibold">Fechas:</span> {selectedDays.length} día(s), {slots.length} turno(s)</p>
               <p><span className="font-semibold">Ubicación:</span> {locationName}</p>
             </div>
           </div>
@@ -290,7 +307,7 @@ export const CareRequestForm: FC = () => {
         <div className="flex-1 space-y-4 animate-fade-in">
           <div>
             <h2 className="text-lg font-bold text-slate-900 mb-1">¿Cuándo necesitas el cuidado?</h2>
-            <p className="text-xs text-slate-500">Toca los días en el calendario. Luego ajusta las horas para cada día.</p>
+            <p className="text-xs text-slate-500">Toca los días en el calendario. Luego elige los turnos: mañana, tarde, noche o 24 horas.</p>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
@@ -316,12 +333,11 @@ export const CareRequestForm: FC = () => {
             <div className="grid grid-cols-7 gap-1">
               {getCalendarDays().map((dateStr, i) => {
                 if (!dateStr) return <div key={i} />;
-                const slotIndex = slots.findIndex(s => s.date === dateStr);
-                const selected = slotIndex >= 0;
+                const daySel = selectedDays.find(d => d.date === dateStr);
+                const selected = !!daySel;
                 const past = isPast(dateStr);
                 const today = isToday(dateStr);
                 const dayNum = parseInt(dateStr.split('-')[2]);
-                const slot = selected ? slots[slotIndex] : null;
                 return (
                   <button
                     key={i}
@@ -337,9 +353,9 @@ export const CareRequestForm: FC = () => {
                     }`}
                   >
                     <span>{dayNum}</span>
-                    {selected && slot && (
-                      <span className="text-[8px] font-normal leading-none text-indigo-200">
-                        {slot.start_time}
+                    {selected && daySel && (
+                      <span className="text-[7px] font-normal leading-none text-indigo-200">
+                        {daySel.shifts.length === 3 ? '24h' : daySel.shifts.length + 't'}
                       </span>
                     )}
                   </button>
@@ -348,44 +364,58 @@ export const CareRequestForm: FC = () => {
             </div>
           </div>
 
-          {slots.length > 0 ? (
+          {selectedDays.length > 0 ? (
             <div className="space-y-2">
-              <p className="text-xs font-bold text-slate-600">Días seleccionados ({slots.length})</p>
-              {slots.map((slot, i) => (
-                <div key={i} className="flex items-center gap-3 bg-indigo-50/50 border border-indigo-100 rounded-xl p-3">
-                  <div className="flex-shrink-0 w-11 text-center">
-                    <div className="bg-indigo-600 text-white rounded-lg py-1 px-0.5">
-                      <div className="text-sm font-black">{new Date(slot.date + 'T00:00:00').getDate()}</div>
-                      <div className="text-[9px] font-bold uppercase opacity-80">{MONTH_NAMES[new Date(slot.date + 'T00:00:00').getMonth()]}</div>
+              <p className="text-xs font-bold text-slate-600">Días seleccionados ({selectedDays.length})</p>
+              {selectedDays.map((daySel) => {
+                const date = new Date(daySel.date + 'T00:00:00');
+                const is24h = daySel.shifts.length === 3;
+                return (
+                  <div key={daySel.date} className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 space-y-2">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-shrink-0 w-11 text-center">
+                        <div className="bg-indigo-600 text-white rounded-lg py-1 px-0.5">
+                          <div className="text-sm font-black">{date.getDate()}</div>
+                          <div className="text-[9px] font-bold uppercase opacity-80">{MONTH_NAMES[date.getMonth()]}</div>
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[10px] font-bold text-slate-500">{DAY_NAMES[date.getDay()]}</div>
+                        {is24h && <div className="text-[10px] font-bold text-indigo-600 flex items-center gap-1"><Clock className="h-3 w-3" /> Cuido 24 horas (3 enfermeras)</div>}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeDay(daySel.date)}
+                        className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition cursor-pointer flex-shrink-0"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    {/* Shift selector */}
+                    <div className="flex gap-1.5 pl-14">
+                      {(Object.keys(SHIFTS) as ShiftType[]).map(shift => {
+                        const Icon = SHIFT_ICONS[shift];
+                        const isActive = daySel.shifts.includes(shift);
+                        return (
+                          <button
+                            key={shift}
+                            type="button"
+                            onClick={() => toggleShiftInDay(daySel.date, shift)}
+                            className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg border text-[10px] font-bold transition cursor-pointer ${
+                              isActive
+                                ? 'bg-indigo-600 text-white border-indigo-600'
+                                : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
+                            }`}
+                          >
+                            <Icon className="h-3 w-3" />
+                            {SHIFT_LABELS[shift]}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[10px] font-bold text-slate-500 mb-1">{DAY_NAMES[new Date(slot.date + 'T00:00:00').getDay()]}</div>
-                    <div className="flex items-center gap-1.5">
-                      <input
-                        type="time"
-                        value={slot.start_time}
-                        onChange={e => updateSlot(i, 'start_time', e.target.value)}
-                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-indigo-400 bg-white w-[72px]"
-                      />
-                      <span className="text-slate-400 text-xs">→</span>
-                      <input
-                        type="time"
-                        value={slot.end_time}
-                        onChange={e => updateSlot(i, 'end_time', e.target.value)}
-                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-semibold focus:outline-none focus:border-indigo-400 bg-white w-[72px]"
-                      />
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeSlot(i)}
-                    className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition cursor-pointer flex-shrink-0"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-4 text-xs text-slate-400">

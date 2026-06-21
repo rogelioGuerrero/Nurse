@@ -22,13 +22,24 @@ export interface Profile {
   updated_at: string;
 }
 
+export type ShiftType = 'morning' | 'afternoon' | 'night';
+
+export const SHIFTS: Record<ShiftType, { label: string; start: string; end: string; hours: number }> = {
+  morning:   { label: 'Mañana',  start: '07:00', end: '15:00', hours: 8 },
+  afternoon: { label: 'Tarde',   start: '15:00', end: '23:00', hours: 8 },
+  night:     { label: 'Noche',   start: '23:00', end: '07:00', hours: 8 },
+};
+
+export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0=Dom ... 6=Sab
+
 export interface Nurse {
   id: string; // UUID
   user_id: string; // profiles FK
   specialization: string[]; // List of specializations, e.g., ["Geriatría", "Postoperatorio", "Demencia"]
-  hourly_rate: number; // Tariff hourly rate in USD
+  shift_rate: number; // Tariff per 8-hour shift in USD
   coverage_radius: number; // in kilometers (km)
-  availability: string; // descriptive text or simple JSON, e.g., "Lunes a Viernes, Turno Completo"
+  available_shifts: ShiftType[]; // which shifts the nurse can work
+  available_days: WeekDay[]; // which days of the week (0=Sun ... 6=Sat)
   rating: number;
   review_count: number;
   lat: number; // geographic coordinates for map simulation
@@ -75,8 +86,7 @@ export interface Availability {
 
 export interface CareRequestSlot {
   date: string; // YYYY-MM-DD
-  start_time: string; // HH:MM
-  end_time: string; // HH:MM
+  shift: ShiftType; // morning | afternoon | night
 }
 
 export interface CareRequest {

@@ -70,8 +70,8 @@ export const NurseDetail: FC = () => {
     return diff > 0 ? parseFloat(diff.toFixed(1)) : 0;
   };
 
-  const hours = calculateHours();
-  const totalPrice = hours * nurse.hourly_rate;
+  const hours = 8; // Each shift is 8 hours
+  const totalPrice = nurse.shift_rate;
 
   const handleNextToDetails = () => {
     setValidationError('');
@@ -424,11 +424,11 @@ export const NurseDetail: FC = () => {
                   <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
                     <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Tarifa de Atención</span>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-black text-slate-800">US$ {nurse.hourly_rate}</span>
-                      <span className="text-xs font-semibold text-slate-500">/ hora</span>
+                      <span className="text-2xl font-black text-slate-800">US$ {nurse.shift_rate}</span>
+                      <span className="text-xs font-semibold text-slate-500">/ turno (8h)</span>
                     </div>
                     <p className="mt-1.5 text-[10px] text-slate-500 leading-normal">
-                      <strong>Horario preferido:</strong> {nurse.availability}
+                      <strong>Turnos disponibles:</strong> {nurse.available_shifts.map(s => s === 'morning' ? 'Mañana' : s === 'afternoon' ? 'Tarde' : 'Noche').join(', ')}
                     </p>
                   </div>
 
@@ -703,8 +703,8 @@ export const NurseDetail: FC = () => {
 
                     <div className="border-t border-slate-200 pt-3 space-y-1.5">
                       <div className="flex justify-between text-slate-500 font-medium">
-                        <span>Costo base por hora:</span>
-                        <span>US$ {nurse.hourly_rate}</span>
+                        <span>Costo por turno:</span>
+                        <span>US$ {nurse.shift_rate}</span>
                       </div>
                       <div className="flex justify-between text-slate-500 font-medium">
                         <span>Total de horas contratadas:</span>

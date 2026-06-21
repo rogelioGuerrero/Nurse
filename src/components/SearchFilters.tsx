@@ -75,23 +75,23 @@ export const SearchFilters: FC<SearchFiltersProps> = ({
         <div>
           <div className="flex justify-between items-center mb-2">
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">
-              Tarifa Máxima por Hora
+              Tarifa Máxima por Turno
             </label>
-            <span className="text-xs font-bold text-indigo-600">US$ {maxRate}/hr</span>
+            <span className="text-xs font-bold text-indigo-600">US$ {maxRate}/turno</span>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-[10px] text-slate-400 font-semibold">US$ 5</span>
+            <span className="text-[10px] text-slate-400 font-semibold">US$ 15</span>
             <input
               type="range"
-              min="5"
-              max="40"
+              min="15"
+              max="50"
               step="1"
               value={maxRate}
               onChange={(e) => setMaxRate(Number(e.target.value))}
               className="flex-1 accent-indigo-600 cursor-pointer h-1.5"
               id="slider-filter-maxrate"
             />
-            <span className="text-[10px] text-slate-400 font-semibold">US$ 40</span>
+            <span className="text-[10px] text-slate-400 font-semibold">US$ 50</span>
           </div>
         </div>
 

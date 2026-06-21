@@ -162,7 +162,7 @@ export const MapComponent = ({ filteredNurses }: MapComponentProps) => {
                       {item.nurse.specialization.join(', ')}
                     </span><br />
                     <span style={{ fontSize: '12px', color: '#0d9488', fontWeight: 'bold' }}>
-                      US$ {item.nurse.hourly_rate}/hr
+                      US$ {item.nurse.shift_rate}/turno
                     </span>
                     <span style={{ fontSize: '11px', color: '#999' }}> | {item.distance} km</span><br />
                     {item.isWithinRadius ? (
@@ -218,7 +218,7 @@ export const MapComponent = ({ filteredNurses }: MapComponentProps) => {
                     {item.nurse.specialization.join(', ')}
                   </p>
                   <p className="text-xs text-indigo-600 font-bold mt-0.5">
-                    US$ {item.nurse.hourly_rate}/Hr <span className="text-slate-400 font-normal">| {item.distance} km</span>
+                    US$ {item.nurse.shift_rate}/turno <span className="text-slate-400 font-normal">| {item.distance} km</span>
                   </p>
                 </div>
               </div>
