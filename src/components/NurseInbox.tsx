@@ -1,6 +1,6 @@
 import { useMemo, type FC } from 'react';
 import { useApp } from '../context/AppContext';
-import { getFamilyPrice } from '../data/standardRates';
+import { calculateNurseNet } from '../data/standardRates';
 import { getDistanceKm, USER_COORDS } from '../lib/distance';
 import type { CareRequest } from '../types';
 import { SHIFTS, type ShiftType } from '../types';
@@ -119,7 +119,6 @@ export const NurseInbox: FC = () => {
         <div className="space-y-4">
           {incomingRequests.map(req => {
             const familyProfile = profileMap.get(req.user_id);
-            const familyPrice = getFamilyPrice(req.specialization_needed);
             const distance = getDistanceKm(
               USER_COORDS.lat, USER_COORDS.lng,
               myNurse.lat, myNurse.lng
@@ -173,7 +172,9 @@ export const NurseInbox: FC = () => {
                     const responded = hasOffered(req.id, idx);
                     const dateConflict = isDateBooked(slot.date) && !responded;
                     const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.morning;
-                    const payout = familyPrice;
+                    const nurseRate = myNurse.shift_rate || 25;
+                    const wantsInvoicing = myNurse.wants_invoicing || false;
+                    const payout = calculateNurseNet(nurseRate, wantsInvoicing);
 
                     const SHIFT_ICON: Record<ShiftType, typeof Sun> = { morning: Sun, afternoon: Sunset, night: Moon };
                     const ShiftIcon = SHIFT_ICON[slot.shift as ShiftType] || Sun;
@@ -202,7 +203,7 @@ export const NurseInbox: FC = () => {
                               <ShiftIcon className="h-3 w-3" />
                               {shiftInfo.label} ({shiftInfo.start}-{shiftInfo.end})
                             </span>
-                            <span className="font-bold text-indigo-600">${payout.toFixed(0)}</span>
+                            <span className="font-bold text-indigo-600">${payout.toFixed(2)}{wantsInvoicing ? ' neto' : ''}</span>
                           </div>
                           {dateConflict && (
                             <div className="text-[10px] font-bold text-amber-600 mt-1 flex items-center gap-1">

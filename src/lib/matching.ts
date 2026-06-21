@@ -1,7 +1,7 @@
 import type { Nurse, CareRequest, CareRequestSlot, Availability, ShiftType } from '../types';
 import { SHIFTS } from '../types';
 import { getDistanceKm, USER_COORDS } from './distance';
-import { getFamilyPrice } from '../data/standardRates';
+import { calculateFamilyPrice } from '../data/standardRates';
 
 export interface VisitPlanSlot {
   slot: CareRequestSlot;
@@ -28,7 +28,7 @@ export function buildVisitPlan(
 ): VisitPlan {
   const slots: VisitPlanSlot[] = [];
   const assignedNurseIds = new Set<string>();
-  const familyPrice = getFamilyPrice(request.specialization_needed);
+  const familyPrice = 25; // fallback, real price calculated per-nurse in PlanReview
 
   for (const slot of request.slots) {
     const shiftInfo = SHIFTS[slot.shift as ShiftType];
@@ -98,7 +98,7 @@ export function buildFinalPlanFromOffers(
   const nurseMap = new Map(nurses.map(n => [n.id, n]));
   const slots: VisitPlanSlot[] = [];
   const assignedNurseIds = new Set<string>();
-  const familyPrice = getFamilyPrice(request.specialization_needed);
+  const familyPrice = 25; // fallback, real price calculated per-nurse in PlanReview
 
   for (let i = 0; i < request.slots.length; i++) {
     const slot = request.slots[i];

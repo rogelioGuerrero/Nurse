@@ -7,6 +7,7 @@ import { useState, type FC, type FormEvent } from 'react';
 import { useApp } from '../context/AppContext';
 import { Save, Edit3, CheckCircle2, Calculator, Sun, Moon, Sunset, ShieldCheck, FileText, BadgeCheck } from 'lucide-react';
 import { SHIFTS, type ShiftType, type WeekDay } from '../types';
+import { PLATFORM_COMMISSION, IVA_RATE, RETENTION_RATE, calculateNurseNet } from '../data/standardRates';
 
 const allSpecialtyTags = [
   'Geriatría', 'Demencia y Alzheimer', 'Inyecciones', 'Postoperatorio', 
@@ -235,17 +236,17 @@ export const NurseProfileEdit: FC = () => {
             <div className="grid grid-cols-3 gap-2.5 text-center text-[11px]">
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Turno (8h)</span>
-                <span className="font-black text-slate-800 block mt-0.5">US$ {wantsInvoicing ? (shiftRate * 0.9).toFixed(2) : shiftRate.toFixed(2)}</span>
+                <span className="font-black text-slate-800 block mt-0.5">US$ {calculateNurseNet(shiftRate, wantsInvoicing).toFixed(2)}</span>
                 <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate})` : '(Sin factura)'}</span>
               </div>
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Semana (5 turnos)</span>
-                <span className="font-black text-slate-800 block mt-0.5">US$ {wantsInvoicing ? (shiftRate * 0.9 * 5).toFixed(2) : (shiftRate * 5).toFixed(2)}</span>
+                <span className="font-black text-slate-800 block mt-0.5">US$ {(calculateNurseNet(shiftRate, wantsInvoicing) * 5).toFixed(2)}</span>
                 <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate * 5})` : '(Sin factura)'}</span>
               </div>
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Mes (20 turnos)</span>
-                <span className="font-black text-indigo-600 block mt-0.5">US$ {wantsInvoicing ? (shiftRate * 0.9 * 20).toFixed(2) : (shiftRate * 20).toFixed(2)}</span>
+                <span className="font-black text-indigo-600 block mt-0.5">US$ {(calculateNurseNet(shiftRate, wantsInvoicing) * 20).toFixed(2)}</span>
                 <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate * 20})` : '(Sin factura)'}</span>
               </div>
             </div>
@@ -432,16 +433,16 @@ export const NurseProfileEdit: FC = () => {
                   <span className="font-bold text-slate-800">${shiftRate.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-slate-400">
-                  <span>Retención de renta (10% → Hacienda)</span>
-                  <span>-${(shiftRate * 0.1).toFixed(2)}</span>
+                  <span>Retención de renta ({(RETENTION_RATE * 100).toFixed(0)}% → Hacienda)</span>
+                  <span>-${(shiftRate * RETENTION_RATE).toFixed(2)}</span>
                 </div>
                 <div className="border-t border-slate-200 pt-1.5 flex justify-between">
                   <span className="font-bold text-slate-700">Tú recibes neto</span>
-                  <span className="font-black text-emerald-600">${(shiftRate * 0.9).toFixed(2)}</span>
+                  <span className="font-black text-emerald-600">${calculateNurseNet(shiftRate, true).toFixed(2)}</span>
                 </div>
               </div>
               <p className="text-[10px] text-slate-400 leading-relaxed pt-1">
-                El familiar paga tu tarifa más IVA (13%) y comisión por tarjeta de crédito. De tu tarifa, se retiene 10% de renta que va directo a Hacienda. Si cobras directamente, tú debes declarar y pagar tus impuestos. BienCuidar se encarga de todo eso por ti y evita problemas por evasión de impuestos.
+                El familiar paga tu tarifa más IVA ({(IVA_RATE * 100).toFixed(0)}%) y ${PLATFORM_COMMISSION} de comisión de la plataforma. De tu tarifa, se retiene {RETENTION_RATE * 100}% de renta que va directo a Hacienda. Si cobras directamente, tú debes declarar y pagar tus impuestos. BienCuidar se encarga de todo eso por ti y evita problemas por evasión de impuestos.
               </p>
             </div>
           )}

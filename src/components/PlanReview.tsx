@@ -1,6 +1,6 @@
 import { useState, useMemo, type FC } from 'react';
 import { useApp } from '../context/AppContext';
-import { getFamilyPrice } from '../data/standardRates';
+import { calculateFamilyPrice } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
 import { CheckCircle2, XCircle, Clock, MapPin, Calendar, Star, User, Phone, Heart, Send, ChevronLeft, Share2, Sun, Sunset, Moon } from 'lucide-react';
 
@@ -39,8 +39,6 @@ export const PlanReview: FC = () => {
     );
   }
 
-  const familyPrice = getFamilyPrice(myRequest.specialization_needed);
-
   // Build slot details with accepted nurse info
   const slotDetails = myRequest.slots.map((slot, i) => {
     const offers = careOffers.filter(o => o.request_id === myRequest.id && o.slot_index === i);
@@ -48,8 +46,10 @@ export const PlanReview: FC = () => {
     const nurse = acceptedOffer ? nurses.find(n => n.id === acceptedOffer.nurse_id) : null;
     const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
     const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.morning;
-    const price = familyPrice;
-    return { slot, nurse, nurseProfile, shiftInfo, price, hasNurse: !!nurse };
+    const nurseRate = nurse?.shift_rate || 25;
+    const wantsInvoicing = nurse?.wants_invoicing || false;
+    const price = calculateFamilyPrice(nurseRate, wantsInvoicing);
+    return { slot, nurse, nurseProfile, shiftInfo, price, nurseRate, wantsInvoicing, hasNurse: !!nurse };
   });
 
   const allCovered = slotDetails.every(s => s.hasNurse);
@@ -273,13 +273,15 @@ export const PlanReview: FC = () => {
               <span className="text-slate-600">Total de turnos</span>
               <span className="font-bold text-slate-700">{totalShifts}</span>
             </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-slate-600">Tarifa por turno</span>
-              <span className="font-bold text-slate-700">${familyPrice.toFixed(0)}/turno</span>
-            </div>
+            {slotDetails.map((s, i) => (
+              <div key={i} className="flex justify-between text-xs">
+                <span className="text-slate-600">Turno {i + 1} ({s.shiftInfo.label})</span>
+                <span className="font-bold text-slate-700">${s.price.toFixed(2)}</span>
+              </div>
+            ))}
             <div className="border-t border-indigo-200 pt-2 flex justify-between items-center">
               <span className="text-sm font-bold text-slate-700">Total a pagar</span>
-              <span className="text-xl font-black text-indigo-700">${totalPrice.toFixed(0)}</span>
+              <span className="text-xl font-black text-indigo-700">${totalPrice.toFixed(2)}</span>
             </div>
           </div>
         )}
@@ -313,7 +315,7 @@ export const PlanReview: FC = () => {
               `🩺 Condiciones: ${myRequest.patient_condition}\n` +
               `📅 Fechas: ${slotDetails.length} día(s)\n` +
               `📅 Turnos: ${totalShifts}\n` +
-              `💰 Total: $${totalPrice.toFixed(0)}\n\n` +
+              `💰 Total: $${totalPrice.toFixed(2)}\n\n` +
               `Revisa el plan completo aquí: ${window.location.origin}/#/plan`
             )}`}
             target="_blank"

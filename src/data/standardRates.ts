@@ -1,24 +1,27 @@
 export interface StandardRate {
   specialization: string;
-  familyPrice: number; // what the family pays per 8-hour shift
-  nursePayout: number; // what the nurse receives per shift
-  commission: number; // platform commission per shift
+  suggestedRate: number; // suggested nurse rate per 8-hour shift
 }
 
-// Standard rates by specialization - per 8-hour shift (not per hour)
+export const PLATFORM_COMMISSION = 5; // fixed $5 per shift when invoicing
+export const IVA_RATE = 0.13; // 13% IVA El Salvador
+export const RETENTION_RATE = 0.10; // 10% retencion de renta
+export const STRIPE_RATE = 0.035; // ~3.5% Stripe card fee
+
+// Suggested rates by specialization - per 8-hour shift
 export const STANDARD_RATES: StandardRate[] = [
-  { specialization: 'Geriatría', familyPrice: 25, nursePayout: 20, commission: 5 },
-  { specialization: 'Demencia y Alzheimer', familyPrice: 28, nursePayout: 23, commission: 5 },
-  { specialization: 'Postoperatorio', familyPrice: 30, nursePayout: 25, commission: 5 },
-  { specialization: 'Cuidados Paliativos', familyPrice: 35, nursePayout: 28, commission: 7 },
-  { specialization: 'Curaciones complejas', familyPrice: 27, nursePayout: 22, commission: 5 },
-  { specialization: 'Fisioterapia Básica', familyPrice: 22, nursePayout: 18, commission: 4 },
-  { specialization: 'Inyecciones', familyPrice: 20, nursePayout: 16, commission: 4 },
-  { specialization: 'Manejo de Sondas', familyPrice: 27, nursePayout: 22, commission: 5 },
-  { specialization: 'Monitoreo Cardíaco', familyPrice: 32, nursePayout: 26, commission: 6 },
-  { specialization: 'Control de Diabetes', familyPrice: 22, nursePayout: 18, commission: 4 },
-  { specialization: 'Nutrición asistida', familyPrice: 20, nursePayout: 16, commission: 4 },
-  { specialization: 'Cuidado general', familyPrice: 20, nursePayout: 16, commission: 4 },
+  { specialization: 'Geriatría', suggestedRate: 25 },
+  { specialization: 'Demencia y Alzheimer', suggestedRate: 28 },
+  { specialization: 'Postoperatorio', suggestedRate: 30 },
+  { specialization: 'Cuidados Paliativos', suggestedRate: 35 },
+  { specialization: 'Curaciones complejas', suggestedRate: 27 },
+  { specialization: 'Fisioterapia Básica', suggestedRate: 22 },
+  { specialization: 'Inyecciones', suggestedRate: 20 },
+  { specialization: 'Manejo de Sondas', suggestedRate: 27 },
+  { specialization: 'Monitoreo Cardíaco', suggestedRate: 32 },
+  { specialization: 'Control de Diabetes', suggestedRate: 22 },
+  { specialization: 'Nutrición asistida', suggestedRate: 20 },
+  { specialization: 'Cuidado general', suggestedRate: 20 },
 ];
 
 const rateMap = new Map<string, StandardRate>(
@@ -29,16 +32,37 @@ export function getRate(specialization: string): StandardRate {
   return rateMap.get(specialization) ?? STANDARD_RATES[STANDARD_RATES.length - 1];
 }
 
-export function getFamilyPrice(specialization: string): number {
-  return getRate(specialization).familyPrice;
+export function getSuggestedRate(specialization: string): number {
+  return getRate(specialization).suggestedRate;
 }
 
-export function getNursePayout(specialization: string): number {
-  return getRate(specialization).nursePayout;
+// What the family pays total per shift
+export function calculateFamilyPrice(nurseRate: number, wantsInvoicing: boolean): number {
+  if (!wantsInvoicing) return nurseRate;
+  const withRetention = nurseRate / (1 - RETENTION_RATE);
+  const withIVA = withRetention * (1 + IVA_RATE);
+  return withIVA + PLATFORM_COMMISSION;
 }
 
-export function calculateShiftPrice(specialization: string, shiftCount: number = 1): number {
-  return getFamilyPrice(specialization) * shiftCount;
+// What the nurse receives net per shift
+export function calculateNurseNet(nurseRate: number, wantsInvoicing: boolean): number {
+  if (!wantsInvoicing) return nurseRate;
+  return nurseRate * (1 - RETENTION_RATE);
+}
+
+// What BienCuidar keeps per shift
+export function calculatePlatformRevenue(nurseRate: number, wantsInvoicing: boolean, withCard: boolean = true): number {
+  if (!wantsInvoicing) return 0;
+  const familyPrice = calculateFamilyPrice(nurseRate, wantsInvoicing);
+  const withRetention = nurseRate / (1 - RETENTION_RATE);
+  const iva = withRetention * IVA_RATE;
+  const retention = withRetention * RETENTION_RATE;
+  const stripe = withCard ? familyPrice * STRIPE_RATE : 0;
+  return familyPrice - iva - retention - nurseRate - stripe;
+}
+
+export function calculateShiftPrice(nurseRate: number, shiftCount: number = 1, wantsInvoicing: boolean = false): number {
+  return calculateFamilyPrice(nurseRate, wantsInvoicing) * shiftCount;
 }
 
 export function getAllSpecializations(): string[] {
