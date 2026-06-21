@@ -284,31 +284,16 @@ export const PlanReview: FC = () => {
               <span className="text-xl font-black text-indigo-700">${totalPrice.toFixed(2)}</span>
             </div>
             {allCovered && (
-              <div className="bg-white rounded-xl p-4 border border-emerald-200 mt-2 space-y-3">
+              <div className="bg-white rounded-xl p-4 border border-emerald-200 mt-2 space-y-2">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span className="text-xs font-bold text-emerald-700">Tu respaldo legal y fiscal completo</span>
+                  <span className="text-xs font-bold text-emerald-700">Facturación incluida</span>
                 </div>
-                <div className="space-y-2 pl-6">
-                  <div className="flex items-start gap-1.5">
-                    <span className="text-[10px]">📋</span>
-                    <p className="text-[10px] text-slate-600 leading-relaxed">
-                      <strong>Facturación electrónica inmediata:</strong> Recibe automáticamente tu Comprobante de Pago Electrónico (DTE) autorizado por el Ministerio de Hacienda. Olvídate de recibos informales o gastos perdidos.
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-1.5">
-                    <span className="text-[10px]">💼</span>
-                    <p className="text-[10px] text-slate-600 leading-relaxed">
-                      <strong>Escudo fiscal para tu Renta:</strong> Este gasto es 100% deducible de tu Impuesto sobre la Renta anual. Haz valer tu dinero de forma legal.
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-1.5">
-                    <span className="text-[10px]">🧘</span>
-                    <p className="text-[10px] text-slate-600 leading-relaxed">
-                      <strong>Cero trámites administrativos:</strong> Si contratas directo, la ley te obliga a emitir Facturas de Sujeto Excluido y declarar retenciones mensuales del 10%. Nosotros automatizamos todo ese proceso por ti.
-                    </p>
-                  </div>
-                </div>
+                <ul className="text-[10px] text-slate-600 space-y-1 pl-6 list-disc">
+                  <li>Factura electrónica (DTE)</li>
+                  <li>Válida ante el Ministerio de Hacienda</li>
+                  <li>100% deducible de tu Impuesto sobre la Renta</li>
+                </ul>
               </div>
             )}
           </div>
