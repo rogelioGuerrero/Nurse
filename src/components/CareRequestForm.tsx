@@ -460,7 +460,7 @@ export const CareRequestForm: FC = () => {
         <div className="flex-1 space-y-5 animate-fade-in">
           <div>
             <h2 className="text-lg font-bold text-slate-900 mb-1">Lugar de atención y teléfono para contactarte</h2>
-            <p className="text-xs text-slate-500">Tu ubicación y teléfono nos sirven para enviarte el plan por WhatsApp, sin necesidad de agregar contactos.</p>
+            <p className="text-xs text-slate-500">Tu ubicación y teléfono nos sirven para enviarte el plan por WhatsApp.</p>
           </div>
 
           <div className="space-y-4">
@@ -500,7 +500,7 @@ export const CareRequestForm: FC = () => {
                   className="w-full pl-9 pr-3 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                 />
               </div>
-              <p className="text-[10px] text-slate-400 mt-1">Te enviaremos un WhatsApp con el link de tu plan. No necesitas agregar ningún contacto.</p>
+              <p className="text-[10px] text-slate-400 mt-1">Te enviaremos un WhatsApp con el link de tu plan.</p>
             </div>
           </div>
 

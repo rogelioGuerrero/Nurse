@@ -23,14 +23,12 @@ export const NurseInbox: FC = () => {
     [nurses, currentUser]
   );
 
-  // Filter requests that match this nurse's specialization and coverage radius
+  // Filter requests that match this nurse's specialization (distance is informational, not a hard filter)
   const incomingRequests = useMemo(() => {
     if (!myNurse) return [];
     return careRequests.filter(req => {
       if (req.status !== 'open') return false;
-      if (!myNurse.specialization.includes(req.specialization_needed)) return false;
-      const distance = getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, myNurse.lat, myNurse.lng);
-      return distance <= myNurse.coverage_radius;
+      return myNurse.specialization.includes(req.specialization_needed);
     });
   }, [careRequests, myNurse]);
 
@@ -144,7 +142,9 @@ export const NurseInbox: FC = () => {
                           <MapPin className="h-3 w-3" />
                           {req.location_name}
                           <span className="text-slate-300">·</span>
-                          <span className="text-slate-400">{distance.toFixed(1)} km de ti</span>
+                          <span className={distance <= myNurse.coverage_radius ? 'text-emerald-600 font-semibold' : 'text-amber-600 font-semibold'}>
+                            {distance.toFixed(1)} km{distance > myNurse.coverage_radius ? ` (fuera de tu radio de ${myNurse.coverage_radius} km)` : ''}
+                          </span>
                         </div>
                       </div>
                     </div>

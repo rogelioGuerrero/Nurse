@@ -225,14 +225,14 @@ export const NurseProfileEdit: FC = () => {
                 <span className="text-[9px] text-slate-400 block mt-0.5">(Bruto: US$ {shiftRate.toFixed(0)})</span>
               </div>
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
-                <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Día (3 turnos)</span>
-                <span className="font-black text-slate-800 block mt-0.5">US$ {(shiftRate * 3 * 0.9).toFixed(2)}</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">(Bruto: US$ {(shiftRate * 3).toFixed(0)})</span>
+                <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Semana (5 turnos)</span>
+                <span className="font-black text-slate-800 block mt-0.5">US$ {(shiftRate * 5 * 0.9).toFixed(2)}</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">(Bruto: US$ {(shiftRate * 5).toFixed(0)})</span>
               </div>
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
-                <span className="font-bold text-slate-500 block text-[9px] uppercase">Mensual (30 turnos)</span>
-                <span className="font-black text-indigo-600 block mt-0.5">US$ {(shiftRate * 30 * 0.9).toFixed(2)}</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">(Bruto: US$ {(shiftRate * 30).toFixed(0)})</span>
+                <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Mes (20 turnos)</span>
+                <span className="font-black text-indigo-600 block mt-0.5">US$ {(shiftRate * 20 * 0.9).toFixed(2)}</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">(Bruto: US$ {(shiftRate * 20).toFixed(0)})</span>
               </div>
             </div>
           </div>
