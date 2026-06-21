@@ -47,9 +47,9 @@ export const PlanReview: FC = () => {
     const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
     const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.morning;
     const nurseRate = nurse?.shift_rate || 25;
-    const wantsInvoicing = nurse?.wants_invoicing || false;
+    const wantsInvoicing = true; // FSE automatico para todas las enfermeras en BienCuidar
     const price = calculateFamilyPrice(nurseRate, wantsInvoicing);
-    return { slot, nurse, nurseProfile, shiftInfo, price, nurseRate, wantsInvoicing, hasNurse: !!nurse };
+    return { slot, nurse, nurseProfile, shiftInfo, price, nurseRate, hasNurse: !!nurse };
   });
 
   const allCovered = slotDetails.every(s => s.hasNurse);
@@ -283,7 +283,7 @@ export const PlanReview: FC = () => {
               <span className="text-sm font-bold text-slate-700">Total a pagar</span>
               <span className="text-xl font-black text-indigo-700">${totalPrice.toFixed(2)}</span>
             </div>
-            {slotDetails.some(s => s.wantsInvoicing) && (
+            {allCovered && (
               <div className="bg-white rounded-xl p-4 border border-emerald-200 mt-2 space-y-3">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-emerald-600 shrink-0" />

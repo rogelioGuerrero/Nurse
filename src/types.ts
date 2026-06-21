@@ -54,7 +54,7 @@ export interface Nurse {
     criminal_record_date?: string; // YYYY-MM-DD fecha de antecedentes penales
     cssp_registration?: string; // Número de registro CSSP
   };
-  wants_invoicing?: boolean; // true = BienCuidar factura por mí
+  // FSE y retencion 10% ISR son automaticos para todas las enfermeras en BienCuidar
 }
 
 export interface Booking {

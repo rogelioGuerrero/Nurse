@@ -51,7 +51,6 @@ export const NurseProfileEdit: FC = () => {
   const [pncDate, setPncDate] = useState<string>(currentNurse?.verifications?.pnc_clearance_date || '');
   const [criminalDate, setCriminalDate] = useState<string>(currentNurse?.verifications?.criminal_record_date || '');
   const [csspReg, setCsspReg] = useState<string>(currentNurse?.verifications?.cssp_registration || '');
-  const [wantsInvoicing, setWantsInvoicing] = useState<boolean>(currentNurse?.wants_invoicing || false);
 
   if (!currentNurse || !currentUser) return null;
 
@@ -92,7 +91,6 @@ export const NurseProfileEdit: FC = () => {
         criminal_record_date: criminalDate || undefined,
         cssp_registration: csspReg.trim() || undefined,
       },
-      wants_invoicing: wantsInvoicing,
     });
 
     updateProfile({
@@ -236,18 +234,18 @@ export const NurseProfileEdit: FC = () => {
             <div className="grid grid-cols-3 gap-2.5 text-center text-[11px]">
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Turno (8h)</span>
-                <span className="font-black text-slate-800 block mt-0.5">US$ {calculateNurseNet(shiftRate, wantsInvoicing).toFixed(2)}</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate})` : '(Sin FSE)'}</span>
+                <span className="font-black text-slate-800 block mt-0.5">US$ {calculateNurseNet(shiftRate, true).toFixed(2)}</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">(Neto de $${shiftRate})</span>
               </div>
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Semana (5 turnos)</span>
-                <span className="font-black text-slate-800 block mt-0.5">US$ {(calculateNurseNet(shiftRate, wantsInvoicing) * 5).toFixed(2)}</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate * 5})` : '(Sin FSE)'}</span>
+                <span className="font-black text-slate-800 block mt-0.5">US$ {(calculateNurseNet(shiftRate, true) * 5).toFixed(2)}</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">(Neto de $${shiftRate * 5})</span>
               </div>
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Mes (20 turnos)</span>
-                <span className="font-black text-indigo-600 block mt-0.5">US$ {(calculateNurseNet(shiftRate, wantsInvoicing) * 20).toFixed(2)}</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate * 20})` : '(Sin FSE)'}</span>
+                <span className="font-black text-indigo-600 block mt-0.5">US$ {(calculateNurseNet(shiftRate, true) * 20).toFixed(2)}</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">(Neto de $${shiftRate * 20})</span>
               </div>
             </div>
           </div>
@@ -404,66 +402,56 @@ export const NurseProfileEdit: FC = () => {
           </div>
         </div>
 
-        {/* Invoicing option */}
+        {/* FSE info - automatico para todas las enfermeras */}
         <div className="pt-4 border-t border-slate-50 space-y-3">
-          <label className="flex items-start gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={wantsInvoicing}
-              onChange={(e) => setWantsInvoicing(e.target.checked)}
-              className="mt-0.5 w-4 h-4 accent-indigo-600 cursor-pointer"
-            />
+          <div className="flex items-start gap-3">
+            <FileText className="h-3.5 w-3.5 text-indigo-500 mt-0.5 shrink-0" />
             <div className="flex-1">
-              <div className="flex items-center gap-1.5">
-                <FileText className="h-3.5 w-3.5 text-indigo-500" />
-                <span className="text-xs font-bold text-slate-700">Quiero que BienCuidar gestione mi pago con FSE</span>
-              </div>
+              <span className="text-xs font-bold text-slate-700">Cómo funciona tu pago en BienCuidar</span>
               <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
-                BienCuidar emite una Factura de Sujeto Excluido (FSE) a tu nombre, retiene el 10% de ISR y te transfiere tu pago neto. Al familiar se le emite una Factura de Consumidor Final válida para deducir su Renta. Tú no necesitas inscribirte en Hacienda ni emitir facturas.
+                BienCuidar emite automáticamente una Factura de Sujeto Excluido (FSE) a tu nombre, retiene el 10% de ISR y te transfiere tu pago neto. Al familiar se le emite una Factura de Consumidor Final válida para deducir su Renta. Tú no necesitas inscribirte en Hacienda ni emitir facturas.
               </p>
             </div>
-          </label>
+          </div>
 
-          {wantsInvoicing && (
-            <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-3">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Ejemplo con tu tarifa de ${shiftRate}/turno</p>
-              <div className="space-y-1 text-[11px] text-slate-600">
-                <div className="flex justify-between">
-                  <span>Tu tarifa por turno</span>
-                  <span className="font-bold text-slate-800">${shiftRate.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-slate-400">
-                  <span>Retención ISR ({(RETENTION_RATE * 100).toFixed(0)}% → Ministerio de Hacienda)</span>
-                  <span>-${(shiftRate * RETENTION_RATE).toFixed(2)}</span>
-                </div>
-                <div className="border-t border-slate-200 pt-1.5 flex justify-between">
-                  <span className="font-bold text-slate-700">Tú recibes neto</span>
-                  <span className="font-black text-emerald-600">${calculateNurseNet(shiftRate, true).toFixed(2)}</span>
-                </div>
+          <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-3">
+            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Ejemplo con tu tarifa de ${shiftRate}/turno</p>
+            <div className="space-y-1 text-[11px] text-slate-600">
+              <div className="flex justify-between">
+                <span>Tu tarifa por turno</span>
+                <span className="font-bold text-slate-800">${shiftRate.toFixed(2)}</span>
               </div>
-
-              <div className="space-y-2 pt-2 border-t border-slate-200">
-                <div className="flex items-start gap-1.5">
-                  <span className="text-[10px]">🛡️</span>
-                  <p className="text-[10px] text-slate-600 leading-relaxed">
-                    <strong>Evita multas con el Ministerio de Hacienda:</strong> Trabajar de manera informal o recibir efectivo directo te expone a multas por omisión de ingresos. Al cobrar a través de BienCuidar, procesamos legalmente tu retención del 10% de ISR.
-                  </p>
-                </div>
-                <div className="flex items-start gap-1.5">
-                  <span className="text-[10px]">�</span>
-                  <p className="text-[10px] text-slate-600 leading-relaxed">
-                    <strong>Facturación y declaración simplificada:</strong> Generamos automáticamente tus comprobantes de Sujeto Excluido (FSE) y te facilitamos todo el proceso de declaración de impuestos sin que tengas que tramitar nada en Hacienda.
-                  </p>
-                </div>
-                <div className="flex items-start gap-1.5">
-                  <span className="text-[10px]">⚙️</span>
-                  <p className="text-[10px] text-slate-600 leading-relaxed">
-                    <strong>Gestión automatizada del servicio:</strong> BienCuidar coordina los pagos, la facturación y las retenciones por ti. Tú solo te enfocas en brindar el mejor cuidado a tus pacientes.
-                  </p>
-                </div>
+              <div className="flex justify-between text-slate-400">
+                <span>Retención ISR ({(RETENTION_RATE * 100).toFixed(0)}% → Ministerio de Hacienda)</span>
+                <span>-${(shiftRate * RETENTION_RATE).toFixed(2)}</span>
+              </div>
+              <div className="border-t border-slate-200 pt-1.5 flex justify-between">
+                <span className="font-bold text-slate-700">Tú recibes neto</span>
+                <span className="font-black text-emerald-600">${calculateNurseNet(shiftRate, true).toFixed(2)}</span>
               </div>
             </div>
-          )}
+
+            <div className="space-y-2 pt-2 border-t border-slate-200">
+              <div className="flex items-start gap-1.5">
+                <span className="text-[10px]">🛡️</span>
+                <p className="text-[10px] text-slate-600 leading-relaxed">
+                  <strong>Evita multas con el Ministerio de Hacienda:</strong> Trabajar de manera informal o recibir efectivo directo te expone a multas por omisión de ingresos. Al cobrar a través de BienCuidar, procesamos legalmente tu retención del 10% de ISR.
+                </p>
+              </div>
+              <div className="flex items-start gap-1.5">
+                <span className="text-[10px]">📋</span>
+                <p className="text-[10px] text-slate-600 leading-relaxed">
+                  <strong>Facturación y declaración simplificada:</strong> Generamos automáticamente tus comprobantes de Sujeto Excluido (FSE) y te facilitamos todo el proceso de declaración de impuestos sin que tengas que tramitar nada en Hacienda.
+                </p>
+              </div>
+              <div className="flex items-start gap-1.5">
+                <span className="text-[10px]">⚙️</span>
+                <p className="text-[10px] text-slate-600 leading-relaxed">
+                  <strong>Gestión automatizada del servicio:</strong> BienCuidar coordina los pagos, la facturación y las retenciones por ti. Tú solo te enfocas en brindar el mejor cuidado a tus pacientes.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Speciality selections list */}

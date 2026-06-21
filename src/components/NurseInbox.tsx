@@ -173,7 +173,7 @@ export const NurseInbox: FC = () => {
                     const dateConflict = isDateBooked(slot.date) && !responded;
                     const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.morning;
                     const nurseRate = myNurse.shift_rate || 25;
-                    const wantsInvoicing = myNurse.wants_invoicing || false;
+                    const wantsInvoicing = true; // FSE automatico
                     const payout = calculateNurseNet(nurseRate, wantsInvoicing);
 
                     const SHIFT_ICON: Record<ShiftType, typeof Sun> = { morning: Sun, afternoon: Sunset, night: Moon };

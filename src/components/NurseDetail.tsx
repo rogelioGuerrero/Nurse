@@ -332,15 +332,13 @@ export const NurseDetail: FC = () => {
                         </div>
                       )}
                     </div>
-                    {nurse.wants_invoicing && (
-                      <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-emerald-100 shadow-sm">
+                    <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-emerald-100 shadow-sm">
                         <FileText className="h-5 w-5 text-emerald-600 shrink-0" />
                         <div>
-                          <span className="text-[10px] font-black text-slate-800 block">Pago con FSE disponible</span>
+                          <span className="text-[10px] font-black text-slate-800 block">Pago con FSE</span>
                           <span className="text-[9px] text-slate-400 font-semibold block">BienCuidar gestiona FSE e ISR</span>
                         </div>
                       </div>
-                    )}
                   </div>
                 </div>
               ) : (
