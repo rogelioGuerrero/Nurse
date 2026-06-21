@@ -419,7 +419,7 @@ export const NurseProfileEdit: FC = () => {
                 <span className="text-xs font-bold text-slate-700">Quiero que BienCuidar gestione mi pago con FSE</span>
               </div>
               <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
-                BienCuidar emite una Factura de Sujeto Excluido (FSE) a tu nombre, retiene el 10% de ISR y te transfiere tu pago neto. Tú no necesitas inscribirte en Hacienda ni emitir facturas.
+                BienCuidar emite una Factura de Sujeto Excluido (FSE) a tu nombre, retiene el 10% de ISR y te transfiere tu pago neto. Al familiar se le emite una Factura de Consumidor Final válida para deducir su Renta. Tú no necesitas inscribirte en Hacienda ni emitir facturas.
               </p>
             </div>
           </label>

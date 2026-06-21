@@ -2,7 +2,7 @@ import { useState, useMemo, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { calculateFamilyPrice } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
-import { CheckCircle2, XCircle, Clock, MapPin, Calendar, Star, User, Phone, Heart, Send, ChevronLeft, Share2, Sun, Sunset, Moon } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, MapPin, Calendar, Star, User, Phone, Heart, Send, ChevronLeft, Share2, Sun, Sunset, Moon, FileText } from 'lucide-react';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -283,6 +283,17 @@ export const PlanReview: FC = () => {
               <span className="text-sm font-bold text-slate-700">Total a pagar</span>
               <span className="text-xl font-black text-indigo-700">${totalPrice.toFixed(2)}</span>
             </div>
+            {slotDetails.some(s => s.wantsInvoicing) && (
+              <div className="bg-white rounded-xl p-3 border border-emerald-200 mt-2 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-emerald-600 shrink-0" />
+                  <span className="text-xs font-bold text-emerald-700">Factura de Consumidor Final incluida</span>
+                </div>
+                <p className="text-[10px] text-slate-500 leading-relaxed pl-6">
+                  Este gasto es <strong>100% deducible de tu Impuesto sobre la Renta</strong>. BienCuidar emite la factura electrónica válida ante el Ministerio de Hacienda. Si pagas en efectivo directamente, ese gasto no es deducible.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
