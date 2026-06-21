@@ -14,7 +14,7 @@ import {
   Stethoscope, Calendar, 
   Star, Sparkles,
   Heart, Users, ChevronRight, GraduationCap, Network, MapPinned, MessageCircle,
-  Menu, X, Search, Inbox
+  Menu, X, Search, Inbox, ClipboardList
 } from 'lucide-react';
 
 const LoadingSpinner = () => (
@@ -170,7 +170,7 @@ function MarketplaceApp() {
           {/* Navigation Control Buttons */}
           <nav className={`flex flex-wrap items-center gap-1 sm:gap-2 text-xs ${mobileMenuOpen ? 'flex' : 'hidden sm:flex'}`}>
             
-            {/* Familiar: care request + plan review */}
+            {/* Familiar: buscar + solicitudes + plan + apoyo clinico */}
             {currentUser?.role !== 'nurse' && (
               <>
                 <button
@@ -183,7 +183,20 @@ function MarketplaceApp() {
                   id="tab-btn-care-request"
                 >
                   <Search className="h-4 w-4" />
-                  <span>Solicitar cuidado y atención de salud de un familiar</span>
+                  <span>Buscar Enfermeras</span>
+                </button>
+
+                <button
+                  onClick={() => { setSelectedNurseId(null); setActiveTab('bookings'); setMobileMenuOpen(false); }}
+                  className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    activeTab === 'bookings'
+                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                  id="tab-btn-bookings"
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  <span>Mis Solicitudes</span>
                 </button>
 
                 <button
@@ -196,12 +209,25 @@ function MarketplaceApp() {
                   id="tab-btn-plan-review"
                 >
                   <Calendar className="h-4 w-4" />
-                  <span>Mi Plan</span>
+                  <span>Plan de Cuidado</span>
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab('clinical-ai'); setMobileMenuOpen(false); }}
+                  className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    activeTab === 'clinical-ai'
+                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                  id="tab-btn-clinical-ai"
+                >
+                  <Sparkles className="h-4 w-4 text-amber-500" />
+                  <span>Apoyo Clínico</span>
                 </button>
               </>
             )}
 
-            {/* Nurse: inbox + profile + clinical AI */}
+            {/* Enfermera: solicitudes + perfil + servicios + apoyo clinico */}
             {currentUser?.role === 'nurse' && (
               <>
                 <button
@@ -228,6 +254,19 @@ function MarketplaceApp() {
                 >
                   <Network className="h-4 w-4" />
                   <span>Mi Perfil</span>
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab('bookings'); setMobileMenuOpen(false); }}
+                  className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    activeTab === 'bookings'
+                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                  id="tab-btn-bookings"
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  <span>Mis Servicios</span>
                 </button>
 
                 <button
