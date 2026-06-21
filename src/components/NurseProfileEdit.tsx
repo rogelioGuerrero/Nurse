@@ -237,17 +237,17 @@ export const NurseProfileEdit: FC = () => {
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Turno (8h)</span>
                 <span className="font-black text-slate-800 block mt-0.5">US$ {calculateNurseNet(shiftRate, wantsInvoicing).toFixed(2)}</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate})` : '(Sin factura)'}</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate})` : '(Sin FSE)'}</span>
               </div>
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Semana (5 turnos)</span>
                 <span className="font-black text-slate-800 block mt-0.5">US$ {(calculateNurseNet(shiftRate, wantsInvoicing) * 5).toFixed(2)}</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate * 5})` : '(Sin factura)'}</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate * 5})` : '(Sin FSE)'}</span>
               </div>
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Mes (20 turnos)</span>
                 <span className="font-black text-indigo-600 block mt-0.5">US$ {(calculateNurseNet(shiftRate, wantsInvoicing) * 20).toFixed(2)}</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate * 20})` : '(Sin factura)'}</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate * 20})` : '(Sin FSE)'}</span>
               </div>
             </div>
           </div>
@@ -416,10 +416,10 @@ export const NurseProfileEdit: FC = () => {
             <div className="flex-1">
               <div className="flex items-center gap-1.5">
                 <FileText className="h-3.5 w-3.5 text-indigo-500" />
-                <span className="text-xs font-bold text-slate-700">Quiero que BienCuidar facture por mí</span>
+                <span className="text-xs font-bold text-slate-700">Quiero que BienCuidar gestione mi pago con FSE</span>
               </div>
               <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
-                BienCuidar emite factura electrónica al familiar y te transfiere tu pago neto. No necesitas inscribirte en Hacienda ni manejar facturación.
+                BienCuidar emite una Factura de Sujeto Excluido (FSE) a tu nombre, retiene el 10% de ISR y te transfiere tu pago neto. Tú no necesitas inscribirte en Hacienda ni emitir facturas.
               </p>
             </div>
           </label>
@@ -442,7 +442,7 @@ export const NurseProfileEdit: FC = () => {
                 </div>
               </div>
               <p className="text-[10px] text-slate-400 leading-relaxed pt-1">
-                El familiar paga tu tarifa más ${PLATFORM_COMMISSION} de comisión de la plataforma. De tu tarifa, se retiene {RETENTION_RATE * 100}% de ISR (Impuesto sobre la Renta) que va directo al Ministerio de Hacienda. Si cobras directamente, tú debes declarar y pagar tus impuestos. BienCuidar se encarga de todo eso por ti y evita problemas por evasión de impuestos.
+                El familiar paga tu tarifa más ${PLATFORM_COMMISSION} de comisión de la plataforma. De tu tarifa, se retiene {RETENTION_RATE * 100}% de ISR (Impuesto sobre la Renta) que va directo al Ministerio de Hacienda. BienCuidar emite la Factura de Sujeto Excluido (FSE) a tu nombre. Si cobras directamente, tú debes declarar y pagar tus impuestos. BienCuidar se encarga de todo eso por ti y evita problemas por evasión de impuestos.
               </p>
             </div>
           )}
