@@ -284,18 +284,41 @@ export const PlanReview: FC = () => {
               <span className="text-xl font-black text-indigo-700">${totalPrice.toFixed(2)}</span>
             </div>
             {slotDetails.some(s => s.wantsInvoicing) && (
-              <div className="bg-white rounded-xl p-3 border border-emerald-200 mt-2 space-y-2">
+              <div className="bg-white rounded-xl p-4 border border-emerald-200 mt-2 space-y-3">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span className="text-xs font-bold text-emerald-700">Factura de Consumidor Final incluida</span>
+                  <span className="text-xs font-bold text-emerald-700">Tu respaldo legal y fiscal completo</span>
                 </div>
-                <div className="space-y-1 pl-6">
-                  <p className="text-[10px] text-slate-600 leading-relaxed">
-                    <strong>Beneficio fiscal:</strong> Este gasto es 100% deducible de tu Impuesto sobre la Renta. BienCuidar emite la factura electrónica válida ante el Ministerio de Hacienda.
-                  </p>
-                  <p className="text-[10px] text-amber-600 leading-relaxed">
-                    <strong>Importante:</strong> El pago debe realizarse únicamente a través de BienCuidar. Pagar en efectivo directamente a la enfermera evade la retención de impuestos y no genera factura deducible.
-                  </p>
+                <div className="space-y-2 pl-6">
+                  <div className="flex items-start gap-1.5">
+                    <span className="text-[10px]">📋</span>
+                    <p className="text-[10px] text-slate-600 leading-relaxed">
+                      <strong>Facturación electrónica inmediata:</strong> Recibe automáticamente tu Comprobante de Pago Electrónico (DTE) autorizado por el Ministerio de Hacienda. Olvídate de recibos informales o gastos perdidos.
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-1.5">
+                    <span className="text-[10px]">💼</span>
+                    <p className="text-[10px] text-slate-600 leading-relaxed">
+                      <strong>Escudo fiscal para tu Renta:</strong> Este gasto es 100% deducible de tu Impuesto sobre la Renta anual. Haz valer tu dinero de forma legal.
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-1.5">
+                    <span className="text-[10px]">🧘</span>
+                    <p className="text-[10px] text-slate-600 leading-relaxed">
+                      <strong>Cero trámites administrativos:</strong> Si contratas directo, la ley te obliga a emitir Facturas de Sujeto Excluido y declarar retenciones mensuales del 10%. Nosotros automatizamos todo ese proceso por ti.
+                    </p>
+                  </div>
+                  <div className="flex items-start gap-1.5">
+                    <span className="text-[10px]">🚀</span>
+                    <p className="text-[10px] text-slate-600 leading-relaxed">
+                      <strong>Garantía de disponibilidad:</strong> Si tu enfermera asignada presenta un inconveniente, tienes acceso prioritario a nuestra red para gestionar un reemplazo en tiempo récord.
+                    </p>
+                  </div>
+                  <div className="bg-amber-50 rounded-lg p-2 mt-2">
+                    <p className="text-[10px] text-amber-700 leading-relaxed">
+                      <strong>Importante:</strong> Todos los pagos deben procesarse exclusivamente dentro de BienCuidar. Los pagos directos en efectivo anulan la validez de tus facturas y el acceso al soporte.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}

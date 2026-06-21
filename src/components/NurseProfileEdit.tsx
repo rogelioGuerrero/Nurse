@@ -7,7 +7,7 @@ import { useState, type FC, type FormEvent } from 'react';
 import { useApp } from '../context/AppContext';
 import { Save, Edit3, CheckCircle2, Calculator, Sun, Moon, Sunset, ShieldCheck, FileText, BadgeCheck } from 'lucide-react';
 import { SHIFTS, type ShiftType, type WeekDay } from '../types';
-import { PLATFORM_COMMISSION, RETENTION_RATE, calculateNurseNet } from '../data/standardRates';
+import { RETENTION_RATE, calculateNurseNet } from '../data/standardRates';
 
 const allSpecialtyTags = [
   'Geriatría', 'Demencia y Alzheimer', 'Inyecciones', 'Postoperatorio', 
@@ -425,7 +425,7 @@ export const NurseProfileEdit: FC = () => {
           </label>
 
           {wantsInvoicing && (
-            <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-2">
+            <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-3">
               <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Ejemplo con tu tarifa de ${shiftRate}/turno</p>
               <div className="space-y-1 text-[11px] text-slate-600">
                 <div className="flex justify-between">
@@ -441,9 +441,26 @@ export const NurseProfileEdit: FC = () => {
                   <span className="font-black text-emerald-600">${calculateNurseNet(shiftRate, true).toFixed(2)}</span>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-400 leading-relaxed pt-1">
-                El familiar paga tu tarifa (servicio de salud, IVA 0%) más ${PLATFORM_COMMISSION} de comisión de BienCuidar + IVA 13% sobre esa comisión. De tu tarifa, se retiene {RETENTION_RATE * 100}% de ISR que va al Ministerio de Hacienda. BienCuidar emite la FSE a tu nombre y la Factura de Consumidor Final al familiar. Si cobras directo en efectivo, tú debes declarar y pagar tus impuestos, y el familiar pierde su deducción de Renta.
-              </p>
+
+              <div className="space-y-2 pt-2 border-t border-slate-200">
+                <div className="flex items-start gap-1.5">
+                  <span className="text-[10px]">🛡️</span>
+                  <p className="text-[10px] text-slate-600 leading-relaxed">
+                    <strong>Protección fiscal automática:</strong> Trabajar de manera informal o recibir efectivo directo te expone a multas de Hacienda (desde $408.80) por omisión de ingresos. Al cobrar a través de BienCuidar, procesamos legalmente tu retención del 10% de ISR y generamos tus comprobantes de Sujeto Excluido automáticamente.
+                  </p>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="text-[10px]">📈</span>
+                  <p className="text-[10px] text-slate-600 leading-relaxed">
+                    <strong>Tu reputación digital es tu mayor activo:</strong> Cada servicio pagado a través de la app suma a tu perfil, acumula calificaciones y te posiciona para recibir más y mejores ofertas de trabajo.
+                  </p>
+                </div>
+                <div className="bg-amber-50 rounded-lg p-2">
+                  <p className="text-[10px] text-amber-700 leading-relaxed">
+                    <strong>Importante:</strong> Aceptar pagos en efectivo o acuerdos directos fuera de BienCuidar constituye una violación de los Términos de Servicio. Esto conlleva la suspensión definitiva de tu cuenta, perdiendo tu historial de calificaciones y acceso a nuestra red de clientes.
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>
