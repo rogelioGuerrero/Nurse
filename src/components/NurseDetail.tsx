@@ -325,7 +325,7 @@ export const NurseDetail: FC = () => {
               </div>
 
               {/* Verificaciones opcionales */}
-              {nurse.verifications && (nurse.verifications.college_registration || nurse.verifications.pnc_clearance_date || nurse.verifications.criminal_record_date) ? (
+              {nurse.verifications?.college_registration ? (
                 <div className="pt-4 border-t border-slate-100 space-y-3.5">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
                     <ShieldCheck className="h-4.5 w-4.5 text-indigo-600" />
@@ -333,33 +333,13 @@ export const NurseDetail: FC = () => {
                   </h4>
                   <div className="bg-indigo-50/50 rounded-2xl p-4 border border-indigo-100/60 space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      {nurse.verifications.college_registration && (
-                        <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
-                          <BadgeCheck className="h-5 w-5 text-emerald-600 shrink-0" />
-                          <div>
-                            <span className="text-[10px] font-black text-slate-800 block">Registro del Colegio</span>
-                            <span className="text-[9px] text-slate-400 font-semibold block">{nurse.verifications.college_registration}</span>
-                          </div>
+                      <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
+                        <BadgeCheck className="h-5 w-5 text-emerald-600 shrink-0" />
+                        <div>
+                          <span className="text-[10px] font-black text-slate-800 block">Registro del Colegio</span>
+                          <span className="text-[9px] text-slate-400 font-semibold block">{nurse.verifications.college_registration}</span>
                         </div>
-                      )}
-                      {nurse.verifications.pnc_clearance_date && (
-                        <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
-                          <BadgeCheck className="h-5 w-5 text-emerald-600 shrink-0" />
-                          <div>
-                            <span className="text-[10px] font-black text-slate-800 block">Solvencia PNC</span>
-                            <span className="text-[9px] text-slate-400 font-semibold block">{new Date(nurse.verifications.pnc_clearance_date + 'T00:00:00').toLocaleDateString('es-SV')}</span>
-                          </div>
-                        </div>
-                      )}
-                      {nurse.verifications.criminal_record_date && (
-                        <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-100 shadow-sm">
-                          <BadgeCheck className="h-5 w-5 text-emerald-600 shrink-0" />
-                          <div>
-                            <span className="text-[10px] font-black text-slate-800 block">Antecedentes Penales</span>
-                            <span className="text-[9px] text-slate-400 font-semibold block">{new Date(nurse.verifications.criminal_record_date + 'T00:00:00').toLocaleDateString('es-SV')}</span>
-                          </div>
-                        </div>
-                      )}
+                      </div>
                     </div>
                   </div>
                 </div>

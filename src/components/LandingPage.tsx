@@ -28,7 +28,7 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse }) => {
             Enfermeras profesionales<br />al cuido de tu familiar
           </p>
           <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-            Registradas ante el CSSP.<br />Sin registro, sin contratación.
+            Registradas ante el CSSP.
           </p>
         </div>
 

@@ -50,8 +50,10 @@ export const NurseProfileEdit: FC = () => {
   const [csspReg, setCsspReg] = useState<string>(currentNurse?.cssp_registration || '');
   const [csspLevel, setCsspLevel] = useState<string>(currentNurse?.cssp_level || 'Licenciada');
   const [collegeReg, setCollegeReg] = useState<string>(currentNurse?.verifications?.college_registration || '');
-  const [pncDate, setPncDate] = useState<string>(currentNurse?.verifications?.pnc_clearance_date || '');
-  const [criminalDate, setCriminalDate] = useState<string>(currentNurse?.verifications?.criminal_record_date || '');
+
+  // Stepper
+  const [step, setStep] = useState<number>(1);
+  const totalSteps = 3;
 
   if (!currentNurse || !currentUser) return null;
 
@@ -90,8 +92,6 @@ export const NurseProfileEdit: FC = () => {
       cssp_level: csspLevel as 'Licenciada' | 'Tecnóloga' | 'Técnica' | 'Auxiliar',
       verifications: {
         college_registration: collegeReg.trim() || undefined,
-        pnc_clearance_date: pncDate || undefined,
-        criminal_record_date: criminalDate || undefined,
       },
     });
 
@@ -127,244 +127,287 @@ export const NurseProfileEdit: FC = () => {
         )}
       </div>
 
+      {/* Stepper indicator */}
+      <div className="flex items-center gap-2 mb-4">
+        {[1, 2, 3].map(s => (
+          <div key={s} className="flex items-center gap-2 flex-1">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition ${
+              step >= s ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-400'
+            }`}>
+              {step > s ? <CheckCircle2 className="h-4 w-4" /> : s}
+            </div>
+            <span className={`text-[10px] font-bold ${step >= s ? 'text-slate-700' : 'text-slate-400'}`}>
+              {s === 1 ? 'Datos básicos' : s === 2 ? 'Disponibilidad' : 'Registro CSSP'}
+            </span>
+            {s < 3 && <div className={`h-0.5 flex-1 rounded ${step > s ? 'bg-indigo-600' : 'bg-slate-200'}`} />}
+          </div>
+        ))}
+      </div>
+
       <form onSubmit={handleProfileSave} className="space-y-6">
-        
-        {/* Core numbers parameters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          
-          {/* Rate Card */}
-          <div className="bg-slate-50/50 p-4 border border-slate-200 rounded-2xl relative space-y-1.5">
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-              Tarifa por Turno (US$)
-            </label>
-            <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
-              <span className="absolute inset-y-0 left-3 flex items-center text-slate-400 font-bold">$</span>
-              <input
-                type="number"
-                required
-                min="15"
-                max="50"
-                value={shiftRate}
-                onChange={(e) => setShiftRate(Number(e.target.value))}
-                className="w-full bg-transparent pl-7 pr-3 py-2.5 outline-none font-bold text-slate-800 text-sm"
-                id="input-edit-rate"
-              />
-            </div>
-            <p className="text-[10px] text-slate-400 leading-normal">Cada turno son 8 horas. Se sugiere entre US$ 20 y US$ 35 según especialización.</p>
-          </div>
 
-          {/* Coverage Radius - reference only */}
-          <div className="bg-slate-50/50 p-4 border border-slate-200 rounded-2xl relative space-y-1.5">
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-              Radio de Referencia (Km)
-            </label>
-            <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
-              <input
-                type="number"
-                required
-                min="1"
-                max="50"
-                value={coverageRadius}
-                onChange={(e) => setCoverageRadius(Number(e.target.value))}
-                className="w-full bg-transparent px-3 py-2.5 outline-none font-bold text-slate-800 text-sm"
-                id="input-edit-radius"
-              />
-              <span className="absolute inset-y-0 right-3 flex items-center text-slate-400 text-xs font-bold">Km</span>
-            </div>
-            <p className="text-[10px] text-slate-400 leading-normal">Distancia máxima que estás dispuesta a viajar desde tu vivienda. Al recibir una solicitud verás la distancia exacta al paciente.</p>
-          </div>
-
-          {/* Experience years count */}
-          <div className="bg-slate-50/50 p-4 border border-slate-200 rounded-2xl relative space-y-1.5">
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-              Años de Experiencia
-            </label>
-            <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
-              <input
-                type="number"
-                required
-                min="0"
-                max="50"
-                value={experienceYears}
-                onChange={(e) => setExperienceYears(Number(e.target.value))}
-                className="w-full bg-transparent px-3 py-2.5 outline-none font-bold text-slate-800 text-sm"
-                id="input-edit-exp"
-              />
-              <span className="absolute inset-y-0 right-3 flex items-center text-slate-400 text-xs font-bold">Años</span>
-            </div>
-            <p className="text-[10px] text-slate-400 leading-normal">Años de servicio formal que avalan el currículum de cuidados geriátricos.</p>
-          </div>
-
-        </div>
-
-        {/* CALCULADORA TRIBUTARIA EL SALVADOR */}
-        <div className="bg-indigo-50/30 border border-indigo-100 rounded-2xl p-5 space-y-4">
-          <div className="flex items-start gap-2.5">
-            <Calculator className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                Calculadora Tributaria de El Salvador
-                <span className="bg-indigo-100 text-indigo-700 text-[8px] px-1.5 py-0.5 rounded font-black uppercase">Art. 156 C.T.</span>
-              </h4>
-              <p className="text-[10px] text-slate-500 leading-relaxed mt-0.5 font-medium">Bajo el Art. 156 del Código Tributario de El Salvador, las rentas por servicios profesionales independientes están sujetas al 10% de retención de Impuesto sobre la Renta. Esta herramienta te ayuda a proyectar tu ingreso neto.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-slate-700 font-medium">
-            <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Tu Tarifa Bruta / Turno</span>
-              <span className="text-base font-black text-slate-800">US$ {shiftRate.toFixed(2)}</span>
-              <span className="text-[9px] text-slate-400 block mt-1">Ingreso bruto por 8 horas</span>
-            </div>
-
-            <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Retención del Renta (10%)</span>
-              <span className="text-base font-black text-rose-600">-(US$ {(shiftRate * 0.1).toFixed(2)})</span>
-              <span className="text-[9px] text-slate-400 block mt-1">Retención que realiza la familia</span>
-            </div>
-
-            <div className="bg-white p-3.5 rounded-xl border border-indigo-100 shadow-sm bg-indigo-50/20">
-              <span className="text-[10px] uppercase font-bold text-indigo-700 block mb-1">Tu Tarifa Neta / Turno</span>
-              <span className="text-base font-black text-indigo-700">US$ {(shiftRate * 0.9).toFixed(2)}</span>
-              <span className="text-[9px] text-indigo-600 block mt-1">Monto neto que ingresa a tu cuenta</span>
-            </div>
-          </div>
-
-          {/* Projection Calculator Table */}
-          <div className="bg-white rounded-xl border border-slate-200 p-3.5 text-xs">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Simulación de Ganancias Estimadas (Neto Líquido)</span>
-            <div className="grid grid-cols-3 gap-2.5 text-center text-[11px]">
-              <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
-                <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Turno (8h)</span>
-                <span className="font-black text-slate-800 block mt-0.5">US$ {calculateNurseNet(shiftRate, true).toFixed(2)}</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">(Neto de $${shiftRate})</span>
+        {/* STEP 1: Datos básicos */}
+        {step === 1 && (
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <div className="bg-slate-50/50 p-4 border border-slate-200 rounded-2xl relative space-y-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                  Tarifa por Turno (US$)
+                </label>
+                <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                  <span className="absolute inset-y-0 left-3 flex items-center text-slate-400 font-bold">$</span>
+                  <input
+                    type="number"
+                    required
+                    min="15"
+                    max="50"
+                    value={shiftRate}
+                    onChange={(e) => setShiftRate(Number(e.target.value))}
+                    className="w-full bg-transparent pl-7 pr-3 py-2.5 outline-none font-bold text-slate-800 text-sm"
+                    id="input-edit-rate"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 leading-normal">Cada turno son 8 horas. Se sugiere entre US$ 20 y US$ 35.</p>
               </div>
-              <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
-                <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Semana (5 turnos)</span>
-                <span className="font-black text-slate-800 block mt-0.5">US$ {(calculateNurseNet(shiftRate, true) * 5).toFixed(2)}</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">(Neto de $${shiftRate * 5})</span>
+
+              <div className="bg-slate-50/50 p-4 border border-slate-200 rounded-2xl relative space-y-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                  Años de Experiencia
+                </label>
+                <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    max="50"
+                    value={experienceYears}
+                    onChange={(e) => setExperienceYears(Number(e.target.value))}
+                    className="w-full bg-transparent px-3 py-2.5 outline-none font-bold text-slate-800 text-sm"
+                    id="input-edit-exp"
+                  />
+                  <span className="absolute inset-y-0 right-3 flex items-center text-slate-400 text-xs font-bold">Años</span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-normal">Años de servicio formal en cuidados.</p>
               </div>
-              <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
-                <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Mes (20 turnos)</span>
-                <span className="font-black text-indigo-600 block mt-0.5">US$ {(calculateNurseNet(shiftRate, true) * 20).toFixed(2)}</span>
-                <span className="text-[9px] text-slate-400 block mt-0.5">(Neto de $${shiftRate * 20})</span>
+
+              <div className="bg-slate-50/50 p-4 border border-slate-200 rounded-2xl relative space-y-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                  Radio de cobertura (Km)
+                </label>
+                <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    max="50"
+                    value={coverageRadius}
+                    onChange={(e) => setCoverageRadius(Number(e.target.value))}
+                    className="w-full bg-transparent px-3 py-2.5 outline-none font-bold text-slate-800 text-sm"
+                    id="input-edit-radius"
+                  />
+                  <span className="absolute inset-y-0 right-3 flex items-center text-slate-400 text-xs font-bold">Km</span>
+                </div>
+                <p className="text-[10px] text-slate-400 leading-normal">Distancia máxima desde tu vivienda.</p>
               </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Teléfono</label>
+                <input
+                  type="text"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+503 0000 0000"
+                  className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-4 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                  id="input-edit-phone"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Lugar de residencia</label>
+                <input
+                  type="text"
+                  required
+                  value={locationName}
+                  onChange={(e) => setLocationName(e.target.value)}
+                  placeholder="Ej: San Salvador, Santa Ana, San Miguel..."
+                  className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-4 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                  id="input-edit-location"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Biografía profesional
+              </label>
+              <textarea
+                required
+                rows={3}
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="Cuéntanos sobre tu experiencia y enfoque de cuidado..."
+                className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-4 py-3 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition resize-none leading-relaxed"
+                id="input-edit-bio"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                Especialidades
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {allSpecialtyTags.map(tag => {
+                  const isSelected = selectedSpecs.includes(tag);
+                  return (
+                    <button
+                      type="button"
+                      key={tag}
+                      onClick={() => handleToggleSpec(tag)}
+                      className={`text-xs font-semibold px-3.5 py-2 rounded-xl border transition cursor-pointer ${
+                        isSelected
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      }`}
+                      id={`btn-spec-toggle-${tag}`}
+                    >
+                      {tag}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="bg-indigo-600 text-white font-bold text-xs px-6 py-3 rounded-xl transition shadow-sm flex items-center gap-2 cursor-pointer"
+              >
+                Siguiente
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
-        {/* Demographics row controls */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
-          
-          {/* Phone */}
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Teléfono de Contacto</label>
-            <input
-              type="text"
-              required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-4 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
-              id="input-edit-phone"
-            />
+        {/* STEP 2: Disponibilidad */}
+        {step === 2 && (
+          <div className="space-y-5">
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Turnos disponibles
+              </label>
+              <div className="flex gap-2">
+                {(Object.keys(SHIFTS) as ShiftType[]).map(shift => {
+                  const Icon = SHIFT_ICONS[shift];
+                  const isSelected = selectedShifts.includes(shift);
+                  return (
+                    <button
+                      key={shift}
+                      type="button"
+                      onClick={() => toggleShift(shift)}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                        isSelected
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {SHIFTS[shift].label}
+                      <span className="text-[9px] opacity-70">{SHIFTS[shift].start}-{SHIFTS[shift].end}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                Días disponibles
+              </label>
+              <div className="flex gap-1.5">
+                {DAY_LABELS.map(({ day, label }) => {
+                  const isSelected = selectedDays.includes(day);
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => toggleDay(day)}
+                      className={`flex-1 py-2.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+                        isSelected
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex justify-between">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="bg-slate-100 text-slate-600 font-bold text-xs px-6 py-3 rounded-xl transition cursor-pointer"
+              >
+                Atrás
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                className="bg-indigo-600 text-white font-bold text-xs px-6 py-3 rounded-xl transition shadow-sm flex items-center gap-2 cursor-pointer"
+              >
+                Siguiente
+              </button>
+            </div>
           </div>
+        )}
 
-          {/* Location Area Text */}
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Área de Operación Principal</label>
-            <input
-              type="text"
-              required
-              value={locationName}
-              onChange={(e) => setLocationName(e.target.value)}
-              className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-4 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
-              id="input-edit-location"
-            />
-          </div>
+        {/* STEP 3: Registro CSSP */}
+        {step === 3 && (
+          <div className="space-y-5">
+            <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100/60 space-y-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                <span className="text-xs font-bold text-emerald-700">Registro CSSP (Obligatorio)</span>
+              </div>
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                Tu registro del CSSP es obligatorio para ejercer legalmente en El Salvador. Sin este registro no puedes activar tu perfil en BienCuidar.
+              </p>
+            </div>
 
-        </div>
-
-        {/* Availability: Weekly shift calendar */}
-        <div className="space-y-3">
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-            Disponibilidad Semanal
-          </label>
-          <p className="text-[10px] text-slate-400">Marca los días y turnos en los que estás disponible para aceptar visitas.</p>
-
-          {/* Shift toggles */}
-          <div className="flex gap-2">
-            {(Object.keys(SHIFTS) as ShiftType[]).map(shift => {
-              const Icon = SHIFT_ICONS[shift];
-              const isSelected = selectedShifts.includes(shift);
-              return (
-                <button
-                  key={shift}
-                  type="button"
-                  onClick={() => toggleShift(shift)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
-                    isSelected
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                      : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
-                  }`}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Número de registro CSSP *</label>
+                <input
+                  type="text"
+                  required
+                  value={csspReg}
+                  onChange={(e) => setCsspReg(e.target.value)}
+                  placeholder="Ej: CSSP-ENF-2024-0456"
+                  className={`w-full text-xs font-medium bg-slate-50 border outline-none rounded-xl px-3 py-2.5 focus:bg-white focus:ring-1 transition ${csspReg.trim() ? 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-500' : 'border-red-300 focus:border-red-500 focus:ring-red-500'}`}
+                />
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Nivel profesional *</label>
+                <select
+                  value={csspLevel}
+                  onChange={(e) => setCsspLevel(e.target.value)}
+                  className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-3 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
                 >
-                  <Icon className="h-3.5 w-3.5" />
-                  {SHIFTS[shift].label}
-                  <span className="text-[9px] opacity-70">{SHIFTS[shift].start}-{SHIFTS[shift].end}</span>
-                </button>
-              );
-            })}
-          </div>
+                  <option value="Licenciada">Licenciada en Enfermería</option>
+                  <option value="Tecnóloga">Tecnóloga en Enfermería</option>
+                  <option value="Técnica">Técnica en Enfermería</option>
+                  <option value="Auxiliar">Auxiliar de Enfermería</option>
+                </select>
+              </div>
+            </div>
 
-          {/* Day toggles */}
-          <div className="flex gap-1.5">
-            {DAY_LABELS.map(({ day, label }) => {
-              const isSelected = selectedDays.includes(day);
-              return (
-                <button
-                  key={day}
-                  type="button"
-                  onClick={() => toggleDay(day)}
-                  className={`flex-1 py-2.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
-                    isSelected
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                      : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Bio description */}
-        <div className="space-y-2">
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-            Biografía Profesional y Enfoque Geriátrico
-          </label>
-          <textarea
-            required
-            rows={4}
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-4 py-3 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition resize-none leading-relaxed"
-            id="input-edit-bio"
-          />
-        </div>
-
-        {/* Optional verifications */}
-        <div className="space-y-3 pt-4 border-t border-slate-50">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-indigo-500" />
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Registro CSSP (Obligatorio)
-            </label>
-          </div>
-          <p className="text-[10px] text-slate-400">Tu número de registro del CSSP es obligatorio para ejercer legalmente en El Salvador. Sin este registro no puedes activar tu perfil.</p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Registro del Colegio/Asociación</label>
+              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Registro del Colegio/Asociación (opcional)</label>
               <input
                 type="text"
                 value={collegeReg}
@@ -373,142 +416,125 @@ export const NurseProfileEdit: FC = () => {
                 className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-3 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
               />
             </div>
-            <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Solvencia PNC (fecha)</label>
-              <input
-                type="date"
-                value={pncDate}
-                onChange={(e) => setPncDate(e.target.value)}
-                className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-3 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Antecedentes Penales (fecha)</label>
-              <input
-                type="date"
-                value={criminalDate}
-                onChange={(e) => setCriminalDate(e.target.value)}
-                className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-3 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Número de registro CSSP *</label>
-              <input
-                type="text"
-                value={csspReg}
-                onChange={(e) => setCsspReg(e.target.value)}
-                placeholder="Ej: CSSP-ENF-2024-0456"
-                className={`w-full text-xs font-medium bg-slate-50 border outline-none rounded-xl px-3 py-2.5 focus:bg-white focus:ring-1 transition ${csspReg.trim() ? 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-500' : 'border-red-300 focus:border-red-500 focus:ring-red-500'}`}
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Nivel profesional *</label>
-              <select
-                value={csspLevel}
-                onChange={(e) => setCsspLevel(e.target.value)}
-                className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-3 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+
+            <div className="flex justify-between">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="bg-slate-100 text-slate-600 font-bold text-xs px-6 py-3 rounded-xl transition cursor-pointer"
               >
-                <option value="Licenciada">Licenciada en Enfermería</option>
-                <option value="Tecnóloga">Tecnóloga en Enfermería</option>
-                <option value="Técnica">Técnica en Enfermería</option>
-                <option value="Auxiliar">Auxiliar de Enfermería</option>
-              </select>
+                Atrás
+              </button>
+              <button
+                type="submit"
+                className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-xs px-6 py-3 rounded-xl transition shadow-md shadow-indigo-100 flex items-center gap-2 cursor-pointer"
+                id="btn-edit-profile-submit"
+              >
+                <Save className="h-4 w-4" />
+                <span>Guardar y publicar</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+      </form>
+
+      {/* SECCION INFORMATIVA APARTE: Calculadora tributaria + pago BienCuidar */}
+      <div className="mt-6 pt-6 border-t border-slate-100 space-y-6">
+
+        {/* Calculadora tributaria */}
+        <div className="bg-indigo-50/30 border border-indigo-100 rounded-2xl p-5 space-y-4">
+          <div className="flex items-start gap-2.5">
+            <Calculator className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                Calculadora Tributaria
+                <span className="bg-indigo-100 text-indigo-700 text-[8px] px-1.5 py-0.5 rounded font-black uppercase">Art. 156 C.T.</span>
+              </h4>
+              <p className="text-[10px] text-slate-500 leading-relaxed mt-0.5 font-medium">Retención del 10% de ISR sobre servicios profesionales independientes.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-slate-700 font-medium">
+            <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Tarifa bruta / turno</span>
+              <span className="text-base font-black text-slate-800">US$ {shiftRate.toFixed(2)}</span>
+            </div>
+            <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Retención ISR (10%)</span>
+              <span className="text-base font-black text-rose-600">-US$ {(shiftRate * 0.1).toFixed(2)}</span>
+            </div>
+            <div className="bg-white p-3.5 rounded-xl border border-indigo-100 shadow-sm bg-indigo-50/20">
+              <span className="text-[10px] uppercase font-bold text-indigo-700 block mb-1">Neto / turno</span>
+              <span className="text-base font-black text-indigo-700">US$ {calculateNurseNet(shiftRate, true).toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-slate-200 p-3.5 text-xs">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Proyección mensual</span>
+            <div className="grid grid-cols-3 gap-2.5 text-center text-[11px]">
+              <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+                <span className="font-bold text-slate-500 block text-[9px] uppercase">1 turno</span>
+                <span className="font-black text-slate-800 block mt-0.5">US$ {calculateNurseNet(shiftRate, true).toFixed(2)}</span>
+              </div>
+              <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+                <span className="font-bold text-slate-500 block text-[9px] uppercase">1 semana (5)</span>
+                <span className="font-black text-slate-800 block mt-0.5">US$ {(calculateNurseNet(shiftRate, true) * 5).toFixed(2)}</span>
+              </div>
+              <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+                <span className="font-bold text-slate-500 block text-[9px] uppercase">1 mes (20)</span>
+                <span className="font-black text-indigo-600 block mt-0.5">US$ {(calculateNurseNet(shiftRate, true) * 20).toFixed(2)}</span>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* FSE info - automatico para todas las enfermeras */}
-        <div className="pt-4 border-t border-slate-50 space-y-3">
-          <div className="flex items-start gap-3">
-            <FileText className="h-3.5 w-3.5 text-indigo-500 mt-0.5 shrink-0" />
-            <div className="flex-1">
-              <span className="text-xs font-bold text-slate-700">Cómo funciona tu pago en BienCuidar</span>
-              <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
-                BienCuidar emite automáticamente una Factura de Sujeto Excluido (FSE) a tu nombre, retiene el 10% de ISR y te transfiere tu pago neto. Al familiar se le emite una Factura de Consumidor Final válida para deducir su Renta. Tú no necesitas inscribirte en Hacienda ni emitir facturas.
+        {/* Cómo funciona el pago en BienCuidar */}
+        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-4">
+          <div className="flex items-start gap-2.5">
+            <FileText className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
+            <div>
+              <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Cómo funciona tu pago en BienCuidar</h4>
+              <p className="text-[10px] text-slate-500 leading-relaxed mt-0.5">
+                BienCuidar emite automáticamente una FSE a tu nombre, retiene el 10% de ISR y te transfiere tu pago neto. Al familiar se le emite una Factura de Consumidor Final deducible de Renta. Tú no necesitas inscribirte en Hacienda ni emitir facturas.
               </p>
             </div>
           </div>
 
-          <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-3">
-            <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Ejemplo con tu tarifa de ${shiftRate}/turno</p>
+          <div className="bg-white rounded-xl p-3.5 border border-slate-200 space-y-2">
             <div className="space-y-1 text-[11px] text-slate-600">
               <div className="flex justify-between">
                 <span>Tu tarifa por turno</span>
                 <span className="font-bold text-slate-800">${shiftRate.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-slate-400">
-                <span>Retención ISR ({(RETENTION_RATE * 100).toFixed(0)}% → Ministerio de Hacienda)</span>
+                <span>Retención ISR ({(RETENTION_RATE * 100).toFixed(0)}%)</span>
                 <span>-${(shiftRate * RETENTION_RATE).toFixed(2)}</span>
               </div>
               <div className="border-t border-slate-200 pt-1.5 flex justify-between">
-                <span className="font-bold text-slate-700">Tú recibes neto</span>
+                <span className="font-bold text-slate-700">Recibes neto</span>
                 <span className="font-black text-emerald-600">${calculateNurseNet(shiftRate, true).toFixed(2)}</span>
               </div>
             </div>
+          </div>
 
-            <div className="space-y-2 pt-2 border-t border-slate-200">
-              <div className="flex items-start gap-1.5">
-                <span className="text-[10px]">🛡️</span>
-                <p className="text-[10px] text-slate-600 leading-relaxed">
-                  <strong>Evita multas con el Ministerio de Hacienda:</strong> Trabajar de manera informal o recibir efectivo directo te expone a multas por omisión de ingresos. Al cobrar a través de BienCuidar, procesamos legalmente tu retención del 10% de ISR.
-                </p>
-              </div>
-              <div className="flex items-start gap-1.5">
-                <span className="text-[10px]">📋</span>
-                <p className="text-[10px] text-slate-600 leading-relaxed">
-                  <strong>Facturación y declaración simplificada:</strong> Generamos automáticamente tus comprobantes de Sujeto Excluido (FSE) y te facilitamos todo el proceso de declaración de impuestos sin que tengas que tramitar nada en Hacienda.
-                </p>
-              </div>
-              <div className="flex items-start gap-1.5">
-                <span className="text-[10px]">⚙️</span>
-                <p className="text-[10px] text-slate-600 leading-relaxed">
-                  <strong>Gestión automatizada del servicio:</strong> BienCuidar coordina los pagos, la facturación y las retenciones por ti. Tú solo te enfocas en brindar el mejor cuidado a tus pacientes.
-                </p>
-              </div>
+          <div className="space-y-2">
+            <div className="flex items-start gap-1.5">
+              <span className="text-[10px]">🛡️</span>
+              <p className="text-[10px] text-slate-600 leading-relaxed">
+                <strong>Evita multas:</strong> Cobrar a través de BienCuidar procesa legalmente tu retención del 10% de ISR.
+              </p>
+            </div>
+            <div className="flex items-start gap-1.5">
+              <span className="text-[10px]">📋</span>
+              <p className="text-[10px] text-slate-600 leading-relaxed">
+                <strong>Sin trámites:</strong> Generamos automáticamente tus comprobantes FSE.
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Speciality selections list */}
-        <div className="space-y-2 pt-2 border-t border-slate-50">
-          <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-            Habilidades Médicas y Especializaciones Especiales (Selecciona las que dominas)
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {allSpecialtyTags.map(tag => {
-              const isSelected = selectedSpecs.includes(tag);
-              return (
-                <button
-                  type="button"
-                  key={tag}
-                  onClick={() => handleToggleSpec(tag)}
-                  className={`text-xs font-semibold px-3.5 py-2 rounded-xl border transition cursor-pointer ${
-                    isSelected 
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' 
-                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                  }`}
-                  id={`btn-spec-toggle-${tag}`}
-                >
-                  {tag}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Submit */}
-        <div className="pt-4 border-t border-slate-100 flex justify-end">
-          <button
-            type="submit"
-            className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-xs px-6 py-3 rounded-xl transition shadow-md shadow-indigo-100 flex items-center gap-2 cursor-pointer"
-            id="btn-edit-profile-submit"
-          >
-            <Save className="h-4 w-4" />
-            <span>Guardar Ajustes y Publicar</span>
-          </button>
-        </div>
-
-      </form>
+      </div>
     </div>
   );
 };

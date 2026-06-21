@@ -52,8 +52,6 @@ export interface Nurse {
   cssp_level: 'Licenciada' | 'Tecnóloga' | 'Técnica' | 'Auxiliar';
   verifications?: {
     college_registration?: string; // Número de registro del colegio/asociación
-    pnc_clearance_date?: string; // YYYY-MM-DD fecha de solvencia PNC
-    criminal_record_date?: string; // YYYY-MM-DD fecha de antecedentes penales
   };
   // FSE y retencion 10% ISR son automaticos para todas las enfermeras en BienCuidar
 }
