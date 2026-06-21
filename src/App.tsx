@@ -183,7 +183,7 @@ function MarketplaceApp() {
                   id="tab-btn-care-request"
                 >
                   <Search className="h-4 w-4" />
-                  <span>Solicitar Cuidado</span>
+                  <span>Solicitar cuidado y atención de salud de un familiar</span>
                 </button>
 
                 <button

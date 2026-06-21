@@ -172,9 +172,9 @@ export const CareRequestForm: FC = () => {
             <CheckCircle2 className="h-10 w-10 text-emerald-600" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-xl font-bold text-slate-900">Solicitud enviada</h2>
+            <h2 className="text-xl font-bold text-slate-900">Ya estamos buscando a la persona ideal</h2>
             <p className="text-sm text-slate-500 leading-relaxed">
-              Estamos buscando enfermeras que puedan ayudarte. Te contactaremos por WhatsApp al <span className="font-bold text-slate-700">{phone}</span> con tu plan de atención.
+              Estamos conectando con enfermeras que puedan cuidar a tu ser querido. Te escribiremos por WhatsApp al <span className="font-bold text-slate-700">{phone}</span> con el plan de atención.
             </p>
           </div>
           <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-left space-y-2">
@@ -228,8 +228,8 @@ export const CareRequestForm: FC = () => {
       {step === 1 && (
         <div className="flex-1 space-y-5 animate-fade-in">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 mb-1">¿Qué necesita tu ser querido?</h2>
-            <p className="text-xs text-slate-500">Selecciona una o más condiciones. Esto ayuda a las enfermeras a entender el cuidado requerido.</p>
+            <h2 className="text-lg font-bold text-slate-900 mb-1">Selecciona la enfermedad médica</h2>
+            <p className="text-xs text-slate-500">Esto nos ayuda a encontrar la enfermera con la especialidad adecuada para tu ser querido.</p>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -306,8 +306,8 @@ export const CareRequestForm: FC = () => {
       {step === 2 && (
         <div className="flex-1 space-y-4 animate-fade-in">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 mb-1">¿Cuándo necesitas el cuidado?</h2>
-            <p className="text-xs text-slate-500">Toca los días en el calendario. Luego elige los turnos: mañana, tarde, noche o 24 horas.</p>
+            <h2 className="text-lg font-bold text-slate-900 mb-1">¿Qué días y turnos necesitas?</h2>
+            <p className="text-xs text-slate-500">Elige los días en el calendario y los turnos: mañana, tarde, noche o cuidado completo de 24 horas.</p>
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3">
@@ -459,8 +459,8 @@ export const CareRequestForm: FC = () => {
       {step === 3 && (
         <div className="flex-1 space-y-5 animate-fade-in">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 mb-1">¿Dónde y cómo te contactamos?</h2>
-            <p className="text-xs text-slate-500">Necesitamos tu ubicación y teléfono para enviarte el plan por WhatsApp.</p>
+            <h2 className="text-lg font-bold text-slate-900 mb-1">Lugar de atención y teléfono para contactarte</h2>
+            <p className="text-xs text-slate-500">Tu ubicación y teléfono nos sirven para enviarte el plan por WhatsApp, sin necesidad de agregar contactos.</p>
           </div>
 
           <div className="space-y-4">
@@ -500,7 +500,7 @@ export const CareRequestForm: FC = () => {
                   className="w-full pl-9 pr-3 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                 />
               </div>
-              <p className="text-[10px] text-slate-400 mt-1">Te enviaremos un WhatsApp con el link para ver tu plan de atención.</p>
+              <p className="text-[10px] text-slate-400 mt-1">Te enviaremos un WhatsApp con el link de tu plan. No necesitas agregar ningún contacto.</p>
             </div>
           </div>
 

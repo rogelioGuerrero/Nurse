@@ -4,7 +4,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, useCallback, type FC, type ReactNode } from 'react';
-import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareOffer } from '../types';
+import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareOffer, ShiftType } from '../types';
 import { INITIAL_PROFILES, INITIAL_NURSES } from '../data/nurses';
 import { supabase } from '../lib/supabase';
 import { getResponseDeadline } from '../data/platformSettings';
@@ -159,7 +159,18 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   // Care requests state (family posts what they need)
-  const [careRequests, setCareRequests] = useState<CareRequest[]>(() => safeParse('biencuidar_carerequests', []));
+  // Migration: clear old-format requests that used start_time/end_time instead of shift
+  const [careRequests, setCareRequests] = useState<CareRequest[]>(() => {
+    const raw = safeParse('biencuidar_carerequests', []);
+    const migrated = raw.map((r: CareRequest) => ({
+      ...r,
+      slots: (r.slots || []).map((s: { date: string; shift?: string; start_time?: string }) => ({
+        date: s.date,
+        shift: (s.shift || 'morning') as ShiftType
+      }))
+    }));
+    return migrated;
+  });
 
   useEffect(() => {
     localStorage.setItem('biencuidar_carerequests', JSON.stringify(careRequests));

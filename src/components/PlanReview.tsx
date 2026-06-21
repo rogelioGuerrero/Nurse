@@ -47,7 +47,7 @@ export const PlanReview: FC = () => {
     const acceptedOffer = offers.find(o => o.status === 'accepted');
     const nurse = acceptedOffer ? nurses.find(n => n.id === acceptedOffer.nurse_id) : null;
     const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
-    const shiftInfo = SHIFTS[slot.shift as ShiftType];
+    const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.morning;
     const price = familyPrice;
     return { slot, nurse, nurseProfile, shiftInfo, price, hasNurse: !!nurse };
   });

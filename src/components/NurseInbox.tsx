@@ -106,16 +106,16 @@ export const NurseInbox: FC = () => {
           <Inbox className="h-5 w-5 text-indigo-600" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Solicitudes de visita</h1>
-          <p className="text-xs text-slate-500">Revisa y confirma las visitas que te llegaron</p>
+          <h1 className="text-xl font-bold text-slate-900">Familias que te necesitan</h1>
+          <p className="text-xs text-slate-500">Revisa los pedidos de cuidado y confirma los turnos que puedes cubrir</p>
         </div>
       </div>
 
       {incomingRequests.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center">
           <Inbox className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-          <p className="font-semibold text-slate-700">No tienes solicitudes pendientes.</p>
-          <p className="text-xs text-slate-400 mt-1">Cuando una familia publique una necesidad que coincida con tu especialización, aparecerá aquí.</p>
+          <p className="font-semibold text-slate-700">Todo tranquilo por ahora.</p>
+          <p className="text-xs text-slate-400 mt-1">Cuando una familia busque cuidado que coincida con tu especialidad, lo verás aquí.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -172,11 +172,11 @@ export const NurseInbox: FC = () => {
                     const offer = getOfferForSlot(req.id, idx);
                     const responded = hasOffered(req.id, idx);
                     const dateConflict = isDateBooked(slot.date) && !responded;
-                    const shiftInfo = SHIFTS[slot.shift as ShiftType];
+                    const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.morning;
                     const payout = familyPrice;
 
                     const SHIFT_ICON: Record<ShiftType, typeof Sun> = { morning: Sun, afternoon: Sunset, night: Moon };
-                    const ShiftIcon = SHIFT_ICON[slot.shift as ShiftType];
+                    const ShiftIcon = SHIFT_ICON[slot.shift as ShiftType] || Sun;
 
                     return (
                       <div key={idx} className="p-4 flex items-center gap-4">
