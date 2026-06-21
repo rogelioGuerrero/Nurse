@@ -5,7 +5,7 @@
 
 import { useState, type FC, type FormEvent } from 'react';
 import { useApp } from '../context/AppContext';
-import { Save, Edit3, CheckCircle2, Calculator, Sun, Moon, Sunset, ShieldCheck, FileText, BadgeCheck } from 'lucide-react';
+import { Save, Edit3, CheckCircle2, Calculator, Sun, Moon, Sunset, ShieldCheck, FileText, Crosshair, Loader2, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import { SHIFTS, type ShiftType, type WeekDay } from '../types';
 import { RETENTION_RATE, calculateNurseNet } from '../data/standardRates';
 
@@ -35,13 +35,13 @@ export const NurseProfileEdit: FC = () => {
   const { currentNurse, currentUser, updateNurseProfile, updateProfile } = useApp();
 
   const [shiftRate, setShiftRate] = useState<number>(currentNurse?.shift_rate || 25);
-  const [coverageRadius, setCoverageRadius] = useState<number>(currentNurse?.coverage_radius || 5);
   const [selectedShifts, setSelectedShifts] = useState<ShiftType[]>(currentNurse?.available_shifts || ['morning']);
   const [selectedDays, setSelectedDays] = useState<WeekDay[]>(currentNurse?.available_days || [1, 2, 3, 4, 5]);
   const [bio, setBio] = useState<string>(currentNurse?.bio || '');
   const [experienceYears, setExperienceYears] = useState<number>(currentNurse?.experience_years || 5);
   const [phone, setPhone] = useState<string>(currentUser?.phone || '');
   const [locationName, setLocationName] = useState<string>(currentUser?.location_name || '');
+  const [locating, setLocating] = useState(false);
 
   const [selectedSpecs, setSelectedSpecs] = useState<string[]>(currentNurse?.specialization || []);
   const [showNotify, setShowNotify] = useState(false);
@@ -55,7 +55,41 @@ export const NurseProfileEdit: FC = () => {
   const [step, setStep] = useState<number>(1);
   const totalSteps = 3;
 
+  // Secciones colapsables
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [showPaymentInfo, setShowPaymentInfo] = useState(false);
+
   if (!currentNurse || !currentUser) return null;
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=16&addressdetails=1`,
+            { headers: { 'Accept-Language': 'es' } }
+          );
+          const data = await res.json();
+          const addr = data.address || {};
+          const parts = [
+            addr.road || addr.neighbourhood,
+            addr.suburb || addr.city_district,
+            addr.city || addr.town || addr.village || addr.municipality,
+          ].filter(Boolean);
+          setLocationName(parts.join(', ') || data.display_name?.split(',').slice(0, 3).join(','));
+        } catch {
+          setLocationName(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => setLocating(false),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const handleToggleSpec = (tag: string) => {
     setSelectedSpecs(prev => 
@@ -82,7 +116,6 @@ export const NurseProfileEdit: FC = () => {
 
     updateNurseProfile({
       shift_rate: Number(shiftRate),
-      coverage_radius: Number(coverageRadius),
       available_shifts: selectedShifts,
       available_days: selectedDays,
       bio,
@@ -149,7 +182,7 @@ export const NurseProfileEdit: FC = () => {
         {/* STEP 1: Datos básicos */}
         {step === 1 && (
           <div className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="bg-slate-50/50 p-4 border border-slate-200 rounded-2xl relative space-y-1.5">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
                   Tarifa por Turno (US$)
@@ -189,26 +222,6 @@ export const NurseProfileEdit: FC = () => {
                 </div>
                 <p className="text-[10px] text-slate-400 leading-normal">Años de servicio formal en cuidados.</p>
               </div>
-
-              <div className="bg-slate-50/50 p-4 border border-slate-200 rounded-2xl relative space-y-1.5">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-                  Radio de cobertura (Km)
-                </label>
-                <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    max="50"
-                    value={coverageRadius}
-                    onChange={(e) => setCoverageRadius(Number(e.target.value))}
-                    className="w-full bg-transparent px-3 py-2.5 outline-none font-bold text-slate-800 text-sm"
-                    id="input-edit-radius"
-                  />
-                  <span className="absolute inset-y-0 right-3 flex items-center text-slate-400 text-xs font-bold">Km</span>
-                </div>
-                <p className="text-[10px] text-slate-400 leading-normal">Distancia máxima desde tu vivienda.</p>
-              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -225,16 +238,30 @@ export const NurseProfileEdit: FC = () => {
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Lugar de residencia</label>
-                <input
-                  type="text"
-                  required
-                  value={locationName}
-                  onChange={(e) => setLocationName(e.target.value)}
-                  placeholder="Ej: San Salvador, Santa Ana, San Miguel..."
-                  className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-4 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
-                  id="input-edit-location"
-                />
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Ubicación</label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      required
+                      value={locationName}
+                      onChange={(e) => setLocationName(e.target.value)}
+                      placeholder="Toca el icono para detectar..."
+                      className="w-full pl-9 pr-3 py-2.5 text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                      id="input-edit-location"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleUseMyLocation}
+                    disabled={locating}
+                    className="flex-shrink-0 px-3 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl transition flex items-center justify-center cursor-pointer disabled:opacity-50"
+                    title="Usar mi ubicación"
+                  >
+                    {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -439,99 +466,114 @@ export const NurseProfileEdit: FC = () => {
 
       </form>
 
-      {/* SECCION INFORMATIVA APARTE: Calculadora tributaria + pago BienCuidar */}
-      <div className="mt-6 pt-6 border-t border-slate-100 space-y-6">
+      {/* SECCION INFORMATIVA APARTE: Calculadora tributaria + pago BienCuidar (colapsables) */}
+      <div className="mt-6 pt-6 border-t border-slate-100 space-y-3">
 
-        {/* Calculadora tributaria */}
-        <div className="bg-indigo-50/30 border border-indigo-100 rounded-2xl p-5 space-y-4">
-          <div className="flex items-start gap-2.5">
-            <Calculator className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                Calculadora Tributaria
-                <span className="bg-indigo-100 text-indigo-700 text-[8px] px-1.5 py-0.5 rounded font-black uppercase">Art. 156 C.T.</span>
-              </h4>
-              <p className="text-[10px] text-slate-500 leading-relaxed mt-0.5 font-medium">Retención del 10% de ISR sobre servicios profesionales independientes.</p>
+        {/* Calculadora tributaria colapsable */}
+        <div className="bg-indigo-50/30 border border-indigo-100 rounded-2xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowCalculator(!showCalculator)}
+            className="w-full flex items-center justify-between p-4 cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5">
+              <Calculator className="h-5 w-5 text-indigo-600 shrink-0" />
+              <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Calculadora tributaria</span>
             </div>
-          </div>
+            {showCalculator ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+          </button>
+          {showCalculator && (
+            <div className="px-4 pb-4 space-y-4">
+              <p className="text-[10px] text-slate-500 leading-relaxed font-medium">Retención del 10% de ISR sobre servicios profesionales independientes (Art. 156 C.T.).</p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-slate-700 font-medium">
-            <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Tarifa bruta / turno</span>
-              <span className="text-base font-black text-slate-800">US$ {shiftRate.toFixed(2)}</span>
-            </div>
-            <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Retención ISR (10%)</span>
-              <span className="text-base font-black text-rose-600">-US$ {(shiftRate * 0.1).toFixed(2)}</span>
-            </div>
-            <div className="bg-white p-3.5 rounded-xl border border-indigo-100 shadow-sm bg-indigo-50/20">
-              <span className="text-[10px] uppercase font-bold text-indigo-700 block mb-1">Neto / turno</span>
-              <span className="text-base font-black text-indigo-700">US$ {calculateNurseNet(shiftRate, true).toFixed(2)}</span>
-            </div>
-          </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs text-slate-700 font-medium">
+                <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Tarifa bruta / turno</span>
+                  <span className="text-base font-black text-slate-800">US$ {shiftRate.toFixed(2)}</span>
+                </div>
+                <div className="bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Retención ISR (10%)</span>
+                  <span className="text-base font-black text-rose-600">-US$ {(shiftRate * 0.1).toFixed(2)}</span>
+                </div>
+                <div className="bg-white p-3.5 rounded-xl border border-indigo-100 shadow-sm bg-indigo-50/20">
+                  <span className="text-[10px] uppercase font-bold text-indigo-700 block mb-1">Neto / turno</span>
+                  <span className="text-base font-black text-indigo-700">US$ {calculateNurseNet(shiftRate, true).toFixed(2)}</span>
+                </div>
+              </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 p-3.5 text-xs">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Proyección mensual</span>
-            <div className="grid grid-cols-3 gap-2.5 text-center text-[11px]">
-              <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
-                <span className="font-bold text-slate-500 block text-[9px] uppercase">1 turno</span>
-                <span className="font-black text-slate-800 block mt-0.5">US$ {calculateNurseNet(shiftRate, true).toFixed(2)}</span>
-              </div>
-              <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
-                <span className="font-bold text-slate-500 block text-[9px] uppercase">1 semana (5)</span>
-                <span className="font-black text-slate-800 block mt-0.5">US$ {(calculateNurseNet(shiftRate, true) * 5).toFixed(2)}</span>
-              </div>
-              <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
-                <span className="font-bold text-slate-500 block text-[9px] uppercase">1 mes (20)</span>
-                <span className="font-black text-indigo-600 block mt-0.5">US$ {(calculateNurseNet(shiftRate, true) * 20).toFixed(2)}</span>
+              <div className="bg-white rounded-xl border border-slate-200 p-3.5 text-xs">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Proyección mensual</span>
+                <div className="grid grid-cols-3 gap-2.5 text-center text-[11px]">
+                  <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+                    <span className="font-bold text-slate-500 block text-[9px] uppercase">1 turno</span>
+                    <span className="font-black text-slate-800 block mt-0.5">US$ {calculateNurseNet(shiftRate, true).toFixed(2)}</span>
+                  </div>
+                  <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+                    <span className="font-bold text-slate-500 block text-[9px] uppercase">1 semana (5)</span>
+                    <span className="font-black text-slate-800 block mt-0.5">US$ {(calculateNurseNet(shiftRate, true) * 5).toFixed(2)}</span>
+                  </div>
+                  <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
+                    <span className="font-bold text-slate-500 block text-[9px] uppercase">1 mes (20)</span>
+                    <span className="font-black text-indigo-600 block mt-0.5">US$ {(calculateNurseNet(shiftRate, true) * 20).toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Cómo funciona el pago en BienCuidar */}
-        <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 space-y-4">
-          <div className="flex items-start gap-2.5">
-            <FileText className="h-5 w-5 text-indigo-600 shrink-0 mt-0.5" />
-            <div>
-              <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Cómo funciona tu pago en BienCuidar</h4>
-              <p className="text-[10px] text-slate-500 leading-relaxed mt-0.5">
+        {/* Cómo funciona el pago colapsable */}
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowPaymentInfo(!showPaymentInfo)}
+            className="w-full flex items-center justify-between p-4 cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5">
+              <FileText className="h-5 w-5 text-indigo-600 shrink-0" />
+              <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Cómo funciona tu pago en BienCuidar</span>
+            </div>
+            {showPaymentInfo ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+          </button>
+          {showPaymentInfo && (
+            <div className="px-4 pb-4 space-y-4">
+              <p className="text-[10px] text-slate-500 leading-relaxed">
                 BienCuidar emite automáticamente una FSE a tu nombre, retiene el 10% de ISR y te transfiere tu pago neto. Al familiar se le emite una Factura de Consumidor Final deducible de Renta. Tú no necesitas inscribirte en Hacienda ni emitir facturas.
               </p>
-            </div>
-          </div>
 
-          <div className="bg-white rounded-xl p-3.5 border border-slate-200 space-y-2">
-            <div className="space-y-1 text-[11px] text-slate-600">
-              <div className="flex justify-between">
-                <span>Tu tarifa por turno</span>
-                <span className="font-bold text-slate-800">${shiftRate.toFixed(2)}</span>
+              <div className="bg-white rounded-xl p-3.5 border border-slate-200 space-y-2">
+                <div className="space-y-1 text-[11px] text-slate-600">
+                  <div className="flex justify-between">
+                    <span>Tu tarifa por turno</span>
+                    <span className="font-bold text-slate-800">${shiftRate.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>Retención ISR ({(RETENTION_RATE * 100).toFixed(0)}%)</span>
+                    <span>-${(shiftRate * RETENTION_RATE).toFixed(2)}</span>
+                  </div>
+                  <div className="border-t border-slate-200 pt-1.5 flex justify-between">
+                    <span className="font-bold text-slate-700">Recibes neto</span>
+                    <span className="font-black text-emerald-600">${calculateNurseNet(shiftRate, true).toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between text-slate-400">
-                <span>Retención ISR ({(RETENTION_RATE * 100).toFixed(0)}%)</span>
-                <span>-${(shiftRate * RETENTION_RATE).toFixed(2)}</span>
-              </div>
-              <div className="border-t border-slate-200 pt-1.5 flex justify-between">
-                <span className="font-bold text-slate-700">Recibes neto</span>
-                <span className="font-black text-emerald-600">${calculateNurseNet(shiftRate, true).toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
 
-          <div className="space-y-2">
-            <div className="flex items-start gap-1.5">
-              <span className="text-[10px]">🛡️</span>
-              <p className="text-[10px] text-slate-600 leading-relaxed">
-                <strong>Evita multas:</strong> Cobrar a través de BienCuidar procesa legalmente tu retención del 10% de ISR.
-              </p>
+              <div className="space-y-2">
+                <div className="flex items-start gap-1.5">
+                  <span className="text-[10px]">🛡️</span>
+                  <p className="text-[10px] text-slate-600 leading-relaxed">
+                    <strong>Evita multas:</strong> Cobrar a través de BienCuidar procesa legalmente tu retención del 10% de ISR.
+                  </p>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="text-[10px]">📋</span>
+                  <p className="text-[10px] text-slate-600 leading-relaxed">
+                    <strong>Sin trámites:</strong> Generamos automáticamente tus comprobantes FSE.
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="flex items-start gap-1.5">
-              <span className="text-[10px]">📋</span>
-              <p className="text-[10px] text-slate-600 leading-relaxed">
-                <strong>Sin trámites:</strong> Generamos automáticamente tus comprobantes FSE.
-              </p>
-            </div>
-          </div>
+          )}
         </div>
 
       </div>
