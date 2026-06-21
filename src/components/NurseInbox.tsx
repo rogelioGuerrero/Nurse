@@ -83,7 +83,8 @@ export const NurseInbox: FC = () => {
       request_id: request.id,
       nurse_id: myNurse.id,
       slot_index: slotIndex,
-      message: 'No tengo disponibilidad para esta fecha.'
+      message: 'No tengo disponibilidad para esta fecha.',
+      status: 'rejected'
     });
   };
 
@@ -236,7 +237,12 @@ export const NurseInbox: FC = () => {
                         ) : offer?.status === 'accepted' ? (
                           <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 pl-14">
                             <CheckCircle2 className="h-4 w-4" />
-                            Aceptaste
+                            Confirmado
+                          </div>
+                        ) : offer?.status === 'pending' ? (
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 pl-14">
+                            <CheckCircle2 className="h-4 w-4" />
+                            Ofreciste tu servicio
                           </div>
                         ) : (
                           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 pl-14">

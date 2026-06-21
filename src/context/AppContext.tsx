@@ -22,13 +22,25 @@ function safeParse<T>(key: string, fallback: T): T {
   }
 }
 
+export type ServiceLogType = 'clinical' | 'physio' | 'companion';
+
 export interface CareLog {
   bookingId: string;
+  serviceType: ServiceLogType;
+  // Campos clínicos (cuidado clínico)
   bloodPressure: string;
   heartRate: string;
   glucose: string;
   temperature: string;
   mood: string;
+  // Campos fisioterapia
+  exercisesDone: string;
+  mobilityLevel: string;
+  painBefore: string;
+  painAfter: string;
+  // Campos acompañamiento
+  activitiesDone: string;
+  // Común a todos
   remarks: string;
   updatedAt: string;
 }
@@ -51,7 +63,7 @@ interface AppContextType {
   careRequests: CareRequest[];
   createCareRequest: (data: Omit<CareRequest, 'id' | 'user_id' | 'created_at' | 'status' | 'response_deadline'>) => CareRequest;
   careOffers: CareOffer[];
-  createCareOffer: (data: Omit<CareOffer, 'id' | 'created_at' | 'status'>) => CareOffer;
+  createCareOffer: (data: Omit<CareOffer, 'id' | 'created_at' | 'status'> & { status?: CareOffer['status'] }) => CareOffer;
   acceptCareOffer: (offerId: string) => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
@@ -122,11 +134,17 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     return {
       'b-demo-2': {
         bookingId: 'b-demo-2',
+        serviceType: 'clinical',
         bloodPressure: '120/80 mmHg',
         heartRate: '72 lpm',
         glucose: '115 mg/dL',
         temperature: '36.6 °C',
         mood: 'Alegre',
+        exercisesDone: '',
+        mobilityLevel: '',
+        painBefore: '',
+        painAfter: '',
+        activitiesDone: '',
         remarks: 'Paciente completó con éxito su almuerzo y caminó en el jardín por 15 minutos. Nivel de oxígeno estable. Se tomó su recordatorio de medicina puntual.',
         updatedAt: new Date(Date.now() - 86400000 * 3).toISOString()
       }
@@ -187,11 +205,11 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     return newRequest;
   }, [currentUser]);
 
-  const createCareOffer = useCallback((data: Omit<CareOffer, 'id' | 'created_at' | 'status'>): CareOffer => {
+  const createCareOffer = useCallback((data: Omit<CareOffer, 'id' | 'created_at' | 'status'> & { status?: CareOffer['status'] }): CareOffer => {
     const newOffer: CareOffer = {
       ...data,
       id: `co-${Date.now()}`,
-      status: 'pending',
+      status: data.status || 'pending',
       created_at: new Date().toISOString()
     };
     setCareOffers(prev => [newOffer, ...prev]);
