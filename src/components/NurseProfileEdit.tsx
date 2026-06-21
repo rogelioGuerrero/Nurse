@@ -113,7 +113,7 @@ export const NurseProfileEdit: FC = () => {
             Configurar mi Perfil de Cuidador Profesional
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Modifica tus tarifas por hora, radio de viaje y especializaciones médicas que ven las familias de tu sector.
+            Modifica tu tarifa por turno, tu ubicación y especializaciones médicas que ven las familias.
           </p>
         </div>
 
@@ -152,10 +152,10 @@ export const NurseProfileEdit: FC = () => {
             <p className="text-[10px] text-slate-400 leading-normal">Cada turno son 8 horas. Se sugiere entre US$ 20 y US$ 35 según especialización.</p>
           </div>
 
-          {/* Travel Radius km */}
+          {/* Coverage Radius - reference only */}
           <div className="bg-slate-50/50 p-4 border border-slate-200 rounded-2xl relative space-y-1.5">
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-              Radio de Cobertura (Km)
+              Radio de Referencia (Km)
             </label>
             <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
               <input
@@ -170,7 +170,7 @@ export const NurseProfileEdit: FC = () => {
               />
               <span className="absolute inset-y-0 right-3 flex items-center text-slate-400 text-xs font-bold">Km</span>
             </div>
-            <p className="text-[10px] text-slate-400 leading-normal">Rango geográfico límite para traslados médicos desde tu domicilio actual.</p>
+            <p className="text-[10px] text-slate-400 leading-normal">Distancia máxima que estás dispuesta a viajar desde tu vivienda. Al recibir una solicitud verás la distancia exacta al paciente.</p>
           </div>
 
           {/* Experience years count */}
@@ -235,17 +235,17 @@ export const NurseProfileEdit: FC = () => {
             <div className="grid grid-cols-3 gap-2.5 text-center text-[11px]">
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Turno (8h)</span>
-                <span className="font-black text-slate-800 block mt-0.5">US$ {wantsInvoicing ? (shiftRate - 2).toFixed(2) : shiftRate.toFixed(2)}</span>
+                <span className="font-black text-slate-800 block mt-0.5">US$ {wantsInvoicing ? (shiftRate * 0.9).toFixed(2) : shiftRate.toFixed(2)}</span>
                 <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate})` : '(Sin factura)'}</span>
               </div>
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Semana (5 turnos)</span>
-                <span className="font-black text-slate-800 block mt-0.5">US$ {wantsInvoicing ? ((shiftRate - 2) * 5).toFixed(2) : (shiftRate * 5).toFixed(2)}</span>
+                <span className="font-black text-slate-800 block mt-0.5">US$ {wantsInvoicing ? (shiftRate * 0.9 * 5).toFixed(2) : (shiftRate * 5).toFixed(2)}</span>
                 <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate * 5})` : '(Sin factura)'}</span>
               </div>
               <div className="p-2 bg-slate-50 rounded-lg border border-slate-100">
                 <span className="font-bold text-slate-500 block text-[9px] uppercase">1 Mes (20 turnos)</span>
-                <span className="font-black text-indigo-600 block mt-0.5">US$ {wantsInvoicing ? ((shiftRate - 2) * 20).toFixed(2) : (shiftRate * 20).toFixed(2)}</span>
+                <span className="font-black text-indigo-600 block mt-0.5">US$ {wantsInvoicing ? (shiftRate * 0.9 * 20).toFixed(2) : (shiftRate * 20).toFixed(2)}</span>
                 <span className="text-[9px] text-slate-400 block mt-0.5">{wantsInvoicing ? `(Neto de $${shiftRate * 20})` : '(Sin factura)'}</span>
               </div>
             </div>
@@ -425,27 +425,23 @@ export const NurseProfileEdit: FC = () => {
 
           {wantsInvoicing && (
             <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200 space-y-2">
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Ejemplo: turno de $25</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Ejemplo con tu tarifa de ${shiftRate}/turno</p>
               <div className="space-y-1 text-[11px] text-slate-600">
                 <div className="flex justify-between">
-                  <span>Familiar paga</span>
-                  <span className="font-bold text-slate-800">$25.00</span>
+                  <span>Tu tarifa por turno</span>
+                  <span className="font-bold text-slate-800">${shiftRate.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-slate-400">
-                  <span>IVA (13%) + factura electrónica + comisión tarjeta</span>
-                  <span>-$5.00</span>
-                </div>
-                <div className="flex justify-between text-slate-400">
-                  <span>Retención de renta (paga Hacienda)</span>
-                  <span>-$2.00</span>
+                  <span>Retención de renta (10% → Hacienda)</span>
+                  <span>-${(shiftRate * 0.1).toFixed(2)}</span>
                 </div>
                 <div className="border-t border-slate-200 pt-1.5 flex justify-between">
                   <span className="font-bold text-slate-700">Tú recibes neto</span>
-                  <span className="font-black text-emerald-600">$18.00</span>
+                  <span className="font-black text-emerald-600">${(shiftRate * 0.9).toFixed(2)}</span>
                 </div>
               </div>
               <p className="text-[10px] text-slate-400 leading-relaxed pt-1">
-                Los $5 cubren impuestos (IVA), comisión de la tarjeta de crédito y emisión de factura. Los $2 van directo a Hacienda como retención de renta. Si cobras directamente, tú debes declarar y pagar tus impuestos. BienCuidar se encarga de todo eso por ti y evita problemas por evasión de impuestos.
+                El familiar paga tu tarifa más IVA (13%) y comisión por tarjeta de crédito. De tu tarifa, se retiene 10% de renta que va directo a Hacienda. Si cobras directamente, tú debes declarar y pagar tus impuestos. BienCuidar se encarga de todo eso por ti y evita problemas por evasión de impuestos.
               </p>
             </div>
           )}
