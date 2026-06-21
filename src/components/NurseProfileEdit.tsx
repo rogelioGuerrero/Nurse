@@ -446,18 +446,19 @@ export const NurseProfileEdit: FC = () => {
                 <div className="flex items-start gap-1.5">
                   <span className="text-[10px]">🛡️</span>
                   <p className="text-[10px] text-slate-600 leading-relaxed">
-                    <strong>Protección fiscal automática:</strong> Trabajar de manera informal o recibir efectivo directo te expone a multas de Hacienda (desde $408.80) por omisión de ingresos. Al cobrar a través de BienCuidar, procesamos legalmente tu retención del 10% de ISR y generamos tus comprobantes de Sujeto Excluido automáticamente.
+                    <strong>Evita multas con el Ministerio de Hacienda:</strong> Trabajar de manera informal o recibir efectivo directo te expone a multas por omisión de ingresos. Al cobrar a través de BienCuidar, procesamos legalmente tu retención del 10% de ISR.
                   </p>
                 </div>
                 <div className="flex items-start gap-1.5">
-                  <span className="text-[10px]">📈</span>
+                  <span className="text-[10px]">�</span>
                   <p className="text-[10px] text-slate-600 leading-relaxed">
-                    <strong>Tu reputación digital es tu mayor activo:</strong> Cada servicio pagado a través de la app suma a tu perfil, acumula calificaciones y te posiciona para recibir más y mejores ofertas de trabajo.
+                    <strong>Facturación y declaración simplificada:</strong> Generamos automáticamente tus comprobantes de Sujeto Excluido (FSE) y te facilitamos todo el proceso de declaración de impuestos sin que tengas que tramitar nada en Hacienda.
                   </p>
                 </div>
-                <div className="bg-amber-50 rounded-lg p-2">
-                  <p className="text-[10px] text-amber-700 leading-relaxed">
-                    <strong>Importante:</strong> Aceptar pagos en efectivo o acuerdos directos fuera de BienCuidar constituye una violación de los Términos de Servicio. Esto conlleva la suspensión definitiva de tu cuenta, perdiendo tu historial de calificaciones y acceso a nuestra red de clientes.
+                <div className="flex items-start gap-1.5">
+                  <span className="text-[10px]">⚙️</span>
+                  <p className="text-[10px] text-slate-600 leading-relaxed">
+                    <strong>Gestión automatizada del servicio:</strong> BienCuidar coordina los pagos, la facturación y las retenciones por ti. Tú solo te enfocas en brindar el mejor cuidado a tus pacientes.
                   </p>
                 </div>
               </div>

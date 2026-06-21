@@ -308,17 +308,6 @@ export const PlanReview: FC = () => {
                       <strong>Cero trámites administrativos:</strong> Si contratas directo, la ley te obliga a emitir Facturas de Sujeto Excluido y declarar retenciones mensuales del 10%. Nosotros automatizamos todo ese proceso por ti.
                     </p>
                   </div>
-                  <div className="flex items-start gap-1.5">
-                    <span className="text-[10px]">🚀</span>
-                    <p className="text-[10px] text-slate-600 leading-relaxed">
-                      <strong>Garantía de disponibilidad:</strong> Si tu enfermera asignada presenta un inconveniente, tienes acceso prioritario a nuestra red para gestionar un reemplazo en tiempo récord.
-                    </p>
-                  </div>
-                  <div className="bg-amber-50 rounded-lg p-2 mt-2">
-                    <p className="text-[10px] text-amber-700 leading-relaxed">
-                      <strong>Importante:</strong> Todos los pagos deben procesarse exclusivamente dentro de BienCuidar. Los pagos directos en efectivo anulan la validez de tus facturas y el acceso al soporte.
-                    </p>
-                  </div>
                 </div>
               </div>
             )}
