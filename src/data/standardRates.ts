@@ -4,8 +4,8 @@ export interface StandardRate {
 }
 
 export const PLATFORM_COMMISSION = 5; // fixed $5 per shift when invoicing
-export const IVA_RATE = 0.13; // 13% IVA El Salvador
-export const RETENTION_RATE = 0.10; // 10% retencion de renta
+export const IVA_RATE = 0; // IVA exento para servicios de salud en El Salvador
+export const RETENTION_RATE = 0.10; // 10% retencion de ISR (Impuesto sobre la Renta)
 export const STRIPE_RATE = 0.035; // ~3.5% Stripe card fee
 
 // Suggested rates by specialization - per 8-hour shift
@@ -36,12 +36,10 @@ export function getSuggestedRate(specialization: string): number {
   return getRate(specialization).suggestedRate;
 }
 
-// What the family pays total per shift
+// What the family pays total per shift (no IVA - servicios de salud exentos)
 export function calculateFamilyPrice(nurseRate: number, wantsInvoicing: boolean): number {
   if (!wantsInvoicing) return nurseRate;
-  const withRetention = nurseRate / (1 - RETENTION_RATE);
-  const withIVA = withRetention * (1 + IVA_RATE);
-  return withIVA + PLATFORM_COMMISSION;
+  return nurseRate + PLATFORM_COMMISSION;
 }
 
 // What the nurse receives net per shift
@@ -54,11 +52,9 @@ export function calculateNurseNet(nurseRate: number, wantsInvoicing: boolean): n
 export function calculatePlatformRevenue(nurseRate: number, wantsInvoicing: boolean, withCard: boolean = true): number {
   if (!wantsInvoicing) return 0;
   const familyPrice = calculateFamilyPrice(nurseRate, wantsInvoicing);
-  const withRetention = nurseRate / (1 - RETENTION_RATE);
-  const iva = withRetention * IVA_RATE;
-  const retention = withRetention * RETENTION_RATE;
+  const retention = nurseRate * RETENTION_RATE;
   const stripe = withCard ? familyPrice * STRIPE_RATE : 0;
-  return familyPrice - iva - retention - nurseRate - stripe;
+  return familyPrice - nurseRate - retention - stripe;
 }
 
 export function calculateShiftPrice(nurseRate: number, shiftCount: number = 1, wantsInvoicing: boolean = false): number {

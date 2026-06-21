@@ -7,7 +7,7 @@ import { useState, type FC, type FormEvent } from 'react';
 import { useApp } from '../context/AppContext';
 import { Save, Edit3, CheckCircle2, Calculator, Sun, Moon, Sunset, ShieldCheck, FileText, BadgeCheck } from 'lucide-react';
 import { SHIFTS, type ShiftType, type WeekDay } from '../types';
-import { PLATFORM_COMMISSION, IVA_RATE, RETENTION_RATE, calculateNurseNet } from '../data/standardRates';
+import { PLATFORM_COMMISSION, RETENTION_RATE, calculateNurseNet } from '../data/standardRates';
 
 const allSpecialtyTags = [
   'Geriatría', 'Demencia y Alzheimer', 'Inyecciones', 'Postoperatorio', 
@@ -433,7 +433,7 @@ export const NurseProfileEdit: FC = () => {
                   <span className="font-bold text-slate-800">${shiftRate.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-slate-400">
-                  <span>Retención de renta ({(RETENTION_RATE * 100).toFixed(0)}% → Hacienda)</span>
+                  <span>Retención ISR ({(RETENTION_RATE * 100).toFixed(0)}% → Ministerio de Hacienda)</span>
                   <span>-${(shiftRate * RETENTION_RATE).toFixed(2)}</span>
                 </div>
                 <div className="border-t border-slate-200 pt-1.5 flex justify-between">
@@ -442,7 +442,7 @@ export const NurseProfileEdit: FC = () => {
                 </div>
               </div>
               <p className="text-[10px] text-slate-400 leading-relaxed pt-1">
-                El familiar paga tu tarifa más IVA ({(IVA_RATE * 100).toFixed(0)}%) y ${PLATFORM_COMMISSION} de comisión de la plataforma. De tu tarifa, se retiene {RETENTION_RATE * 100}% de renta que va directo a Hacienda. Si cobras directamente, tú debes declarar y pagar tus impuestos. BienCuidar se encarga de todo eso por ti y evita problemas por evasión de impuestos.
+                El familiar paga tu tarifa más ${PLATFORM_COMMISSION} de comisión de la plataforma. De tu tarifa, se retiene {RETENTION_RATE * 100}% de ISR (Impuesto sobre la Renta) que va directo al Ministerio de Hacienda. Si cobras directamente, tú debes declarar y pagar tus impuestos. BienCuidar se encarga de todo eso por ti y evita problemas por evasión de impuestos.
               </p>
             </div>
           )}
