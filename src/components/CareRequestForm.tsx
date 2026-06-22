@@ -1,4 +1,4 @@
-import { useState, type FC } from 'react';
+import { useState, useEffect, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { getAllSpecializations } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
@@ -49,6 +49,28 @@ export const CareRequestForm: FC = () => {
   const [locating, setLocating] = useState(false);
   const [published, setPublished] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+
+  // Restore form data from localStorage if available
+  useEffect(() => {
+    const draft = localStorage.getItem('biencuidar_care_request_draft');
+    if (draft) {
+      try {
+        const formData = JSON.parse(draft);
+        setConditionTags(formData.conditionTags || []);
+        setConditionExtra(formData.conditionExtra || '');
+        setSpecializationNeeded(formData.specializationNeeded || '');
+        setOtherSpecialization(formData.otherSpecialization || '');
+        setNotes(formData.notes || '');
+        setSelectedDays(formData.selectedDays || []);
+        setLocationName(formData.locationName || '');
+        setPhone(formData.phone || '');
+        // Clear the draft after restoring
+        localStorage.removeItem('biencuidar_care_request_draft');
+      } catch (err) {
+        console.error('Error restoring form data:', err);
+      }
+    }
+  }, []);
 
   const toggleConditionTag = (tag: string) => {
     setConditionTags(prev =>
@@ -142,6 +164,18 @@ export const CareRequestForm: FC = () => {
     
     // Check if user is logged in
     if (!currentUser) {
+      // Save form data to localStorage before showing registration modal
+      const formData = {
+        conditionTags,
+        conditionExtra,
+        specializationNeeded,
+        otherSpecialization,
+        notes,
+        selectedDays,
+        locationName,
+        phone
+      };
+      localStorage.setItem('biencuidar_care_request_draft', JSON.stringify(formData));
       setShowRegisterModal(true);
       return;
     }

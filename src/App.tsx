@@ -168,6 +168,18 @@ function MarketplaceApp() {
                 <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Cuidado del Adulto Mayor</p>
               </div>
             </div>
+
+            {/* User indicator */}
+            {currentUser && (
+              <div className="flex items-center gap-2 bg-slate-100 rounded-full pl-1 pr-3 py-1">
+                <div className="w-7 h-7 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                  {currentUser.full_name?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                <span className="text-xs font-medium text-slate-700 hidden sm:block">
+                  {currentUser.full_name?.split(' ')[0] || 'Usuario'}
+                </span>
+              </div>
+            )}
             
             {/* Mobile menu toggle button */}
             <button
