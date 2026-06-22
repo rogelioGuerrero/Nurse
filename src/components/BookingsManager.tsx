@@ -668,13 +668,13 @@ export const BookingsManager: FC = () => {
                   <div className={`px-3 py-2 border-t flex items-center gap-2 text-[10px] ${
                     b.payment_status === 'paid'
                       ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
-                      : 'bg-amber-50 border-amber-100 text-amber-700'
+                      : 'bg-slate-50 border-slate-100 text-slate-600'
                   }`}>
                     <DollarSign className="h-3.5 w-3.5" />
                     {b.payment_status === 'paid' ? (
-                      <span className="font-bold">Pago verificado</span>
+                      <span className="font-bold">Pago confirmado por la familia</span>
                     ) : (
-                      <span className="font-bold">Pago pendiente {isNurseView ? '— espera confirmación antes de ir' : '— transfiere y envía comprobante por WhatsApp'}</span>
+                      <span className="font-bold">{isNurseView ? 'Pendiente de pago — coordina con la familia' : 'Paga directamente a la enfermera'}</span>
                     )}
                   </div>
                 )}

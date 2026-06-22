@@ -588,14 +588,14 @@ export const NurseProfileEdit: FC = () => {
           >
             <div className="flex items-center gap-2.5">
               <FileText className="h-5 w-5 text-indigo-600 shrink-0" />
-              <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Cómo funciona tu pago en BienCuidar</span>
+              <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Cómo funciona tu pago</span>
             </div>
             {showPaymentInfo ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
           </button>
           {showPaymentInfo && (
             <div className="px-4 pb-4 space-y-4">
               <p className="text-[10px] text-slate-500 leading-relaxed">
-                BienCuidar emite automáticamente una FSE a tu nombre, retiene el 10% de ISR y te transfiere tu pago neto. Al familiar se le emite una Factura de Consumidor Final deducible de Renta. Tú no necesitas inscribirte en Hacienda ni emitir facturas.
+                La familia te paga directamente. BienCuidar no intermedia el dinero ni realiza retenciones. Tú acordas el método de pago (efectivo, transferencia, etc.) directamente con la familia.
               </p>
 
               <div className="bg-white rounded-xl p-3.5 border border-slate-200 space-y-2">
@@ -605,7 +605,7 @@ export const NurseProfileEdit: FC = () => {
                     <span className="font-bold text-slate-800">${shiftRate.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-slate-400">
-                    <span>Retención ISR ({(RETENTION_RATE * 100).toFixed(0)}%)</span>
+                    <span>Retención ISR (10%) — tu responsabilidad</span>
                     <span>-${(shiftRate * RETENTION_RATE).toFixed(2)}</span>
                   </div>
                   <div className="border-t border-slate-200 pt-1.5 flex justify-between">
@@ -617,21 +617,21 @@ export const NurseProfileEdit: FC = () => {
 
               <div className="space-y-2">
                 <div className="flex items-start gap-1.5">
-                  <span className="text-[10px]">🛡️</span>
+                  <span className="text-[10px]">�</span>
                   <p className="text-[10px] text-slate-600 leading-relaxed">
-                    <strong>Evita multas:</strong> Cobrar a través de BienCuidar procesa legalmente tu retención del 10% de ISR.
+                    <strong>Pago directo:</strong> La familia te paga directamente a ti. BienCuidar no cobra comisión ni retiene dinero.
                   </p>
                 </div>
                 <div className="flex items-start gap-1.5">
                   <span className="text-[10px]">📋</span>
                   <p className="text-[10px] text-slate-600 leading-relaxed">
-                    <strong>Sin trámites:</strong> Generamos automáticamente tus comprobantes FSE.
+                    <strong>Registro de ingreso:</strong> Si necesitas un comprobante formal de tus servicios, solicítalo a BienCuidar. Se emite un registro válido con tarifa de gestión fiscal y administrativa de US$ 5.
                   </p>
                 </div>
                 <div className="flex items-start gap-1.5">
                   <span className="text-[10px]">🏦</span>
                   <p className="text-[10px] text-slate-600 leading-relaxed">
-                    <strong>Respaldo para microcréditos:</strong> Tu historial de ingresos facturados sirve como comprobante verificable ante cooperativas y entidades financieras.
+                    <strong>Respaldo para microcréditos:</strong> Tu historial de servicios registrados sirve como comprobante verificable ante cooperativas y entidades financieras.
                   </p>
                 </div>
               </div>

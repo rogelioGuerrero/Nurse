@@ -294,6 +294,13 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
 
   const createCareRequest = useCallback((data: Omit<CareRequest, 'id' | 'user_id' | 'created_at' | 'status' | 'response_deadline'>): CareRequest => {
     if (!currentUser) throw new Error('Debes iniciar sesión para publicar una solicitud.');
+    
+    // Validar límite de solicitudes activas en fase de arranque (máximo 2 abiertas)
+    const activeRequestsCount = careRequests.filter(r => r.user_id === currentUser.id && r.status === 'open').length;
+    if (activeRequestsCount >= 2) {
+      throw new Error('Por seguridad y control de calidad en fase de arranque, solo puedes tener un máximo de 2 solicitudes activas simultáneamente.');
+    }
+
     const now = new Date().toISOString();
     const newRequest: CareRequest = {
       ...data,
@@ -323,7 +330,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       if (error) console.warn('Failed to save care request to Supabase:', error.message);
     });
     return newRequest;
-  }, [currentUser]);
+  }, [currentUser, careRequests]);
 
   const createCareOffer = useCallback((data: Omit<CareOffer, 'id' | 'created_at' | 'status'> & { status?: CareOffer['status'] }): CareOffer => {
     const newOffer: CareOffer = {

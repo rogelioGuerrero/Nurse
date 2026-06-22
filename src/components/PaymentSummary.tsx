@@ -1,6 +1,5 @@
-import { useState, type FC } from 'react';
-import { Receipt, X, Mail, Building2, Copy, Check } from 'lucide-react';
-import { PLATFORM_SETTINGS } from '../data/platformSettings';
+import { type FC } from 'react';
+import { Receipt, X, Mail, Phone, MessageCircle, CreditCard, FileText } from 'lucide-react';
 
 interface SummarySlot {
   date: string;
@@ -15,6 +14,7 @@ interface PaymentSummaryProps {
   familyName: string;
   slots: SummarySlot[];
   totalPrice: number;
+  nursePhone?: string;
 }
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -25,26 +25,19 @@ function formatDate(dateStr: string): string {
   return `${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyName, slots, totalPrice }) => {
-  const [copied, setCopied] = useState(false);
+export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyName, slots, totalPrice, nursePhone }) => {
   if (!open) return null;
 
-  const reference = `BC-${familyName.substring(0, 3).toUpperCase()}-${slots.length}T`;
-
-  const copyAccount = () => {
-    const text = `${PLATFORM_SETTINGS.bankName} - ${PLATFORM_SETTINGS.bankAccountType}\nTitular: ${PLATFORM_SETTINGS.bankAccountHolder}\nCuenta: ${PLATFORM_SETTINGS.bankAccountNumber}\nReferencia: ${reference}\nMonto: $${totalPrice.toFixed(2)}`;
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const nurseName = slots[0]?.nurseName || 'Enfermera';
+  const whatsappLink = nursePhone ? `https://wa.me/503${nursePhone.replace(/[^0-9]/g, '')}` : null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" id="payment-summary-modal">
       <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-slate-200">
           <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-            <Receipt className="h-5 w-5 text-indigo-600" />
-            Resumen de Pago
+            <Receipt className="h-5 w-5 text-emerald-600" />
+            Servicio Confirmado
           </h2>
           <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-lg transition cursor-pointer">
             <X className="h-5 w-5 text-slate-500" />
@@ -71,44 +64,62 @@ export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyN
           </div>
 
           <div className="border-t border-slate-200 pt-3 flex justify-between items-center">
-            <span className="text-sm font-bold text-slate-700">Total a pagar</span>
-            <span className="text-xl font-black text-indigo-700">${totalPrice.toFixed(2)}</span>
+            <span className="text-sm font-bold text-slate-700">Total acordado</span>
+            <span className="text-xl font-black text-emerald-700">${totalPrice.toFixed(2)}</span>
           </div>
 
-          {/* Payment instructions */}
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2.5">
+          {/* Direct payment instructions */}
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-3">
             <div className="flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-amber-600 shrink-0" />
-              <p className="text-xs font-bold text-amber-800">Instrucciones de pago</p>
+              <MessageCircle className="h-4 w-4 text-emerald-600 shrink-0" />
+              <p className="text-xs font-bold text-emerald-800">Coordina el pago directamente con la enfermera</p>
             </div>
-            <div className="text-[11px] text-slate-700 space-y-1 pl-6">
-              <p><span className="font-bold">Banco:</span> {PLATFORM_SETTINGS.bankName}</p>
-              <p><span className="font-bold">Titular:</span> {PLATFORM_SETTINGS.bankAccountHolder}</p>
-              <p><span className="font-bold">Cuenta:</span> {PLATFORM_SETTINGS.bankAccountNumber} <span className="text-slate-500">({PLATFORM_SETTINGS.bankAccountType})</span></p>
-              <p><span className="font-bold">Referencia:</span> {reference}</p>
-              <p><span className="font-bold">Monto:</span> ${totalPrice.toFixed(2)}</p>
-            </div>
-            <button
-              onClick={copyAccount}
-              className="w-full flex items-center justify-center gap-1.5 text-[10px] font-bold text-amber-700 bg-white border border-amber-200 hover:bg-amber-50 py-2 rounded-lg transition cursor-pointer"
-            >
-              {copied ? (
-                <><Check className="h-3 w-3" />Copiado al portapapeles</>
-              ) : (
-                <><Copy className="h-3 w-3" />Copiar datos de transferencia</>
-              )}
-            </button>
-            <p className="text-[10px] text-amber-600 leading-relaxed pl-6">
-              El pago es por adelantado. Realiza la transferencia y envía el comprobante por WhatsApp. El administrador confirmará tu pago para activar el servicio.
+            <p className="text-[11px] text-slate-600 leading-relaxed pl-6">
+              Puedes pagar en efectivo, transferencia o como acuerden entre ustedes. BienCuidar no intermedia el dinero.
             </p>
+
+            {nursePhone && (
+              <div className="flex gap-2 pl-6">
+                <a
+                  href={`tel:${nursePhone}`}
+                  className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-white border border-emerald-200 hover:bg-emerald-50 px-3 py-2 rounded-lg transition cursor-pointer"
+                >
+                  <Phone className="h-3 w-3" />
+                  Llamar
+                </a>
+                {whatsappLink && (
+                  <a
+                    href={whatsappLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-lg transition cursor-pointer"
+                  >
+                    <MessageCircle className="h-3 w-3" />
+                    WhatsApp
+                  </a>
+                )}
+              </div>
+            )}
           </div>
 
+          {/* Invoice option */}
           <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-start gap-2.5">
-            <Mail className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+            <FileText className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
             <div>
-              <p className="text-xs font-bold text-indigo-800">Factura oficial</p>
+              <p className="text-xs font-bold text-indigo-800">¿Necesitas factura electrónica?</p>
               <p className="text-[10px] text-indigo-600 leading-relaxed mt-0.5">
-                La factura electrónica (FSE) válida ante el Ministerio de Hacienda se enviará a tu correo electrónico.
+                Solicítala a BienCuidar. Se emitirá una Factura de Sujeto Excluido (FSEE) válida ante el Ministerio de Hacienda. Aplica tarifa de gestión fiscal y administrativa de US$ 5.
+              </p>
+            </div>
+          </div>
+
+          {/* Coming soon: card payments */}
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-start gap-2.5">
+            <CreditCard className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-bold text-slate-600">Próximamente: pagos con tarjeta</p>
+              <p className="text-[10px] text-slate-400 leading-relaxed mt-0.5">
+                Soon podrás pagar con tarjeta de crédito directamente desde la plataforma.
               </p>
             </div>
           </div>

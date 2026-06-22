@@ -115,7 +115,7 @@ export const PlanReview: FC = () => {
             className="w-full bg-white border border-emerald-200 hover:bg-emerald-50 text-emerald-700 font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 cursor-pointer"
           >
             <Receipt className="h-4 w-4" />
-            Ver resumen de pago
+            Ver contacto y pago
           </button>
         </div>
       </div>
@@ -150,6 +150,7 @@ export const PlanReview: FC = () => {
           nurseRate: s.nurseRate,
         }))}
         totalPrice={totalPrice}
+        nursePhone={slotDetails.find(s => s.hasNurse && s.nurseProfile)?.nurseProfile?.phone}
       />
       </>
     );

@@ -2,8 +2,9 @@ import { useMemo, useState, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { calculateNurseNet } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
-import { CheckCircle2, XCircle, Star, MapPin, User, Calendar, Clock as ClockIcon, Dumbbell, Users, Heart, MessageCircle, X, BadgeCheck, GraduationCap, Briefcase } from 'lucide-react';
+import { CheckCircle2, XCircle, Star, MapPin, User, Calendar, Clock as ClockIcon, Dumbbell, Users, Heart, MessageCircle, X, BadgeCheck, GraduationCap, Briefcase, ShieldAlert } from 'lucide-react';
 import { CSSPVerificationBadge } from './CSSPVerificationBadge';
+import { LegalDisclaimer } from './LegalDisclaimer';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -17,6 +18,9 @@ export const OffersReview: FC = () => {
   const { careRequests, careOffers, nurses, profiles, currentUser, acceptCareOffer } = useApp();
 
   const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
+  const [confirmingOfferId, setConfirmingOfferId] = useState<string | null>(null);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [wantsInvoice, setWantsInvoice] = useState(false);
 
   const profileMap = useMemo(() => new Map(profiles.map(p => [p.id, p])), [profiles]);
 
@@ -149,7 +153,11 @@ export const OffersReview: FC = () => {
             {/* Actions */}
             <div className="flex gap-2 pt-2">
               <button
-                onClick={() => acceptCareOffer(offer.id)}
+                onClick={() => {
+                  setConfirmingOfferId(offer.id);
+                  setAgreedToTerms(false);
+                  setWantsInvoice(false);
+                }}
                 className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <CheckCircle2 className="h-4 w-4" />
@@ -165,6 +173,121 @@ export const OffersReview: FC = () => {
           </div>
         );
       })}
+
+      {/* Modal de Confirmación con Deslinde de Responsabilidad */}
+      {confirmingOfferId && (() => {
+        const offer = careOffers.find(o => o.id === confirmingOfferId);
+        const request = offer ? careRequests.find(r => r.id === offer.request_id) : null;
+        const nurse = offer ? nurses.find(n => n.id === offer.nurse_id) : null;
+        const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
+
+        if (!offer || !request || !nurse) return null;
+
+        const handleConfirm = () => {
+          if (!agreedToTerms) return;
+          acceptCareOffer(confirmingOfferId);
+          setConfirmingOfferId(null);
+        };
+
+        return (
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={e => { if (e.target === e.currentTarget) setConfirmingOfferId(null); }}
+          >
+            <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl p-6 space-y-4">
+              <div className="flex items-center gap-2.5 text-indigo-600">
+                <ShieldAlert className="h-6 w-6" />
+                <h3 className="font-bold text-lg text-slate-900">Confirmar Contratación</h3>
+              </div>
+
+              <div className="text-sm text-slate-600 space-y-2">
+                <p>
+                  Estás a punto de confirmar el servicio con la enfermera <strong>{nurseProfile?.full_name}</strong> para el cuidado de <strong>{request.patient_name}</strong>.
+                </p>
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs space-y-1">
+                  <div className="flex justify-between">
+                    <span>Tarifa ofrecida por turno:</span>
+                    <span className="font-bold text-slate-800">US$ {offer.offered_rate}</span>
+                  </div>
+                  <div className="flex justify-between text-slate-500">
+                    <span>Intermediación BienCuidar:</span>
+                    <span>Gratis (fase arranque)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Disclaimers */}
+              <div className="space-y-3 pt-2">
+                <LegalDisclaimer variant="checkout-confirm" />
+                <LegalDisclaimer variant="direct-payment" />
+              </div>
+
+              {/* Invoice option */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
+                <p className="text-xs font-bold text-slate-700">¿Necesitas factura electrónica?</p>
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="invoice-option"
+                    checked={!wantsInvoice}
+                    onChange={() => setWantsInvoice(false)}
+                    className="accent-indigo-600 h-4 w-4 cursor-pointer"
+                  />
+                  <span className="text-xs text-slate-600">No, pago directo sin factura</span>
+                </label>
+                <label className="flex items-center gap-2.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="invoice-option"
+                    checked={wantsInvoice}
+                    onChange={() => setWantsInvoice(true)}
+                    className="accent-indigo-600 h-4 w-4 cursor-pointer"
+                  />
+                  <span className="text-xs text-slate-600">
+                    Sí, necesito factura (FSEE) — <span className="font-bold">Tarifa de gestión fiscal y administrativa US$ 5</span>
+                  </span>
+                </label>
+              </div>
+
+              {/* Checkbox de aceptación */}
+              <label className="flex items-start gap-2.5 cursor-pointer pt-2 select-none">
+                <input
+                  type="checkbox"
+                  checked={agreedToTerms}
+                  onChange={e => setAgreedToTerms(e.target.checked)}
+                  className="mt-1 accent-indigo-600 h-4 w-4 shrink-0 rounded cursor-pointer"
+                />
+                <span className="text-xs text-slate-700 leading-normal font-medium">
+                  He leído, comprendido y acepto los términos de intermediación independiente y deslinde de responsabilidad detallados arriba.
+                </span>
+              </label>
+
+              {/* Botones de acción */}
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={handleConfirm}
+                  disabled={!agreedToTerms}
+                  className={`flex-1 font-bold text-sm py-3 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                    agreedToTerms 
+                      ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md' 
+                      : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  Confirmar Cuidado
+                </button>
+                <button
+                  onClick={() => setConfirmingOfferId(null)}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-4 py-3 rounded-xl text-sm transition cursor-pointer"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Modal: Perfil de la enfermera */}
       {selectedNurseId && (() => {
         const nurse = nurses.find(n => n.id === selectedNurseId);

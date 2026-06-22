@@ -2,7 +2,7 @@ import { type FC } from 'react';
 import { ShieldAlert } from 'lucide-react';
 
 interface LegalDisclaimerProps {
-  variant?: 'compact' | 'full';
+  variant?: 'compact' | 'full' | 'direct-payment' | 'checkout-confirm';
 }
 
 export const LegalDisclaimer: FC<LegalDisclaimerProps> = ({ variant = 'compact' }) => {
@@ -13,17 +13,10 @@ export const LegalDisclaimer: FC<LegalDisclaimerProps> = ({ variant = 'compact' 
           <ShieldAlert className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="space-y-1.5">
             <h4 className="text-xs font-bold text-amber-800 uppercase tracking-wide">
-              Aviso de Responsabilidad
+              Límite de Responsabilidad
             </h4>
             <p className="text-[11px] text-amber-800 leading-relaxed">
-              BienCuidar es una plataforma de intermediación tecnológica. El contrato de servicios
-              se celebra <strong>directamente entre la familia y la enfermera</strong>.
-              BienCuidar no es empleador ni responsable de los actos clínicos.
-            </p>
-            <p className="text-[11px] text-amber-700 leading-relaxed">
-              La enfermera es <strong>única responsable</strong> de su ejercicio profesional.
-              Cualquier reclamación debe dirigirse contra la enfermera prestadora del servicio.
-              Verifica el registro CSSP antes de contratar.
+              BienCuidar no es una agencia de empleo, clínica ni prestador de servicios de salud. Las enfermeras en nuestro catálogo ejercen de manera libre e independiente bajo su propio registro del CSSP. BienCuidar no se responsabiliza por diagnósticos, tratamientos o cualquier eventualidad médica surgida durante el servicio.
             </p>
           </div>
         </div>
@@ -31,13 +24,35 @@ export const LegalDisclaimer: FC<LegalDisclaimerProps> = ({ variant = 'compact' 
     );
   }
 
+  if (variant === 'direct-payment') {
+    return (
+      <div className="bg-amber-50/60 border border-amber-200/40 rounded-xl p-3 flex items-start gap-2">
+        <ShieldAlert className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+        <p className="text-[10px] text-amber-800 leading-relaxed font-medium">
+          <strong>Aviso de Pago Directo:</strong> BienCuidar no intermedia el flujo de dinero ni realiza retenciones fiscales en la modalidad de pago directo. La enfermera es responsable de reportar sus ingresos y el cliente de verificar las credenciales.
+        </p>
+      </div>
+    );
+  }
+
+  if (variant === 'checkout-confirm') {
+    return (
+      <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-start gap-2">
+        <ShieldAlert className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+        <p className="text-[10px] text-indigo-800 leading-relaxed font-medium">
+          <strong>Aceptación de Servicio Independiente:</strong> Entiendo y acepto que BienCuidar actúa exclusivamente como intermediario tecnológico. La relación laboral o profesional de cuidado se constituye directamente entre el cliente contratante y la enfermera seleccionada. BienCuidar no asume responsabilidad civil, penal ni clínica por el desempeño de las labores de enfermería.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-start gap-1.5 px-1">
-      <ShieldAlert className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />
-      <p className="text-[9px] text-slate-400 leading-relaxed">
-        BienCuidar es intermediario tecnológico, no empleador. La enfermera responde por sus
-        actos clínicos. Verifica su registro CSSP antes de contratar.
+    <div className="flex items-start gap-1.5 px-1 bg-slate-100 p-2.5 rounded-xl border border-slate-200">
+      <ShieldAlert className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
+      <p className="text-[10px] text-slate-500 leading-relaxed">
+        <strong>Términos de Intermediación:</strong> BienCuidar es únicamente una plataforma tecnológica de contacto. No prestamos servicios médicos ni empleamos al personal de enfermería. El servicio y el cuidado clínico se contratan y acuerdan directamente entre la familia y la enfermera independiente. Recuerda verificar el carnet CSSP en el enlace oficial antes de contratar.
       </p>
     </div>
   );
 };
+

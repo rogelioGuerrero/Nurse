@@ -37,6 +37,7 @@ const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ def
 const FamilyProfileEdit = lazy(() => import('./components/FamilyProfileEdit').then(m => ({ default: m.FamilyProfileEdit })));
 import { LandingPage } from './components/LandingPage';
 import { AuthForm } from './components/AuthForm';
+import { LegalDisclaimer } from './components/LegalDisclaimer';
 
 function MarketplaceApp() {
   const { 
@@ -734,11 +735,7 @@ function MarketplaceApp() {
             <p>© 2026 BienCuidar · Hecho en El Salvador</p>
           </div>
           <div className="border-t border-slate-800 pt-4">
-            <p className="text-[10px] text-slate-600 leading-relaxed text-center">
-              BienCuidar es una plataforma de intermediación tecnológica que conecta familias con enfermeras independientes.
-              No es empleador ni responsable de los actos clínicos. El contrato de servicios se celebra directamente
-              entre la familia y la enfermera. Verifica el registro CSSP antes de contratar.
-            </p>
+            <LegalDisclaimer variant="compact" />
           </div>
         </div>
       </footer>
