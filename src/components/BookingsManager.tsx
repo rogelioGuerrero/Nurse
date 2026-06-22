@@ -9,7 +9,7 @@ import { Booking, BookingStatus } from '../types';
 import { groqChat } from '../lib/groq';
 import { 
   Calendar, User, CheckCircle2,
-  Activity, Smile, PlusCircle, Sparkles, FileText, AlertTriangle,
+  Activity, Smile, PlusCircle, FileText, AlertTriangle,
   Printer, Phone, ChevronLeft, ChevronRight, Dumbbell, Users
 } from 'lucide-react';
 
@@ -96,7 +96,7 @@ export const BookingsManager: FC = () => {
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
 
-  // AI Interpretation states
+  // Clinical report states
   const [aiReportId, setAiReportId] = useState<string | null>(null);
   const [aiReportContent, setAiReportContent] = useState<string>('');
   const [aiReportLoading, setAiReportLoading] = useState(false);
@@ -193,7 +193,7 @@ export const BookingsManager: FC = () => {
       );
       setAiReportContent(content);
     } catch {
-      setAiReportContent('Ocurrió un error al contactar con el Apoyo Clínico. Asegúrate de que tu clave Groq API Key sea válida.');
+      setAiReportContent('Ocurrió un error al contactar con el Apoyo Clínico. Intenta nuevamente.');
     } finally {
       setAiReportLoading(false);
     }
@@ -586,7 +586,7 @@ export const BookingsManager: FC = () => {
                             <button onClick={() => handleOpenLogForm(b.id)} className="text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-100 cursor-pointer">Editar</button>
                           ) : (
                             <button onClick={() => handleGenerateAIInterpretation(b.id, b.patient_name)} className="text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-100 flex items-center gap-1 cursor-pointer">
-                              <Sparkles className="h-3 w-3" />Reporte IA
+                              <Activity className="h-3 w-3" />Reporte Clínico
                             </button>
                           )}
                         </div>
@@ -595,8 +595,8 @@ export const BookingsManager: FC = () => {
                         {aiReportId === b.id && (
                           <div className="bg-gradient-to-br from-indigo-50/70 to-purple-50/70 border border-indigo-100 rounded-xl p-3 space-y-2">
                             <div className="flex items-center gap-1.5">
-                              <Sparkles className="h-3.5 w-3.5 text-indigo-600" />
-                              <span className="text-[10px] font-bold text-indigo-950 uppercase">Análisis IA</span>
+                              <Activity className="h-3.5 w-3.5 text-indigo-600" />
+                              <span className="text-[10px] font-bold text-indigo-950 uppercase">Análisis Clínico</span>
                               <button onClick={() => setAiReportId(null)} className="text-slate-400 hover:text-slate-600 text-xs ml-auto cursor-pointer">✕</button>
                             </div>
                             {aiReportLoading ? (

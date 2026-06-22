@@ -7,8 +7,8 @@ import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useToast } from './Toast';
 import { groqChat } from '../lib/groq';
-import { 
-  Sparkles, MessageSquare, Send, BookOpen, AlertTriangle, 
+import {
+  Heart, MessageSquare, Send, BookOpen, AlertTriangle,
   ChevronRight, Activity
 } from 'lucide-react';
 
@@ -85,11 +85,11 @@ export default function ClinicalAI() {
       showToast('Respuesta generada correctamente', 'success');
     } catch (err) {
       if (err instanceof Error && err.message === 'NO_API_KEY') {
-        setResponse('El asistente clínico no está disponible en este momento. Contacta al administrador.');
-        showToast('Clave de IA no configurada. Contacta al administrador.', 'error');
+        setResponse('El Apoyo Clínico no está disponible en este momento. Contacta al administrador.');
+        showToast('Apoyo Clínico no disponible. Contacta al administrador.', 'error');
       } else {
-        setResponse('No se pudo conectar con el asistente clínico. Intenta nuevamente en unos momentos.');
-        showToast('Error al conectar con el asistente de IA', 'error');
+        setResponse('No se pudo conectar con el Apoyo Clínico. Intenta nuevamente en unos momentos.');
+        showToast('Error al conectar con el Apoyo Clínico', 'error');
       }
     } finally {
       setLoading(false);
@@ -105,16 +105,16 @@ export default function ClinicalAI() {
       <div className="bg-gradient-to-r from-indigo-900 to-indigo-950 rounded-3xl p-6 md:p-8 text-white shadow-md">
         <div className="space-y-3">
           <div className="inline-flex items-center gap-1.5 bg-indigo-600/35 border border-indigo-500/30 px-3.5 py-1.5 rounded-full text-indigo-200 font-bold tracking-wider text-[10px] uppercase">
-            <Sparkles className="h-3.5 w-3.5" />
-            Apoyo Clínico por Inteligencia Artificial
+            <Heart className="h-3.5 w-3.5" />
+            BienCuidar
           </div>
           <h2 className="text-3xl font-bold font-serif italic">
             Apoyo Clínico
           </h2>
           <p className="text-sm text-slate-200 leading-relaxed max-w-3xl">
-            {isNurseView 
-              ? 'Tu copiloto clínico de consulta científica rápida. Resuelve dudas de protocolos de enfermería, dosificaciones e interacciones médicas geriátricas al instante.'
-              : 'Asesoramiento experto para el cuidado de tus abuelitos en casa. Aprende de nutrición gerontológica, ejercicios cognitivos y seguridad física diaria de la mano de nuestra IA clínica.'}
+            {isNurseView
+              ? 'Consulta científica rápida. Resuelve dudas de protocolos de enfermería, dosificaciones e interacciones médicas geriátricas al instante.'
+              : 'Asesoramiento experto para el cuidado de tus abuelitos en casa. Aprende de nutrición gerontológica, ejercicios cognitivos y seguridad física diaria.'}
           </p>
         </div>
       </div>
