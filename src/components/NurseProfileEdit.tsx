@@ -617,7 +617,7 @@ export const NurseProfileEdit: FC = () => {
 
               <div className="space-y-2">
                 <div className="flex items-start gap-1.5">
-                  <span className="text-[10px]">�</span>
+                  <span className="text-[10px]">💵</span>
                   <p className="text-[10px] text-slate-600 leading-relaxed">
                     <strong>Pago directo:</strong> La familia te paga directamente a ti. BienCuidar no cobra comisión ni retiene dinero.
                   </p>
@@ -625,13 +625,13 @@ export const NurseProfileEdit: FC = () => {
                 <div className="flex items-start gap-1.5">
                   <span className="text-[10px]">📋</span>
                   <p className="text-[10px] text-slate-600 leading-relaxed">
-                    <strong>Registro de ingreso:</strong> Si necesitas un comprobante formal de tus servicios, solicítalo a BienCuidar. Se emite un registro válido con tarifa de gestión fiscal y administrativa de US$ 5.
+                    <strong>¿Necesitas comprobante de ingreso?</strong> Pide a la familia que solicite factura (FSEE) desde la plataforma. La factura sirve como tu registro formal de ingreso ante Hacienda, cooperativas o trámites de visa. Si la familia no quiere pagar el costo administrativo, puedes bajar tu tarifa para compensar.
                   </p>
                 </div>
                 <div className="flex items-start gap-1.5">
                   <span className="text-[10px]">🏦</span>
                   <p className="text-[10px] text-slate-600 leading-relaxed">
-                    <strong>Respaldo para microcréditos:</strong> Tu historial de servicios registrados sirve como comprobante verificable ante cooperativas y entidades financieras.
+                    <strong>Respaldo para microcréditos:</strong> Tu historial de servicios facturados sirve como comprobante verificable ante cooperativas y entidades financieras.
                   </p>
                 </div>
               </div>

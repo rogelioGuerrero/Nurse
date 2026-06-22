@@ -168,7 +168,7 @@ export const AdminPanel: FC = () => {
                 <FileText className="h-4 w-4" />
                 Facturas familiares (FSEE) ({bookings.filter(b => b.status === 'completed').length})
               </h3>
-              <p className="text-[10px] text-slate-500 mt-0.5">Solicitudes de factura electrónica de familias. Tarifa: US$ 5 por factura.</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Solicitudes de factura electrónica. Cobro: US$ 5.65 (gestión + IVA) + retención ISR 10% del servicio.</p>
             </div>
             {bookings.filter(b => b.status === 'completed').length === 0 ? (
               <div className="p-6 text-center text-xs text-slate-400">Sin solicitudes de factura.</div>
@@ -178,59 +178,30 @@ export const AdminPanel: FC = () => {
                   const family = profileMap.get(b.user_id);
                   const nurse = nurseMap.get(b.nurse_id);
                   const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
+                  const serviceAmount = b.total_price || 0;
+                  const managementFee = 5.65;
+                  const isrRetention = serviceAmount * 0.10;
                   return (
                     <div key={b.id} className="px-4 py-3 flex items-center justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold text-slate-700">{b.patient_name}</p>
                         <p className="text-[10px] text-slate-500">
-                          Familia: {family?.full_name || 'N/A'} · ${b.total_price?.toFixed(2) || 'N/A'}
+                          Familia: {family?.full_name || 'N/A'} · Enfermera: {nurseProfile?.full_name || 'N/A'}
                         </p>
                         <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
                           <Phone className="h-2.5 w-2.5" />{family?.phone || 'Sin teléfono'}
                         </p>
+                        <div className="text-[10px] text-slate-500 mt-1 space-y-0.5">
+                          <div className="flex gap-2"><span>Servicio:</span><span className="font-bold">${serviceAmount.toFixed(2)}</span></div>
+                          <div className="flex gap-2"><span>Gestión + IVA:</span><span className="font-bold">${managementFee.toFixed(2)}</span></div>
+                          <div className="flex gap-2"><span>ISR 10%:</span><span className="font-bold text-rose-600">-${isrRetention.toFixed(2)}</span></div>
+                        </div>
                       </div>
                       <button
                         className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-lg cursor-pointer"
                       >
                         <FileText className="h-3.5 w-3.5" />
                         Emitir FSEE
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Registry requests from nurses */}
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-            <div className="px-4 py-3 bg-emerald-50 border-b border-emerald-100">
-              <h3 className="text-xs font-bold text-emerald-800 uppercase tracking-wide flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4" />
-                Registros de servicio (enfermeras) ({bookings.filter(b => b.status === 'completed').length})
-              </h3>
-              <p className="text-[10px] text-slate-500 mt-0.5">Solicitudes de registro formal de ingreso por enfermera. Tarifa: US$ 5 por registro.</p>
-            </div>
-            {bookings.filter(b => b.status === 'completed').length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-400">Sin solicitudes de registro.</div>
-            ) : (
-              <div className="divide-y divide-slate-100">
-                {bookings.filter(b => b.status === 'completed').map(b => {
-                  const nurse = nurseMap.get(b.nurse_id);
-                  const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
-                  return (
-                    <div key={b.id} className="px-4 py-3 flex items-center justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-slate-700">{nurseProfile?.full_name || 'Enfermera'}</p>
-                        <p className="text-[10px] text-slate-500">
-                          Paciente: {b.patient_name} · ${b.total_price?.toFixed(2) || 'N/A'}
-                        </p>
-                      </div>
-                      <button
-                        className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-2 rounded-lg cursor-pointer"
-                      >
-                        <ShieldCheck className="h-3.5 w-3.5" />
-                        Emitir registro
                       </button>
                     </div>
                   );
