@@ -15,27 +15,9 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse }) => {
     
     const email = role === 'family' ? 'familia@biencudar.com' : 'enfermera@biencudar.com';
     const password = 'demo123';
-    const fullName = role === 'family' ? 'María García (Demo)' : 'Ana Martínez (Demo)';
 
     try {
-      // Try to sign up (will fail if user exists)
-      const { error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            role: role === 'nurse' ? 'nurse' : 'user'
-          }
-        }
-      });
-
-      // If user already exists, just log in
-      if (signUpError && !signUpError.message.includes('already registered')) {
-        console.error('Demo signup error:', signUpError);
-      }
-
-      // Log in
+      // Log in directly (users already exist in Supabase)
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password
