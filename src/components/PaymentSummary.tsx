@@ -1,6 +1,5 @@
 import { type FC } from 'react';
-import { Receipt, X, Phone, MessageCircle, CreditCard, FileText, Building2 } from 'lucide-react';
-import { PLATFORM_SETTINGS } from '../data/platformSettings';
+import { Receipt, X, Phone, MessageCircle, CreditCard, FileText } from 'lucide-react';
 
 interface SummarySlot {
   date: string;
@@ -32,9 +31,6 @@ export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyN
 
   const nurseName = slots[0]?.nurseName || 'Enfermera';
   const whatsappLink = nursePhone ? `https://wa.me/503${nursePhone.replace(/[^0-9]/g, '')}` : null;
-  const isrRetention = totalPrice * 0.10;
-  const managementFee = 5.65;
-  const nursePayout = totalPrice - isrRetention;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" id="payment-summary-modal">
@@ -73,79 +69,50 @@ export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyN
             <span className="text-xl font-black text-emerald-700">${totalPrice.toFixed(2)}</span>
           </div>
 
-          {/* Payment instructions — two modes */}
-          {wantsInvoice ? (
-            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 space-y-3">
-              <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-indigo-600 shrink-0" />
-                <p className="text-xs font-bold text-indigo-800">Transfiere a BienCuidar (servicio con factura)</p>
-              </div>
-
-              <div className="bg-white rounded-lg p-3 space-y-1.5 text-[11px]">
-                <div className="flex justify-between"><span className="text-slate-500">Banco:</span><span className="font-bold text-slate-700">{PLATFORM_SETTINGS.bankName}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">Titular:</span><span className="font-bold text-slate-700">{PLATFORM_SETTINGS.bankAccountHolder}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">Cuenta:</span><span className="font-bold text-slate-700">{PLATFORM_SETTINGS.bankAccountNumber}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">Tipo:</span><span className="font-bold text-slate-700">{PLATFORM_SETTINGS.bankAccountType}</span></div>
-              </div>
-
-              <div className="bg-white rounded-lg p-3 space-y-1 text-[11px] border border-indigo-100">
-                <div className="flex justify-between"><span className="text-slate-600">Total servicio:</span><span className="font-bold text-slate-700">${totalPrice.toFixed(2)}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">ISR retenido (10%):</span><span className="font-bold text-rose-600">-${isrRetention.toFixed(2)}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">Gestión + IVA:</span><span className="font-bold text-slate-600">${managementFee.toFixed(2)}</span></div>
-                <div className="border-t border-slate-200 pt-1 flex justify-between"><span className="font-bold text-slate-700">Enfermera recibe:</span><span className="font-black text-emerald-600">${nursePayout.toFixed(2)}</span></div>
-              </div>
-
-              <p className="text-[10px] text-indigo-600 leading-relaxed pl-6">
-                BienCuidar retiene el ISR, entera a Hacienda y emite la FSEE. Transfiere el total (${(totalPrice + managementFee).toFixed(2)}) a la cuenta arriba.
-              </p>
+          {/* Direct payment instructions */}
+          <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-3">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="h-4 w-4 text-emerald-600 shrink-0" />
+              <p className="text-xs font-bold text-emerald-800">Coordina el pago directamente con la enfermera</p>
             </div>
-          ) : (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-3">
-              <div className="flex items-center gap-2">
-                <MessageCircle className="h-4 w-4 text-emerald-600 shrink-0" />
-                <p className="text-xs font-bold text-emerald-800">Coordina el pago directamente con la enfermera</p>
-              </div>
-              <p className="text-[11px] text-slate-600 leading-relaxed pl-6">
-                Puedes pagar en efectivo, transferencia o como acuerden entre ustedes. BienCuidar no intermedia el dinero.
-              </p>
+            <p className="text-[11px] text-slate-600 leading-relaxed pl-6">
+              Puedes pagar en efectivo, transferencia o como acuerden entre ustedes. BienCuidar no intermedia el dinero.
+            </p>
 
-              {nursePhone && (
-                <div className="flex gap-2 pl-6">
+            {nursePhone && (
+              <div className="flex gap-2 pl-6">
+                <a
+                  href={`tel:${nursePhone}`}
+                  className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-white border border-emerald-200 hover:bg-emerald-50 px-3 py-2 rounded-lg transition cursor-pointer"
+                >
+                  <Phone className="h-3 w-3" />
+                  Llamar
+                </a>
+                {whatsappLink && (
                   <a
-                    href={`tel:${nursePhone}`}
-                    className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-white border border-emerald-200 hover:bg-emerald-50 px-3 py-2 rounded-lg transition cursor-pointer"
+                    href={whatsappLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-lg transition cursor-pointer"
                   >
-                    <Phone className="h-3 w-3" />
-                    Llamar
+                    <MessageCircle className="h-3 w-3" />
+                    WhatsApp
                   </a>
-                  {whatsappLink && (
-                    <a
-                      href={whatsappLink}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-lg transition cursor-pointer"
-                    >
-                      <MessageCircle className="h-3 w-3" />
-                      WhatsApp
-                    </a>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Invoice info for non-invoiced mode */}
-          {!wantsInvoice && (
-            <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-start gap-2.5">
-              <FileText className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-bold text-indigo-800">¿Necesitas factura electrónica?</p>
-                <p className="text-[10px] text-indigo-600 leading-relaxed mt-0.5">
-                  Si después necesitas FSEE, puedes solicitarla. Tarifa de gestión fiscal y administrativa US$ 5.
-                </p>
+                )}
               </div>
+            )}
+          </div>
+
+          {/* Receipt option */}
+          <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-start gap-2.5">
+            <FileText className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-bold text-indigo-800">¿Quieres recibo del servicio?</p>
+              <p className="text-[10px] text-indigo-600 leading-relaxed mt-0.5">
+                BienCuidar genera un Recibo Simple en PDF con los datos del servicio. No tiene valor fiscal ante Hacienda, sirve como control privado entre las partes. Costo: US$ 5.
+              </p>
             </div>
-          )}
+          </div>
 
           {/* Coming soon: card payments */}
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-start gap-2.5">

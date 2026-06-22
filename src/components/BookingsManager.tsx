@@ -673,8 +673,6 @@ export const BookingsManager: FC = () => {
                     <DollarSign className="h-3.5 w-3.5" />
                     {b.payment_status === 'paid' ? (
                       <span className="font-bold">Pago confirmado</span>
-                    ) : b.wants_invoice ? (
-                      <span className="font-bold">{isNurseView ? 'Pago por transferencia a BienCuidar (con factura)' : 'Transfiere a la cuenta de BienCuidar'}</span>
                     ) : (
                       <span className="font-bold">{isNurseView ? 'Pendiente de pago — coordina con la familia' : 'Paga directamente a la enfermera'}</span>
                     )}
@@ -814,7 +812,7 @@ export const BookingsManager: FC = () => {
                       </button>
                       {!isNurseView && (
                         <button className="text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg flex items-center gap-1 border border-indigo-100 cursor-pointer">
-                          <FileText className="h-3 w-3" />Solicitar factura
+                          <FileText className="h-3 w-3" />Solicitar recibo
                         </button>
                       )}
                     </>

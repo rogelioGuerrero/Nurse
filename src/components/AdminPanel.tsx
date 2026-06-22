@@ -161,61 +161,17 @@ export const AdminPanel: FC = () => {
             )}
           </div>
 
-          {/* Transfers to validate — only for invoiced bookings */}
-          {bookings.filter(b => b.wants_invoice && b.status === 'confirmed' && b.payment_status !== 'paid').length > 0 && (
-            <div className="bg-white border border-amber-200 rounded-2xl overflow-hidden">
-              <div className="px-4 py-3 bg-amber-50 border-b border-amber-100">
-                <h3 className="text-xs font-bold text-amber-800 uppercase tracking-wide flex items-center gap-1.5">
-                  <DollarSign className="h-4 w-4" />
-                  Transferencias por validar ({bookings.filter(b => b.wants_invoice && b.status === 'confirmed' && b.payment_status !== 'paid').length})
-                </h3>
-                <p className="text-[10px] text-slate-500 mt-0.5">Servicios con factura. Confirma que la familia transfirió a la cuenta de BienCuidar.</p>
-              </div>
-              <div className="divide-y divide-slate-100">
-                {bookings.filter(b => b.wants_invoice && b.status === 'confirmed' && b.payment_status !== 'paid').map(b => {
-                  const family = profileMap.get(b.user_id);
-                  const nurse = nurseMap.get(b.nurse_id);
-                  const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
-                  const isrRetention = (b.total_price || 0) * 0.10;
-                  const managementFee = 5.65;
-                  const totalToTransfer = (b.total_price || 0) + managementFee;
-                  return (
-                    <div key={b.id} className="px-4 py-3 flex items-center justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-slate-700">{b.patient_name}</p>
-                        <p className="text-[10px] text-slate-500">
-                          Familia: {family?.full_name || 'N/A'} · Enfermera: {nurseProfile?.full_name || 'N/A'}
-                        </p>
-                        <div className="text-[10px] text-slate-500 mt-1 space-y-0.5">
-                          <div className="flex gap-2"><span>Total a transferir:</span><span className="font-bold text-amber-700">${totalToTransfer.toFixed(2)}</span></div>
-                          <div className="flex gap-2"><span>Enfermera recibe:</span><span className="font-bold text-emerald-600">${((b.total_price || 0) - isrRetention).toFixed(2)}</span></div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => confirmPayment(b.id)}
-                        className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-lg cursor-pointer"
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        Confirmar
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* FSEE requests from families */}
+          {/* Recibos y comisiones */}
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
             <div className="px-4 py-3 bg-indigo-50 border-b border-indigo-100">
               <h3 className="text-xs font-bold text-indigo-800 uppercase tracking-wide flex items-center gap-1.5">
                 <FileText className="h-4 w-4" />
-                Facturas familiares (FSEE) ({bookings.filter(b => b.wants_invoice && b.status === 'completed').length})
+                Recibos solicitados ({bookings.filter(b => b.wants_invoice && b.status === 'completed').length})
               </h3>
-              <p className="text-[10px] text-slate-500 mt-0.5">Servicios con factura. BienCuidar retiene ISR 10% y emite FSEE. Cobro: US$ 5.65 (gestión + IVA).</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">BienCuidar genera Recibo Simple en PDF (sin valor fiscal) + Factura Comercial por US$ 5.65 (comisión + IVA).</p>
             </div>
             {bookings.filter(b => b.wants_invoice && b.status === 'completed').length === 0 ? (
-              <div className="p-6 text-center text-xs text-slate-400">Sin servicios con factura.</div>
+              <div className="p-6 text-center text-xs text-slate-400">Sin recibos solicitados.</div>
             ) : (
               <div className="divide-y divide-slate-100">
                 {bookings.filter(b => b.wants_invoice && b.status === 'completed').map(b => {
@@ -223,7 +179,7 @@ export const AdminPanel: FC = () => {
                   const nurse = nurseMap.get(b.nurse_id);
                   const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
                   const serviceAmount = b.total_price || 0;
-                  const managementFee = 5.65;
+                  const commission = 5.65;
                   return (
                     <div key={b.id} className="px-4 py-3 flex items-center justify-between gap-3">
                       <div className="min-w-0 flex-1">
@@ -236,14 +192,14 @@ export const AdminPanel: FC = () => {
                         </p>
                         <div className="text-[10px] text-slate-500 mt-1 space-y-0.5">
                           <div className="flex gap-2"><span>Servicio:</span><span className="font-bold">${serviceAmount.toFixed(2)}</span></div>
-                          <div className="flex gap-2"><span>Gestión + IVA:</span><span className="font-bold">${managementFee.toFixed(2)}</span></div>
+                          <div className="flex gap-2"><span>Comisión + IVA:</span><span className="font-bold">${commission.toFixed(2)}</span></div>
                         </div>
                       </div>
                       <button
                         className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-lg cursor-pointer"
                       >
                         <FileText className="h-3.5 w-3.5" />
-                        Emitir FSEE
+                        Generar recibo
                       </button>
                     </div>
                   );

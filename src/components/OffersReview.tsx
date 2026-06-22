@@ -132,11 +132,11 @@ export const OffersReview: FC = () => {
               {request.wants_invoice ? (
                 <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-full border border-indigo-100">
                   <FileText className="h-3 w-3" />
-                  Con factura (FSEE)
+                  Con recibo
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded-full border border-emerald-100">
-                  Pago directo sin factura
+                  Pago directo sin recibo
                 </span>
               )}
             </div>
@@ -234,17 +234,17 @@ export const OffersReview: FC = () => {
                 <LegalDisclaimer variant="direct-payment" />
               </div>
 
-              {/* Invoice info based on request preference */}
+              {/* Receipt info based on request preference */}
               <div className={`rounded-xl p-3 flex items-start gap-2.5 ${request.wants_invoice ? 'bg-indigo-50 border border-indigo-100' : 'bg-emerald-50 border border-emerald-100'}`}>
                 <FileText className={`h-4 w-4 shrink-0 mt-0.5 ${request.wants_invoice ? 'text-indigo-600' : 'text-emerald-600'}`} />
                 <div className="space-y-1">
                   <p className={`text-xs font-bold ${request.wants_invoice ? 'text-indigo-800' : 'text-emerald-800'}`}>
-                    {request.wants_invoice ? 'Con factura electrónica (FSEE)' : 'Pago directo sin factura'}
+                    {request.wants_invoice ? 'Con recibo del servicio' : 'Pago directo sin recibo'}
                   </p>
                   <p className={`text-[10px] leading-relaxed ${request.wants_invoice ? 'text-indigo-600' : 'text-emerald-600'}`}>
                     {request.wants_invoice
-                      ? 'Transfiere a la cuenta de BienCuidar. Se retiene ISR 10%, se emite FSEE válida ante Hacienda y se transfiere el neto a la enfermera. Tarifa de gestión US$ 5.'
-                      : 'Paga directamente a la enfermera (efectivo, transferencia o como acuerden). Sin comprobante fiscal ni costos administrativos.'}
+                      ? 'BienCuidar genera un Recibo Simple en PDF (sin valor fiscal, control privado). Costo: US$ 5. El pago sigue siendo directo a la enfermera.'
+                      : 'Paga directamente a la enfermera (efectivo, transferencia o como acuerden). Sin recibo ni costos administrativos.'}
                   </p>
                 </div>
               </div>
