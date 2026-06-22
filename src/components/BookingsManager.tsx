@@ -506,9 +506,13 @@ export const BookingsManager: FC = () => {
                                 <Activity className="h-3 w-3" />Análisis Clínico
                               </button>
                               {nurseProfile?.phone && (
-                                <a href={`tel:${nurseProfile.phone}`} className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-100 flex items-center gap-1">
-                                  <MessageCircle className="h-3 w-3" />Consultar
-                                </a>
+                                <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+                                  <MessageCircle className="h-3 w-3 text-emerald-600" />
+                                  <span>Dudas sobre el reporte? Llama a la enfermera:</span>
+                                  <a href={`tel:${nurseProfile.phone}`} className="font-bold text-emerald-700 hover:underline">
+                                    {nurseProfile.phone}
+                                  </a>
+                                </div>
                               )}
                             </>
                           )}
