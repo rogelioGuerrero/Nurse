@@ -339,6 +339,12 @@ function MarketplaceApp() {
                 onBack={() => setAuthMode('landing')}
                 onSuccess={() => {
                   setAuthMode('landing');
+                  // Redirigir al tab correcto según rol
+                  if (authRole === 'nurse') {
+                    setActiveTab('nurse-profile-edit');
+                  } else {
+                    setActiveTab('care-request');
+                  }
                   window.location.reload();
                 }}
               />
