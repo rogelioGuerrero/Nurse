@@ -163,14 +163,16 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     return () => subscription.unsubscribe();
   }, []);
 
-  // Load profiles and nurses from Supabase Database
+  // Load profiles, nurses and bookings from Supabase Database
   useEffect(() => {
     const loadData = async () => {
       const { data: profilesData } = await supabase.from('profiles').select('*');
       const { data: nursesData } = await supabase.from('nurses').select('*');
+      const { data: bookingsData } = await supabase.from('bookings').select('*');
       
       if (profilesData) setProfiles(profilesData);
       if (nursesData) setNurses(nursesData);
+      if (bookingsData && bookingsData.length > 0) setBookings(bookingsData);
     };
     
     loadData();

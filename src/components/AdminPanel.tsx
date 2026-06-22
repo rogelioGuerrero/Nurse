@@ -183,7 +183,7 @@ export const AdminPanel: FC = () => {
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold text-slate-700">{b.patient_name}</p>
                         <p className="text-[10px] text-slate-500">
-                          Enfermera: {nurseProfile?.full_name || 'N/A'} · ${b.total_price?.toFixed(2) || 'N/A'}
+                          Enfermera: {nurseProfile?.full_name || 'Por asignar'} · ${b.total_price?.toFixed(2) || 'N/A'}
                         </p>
                         <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
                           <Phone className="h-2.5 w-2.5" />{family?.phone || 'Sin teléfono'}
@@ -233,7 +233,7 @@ export const AdminPanel: FC = () => {
                       </div>
                     </div>
                     <p className="text-slate-500 mt-0.5">
-                      Enfermera: {nurseProfile?.full_name || 'N/A'} · Familia: {family?.full_name || 'N/A'}
+                      Enfermera: {nurseProfile?.full_name || 'Por asignar'} · Familia: {family?.full_name || b.patient_name || 'N/A'}
                     </p>
                     {b.check_in_at && (
                       <p className="text-emerald-600 mt-0.5 flex items-center gap-1">
