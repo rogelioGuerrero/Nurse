@@ -39,7 +39,7 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse }) => {
             className="w-full bg-indigo-600 text-white rounded-2xl py-4 font-bold text-sm shadow-sm active:scale-[0.98] transition flex items-center justify-center gap-2"
           >
             <Search className="h-5 w-5" />
-            Buscar enfermera para mi familiar
+            Buscar Enfermera
           </button>
 
           <button
@@ -47,7 +47,7 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse }) => {
             className="w-full bg-white text-slate-700 border border-slate-200 rounded-2xl py-4 font-bold text-sm shadow-sm active:scale-[0.98] transition flex items-center justify-center gap-2"
           >
             <Stethoscope className="h-5 w-5 text-indigo-600" />
-            Soy enfermera, quiero ofrecer mis servicios
+            Enfermera registro/ingreso
           </button>
         </div>
 
