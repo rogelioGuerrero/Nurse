@@ -558,7 +558,7 @@ export const CareRequestForm: FC = () => {
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-indigo-600 shrink-0" />
-              <p className="text-xs font-bold text-slate-700">¿Quieres recibo del servicio?</p>
+              <p className="text-xs font-bold text-slate-700">¿Necesitas factura electrónica?</p>
             </div>
             <div className="flex gap-2">
               <button
@@ -570,7 +570,7 @@ export const CareRequestForm: FC = () => {
                     : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
                 }`}
               >
-                Sin recibo
+                Sin factura
               </button>
               <button
                 type="button"
@@ -581,16 +581,16 @@ export const CareRequestForm: FC = () => {
                     : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
                 }`}
               >
-                Con recibo
+                Con factura (FSEE)
               </button>
             </div>
             {wantsInvoice ? (
               <p className="text-[10px] text-indigo-600 leading-relaxed">
-                BienCuidar genera un Recibo Simple en PDF con los datos del servicio. No tiene valor fiscal ante Hacienda — es un control privado entre tú y la enfermera. Costo: US$ 5.
+                Se emitirá una Factura de Sujeto Excluido válida ante Hacienda. Beneficios: deducible de ISR, reembolso de seguro, respaldo legal. Tarifa de gestión fiscal y administrativa US$ 5.
               </p>
             ) : (
               <p className="text-[10px] text-slate-500 leading-relaxed">
-                Pago directo a la enfermera sin recibo. Más económico, sin costos administrativos.
+                Pago directo a la enfermera sin comprobante fiscal. Más económico, sin costos administrativos.
               </p>
             )}
           </div>

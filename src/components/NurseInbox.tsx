@@ -213,11 +213,11 @@ export const NurseInbox: FC = () => {
                       {req.wants_invoice ? (
                         <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-full border border-indigo-100">
                           <FileText className="h-3 w-3" />
-                          Con recibo — la familia quiere recibo del servicio
+                          Con factura (FSEE) — BienCuidar retiene ISR 10%, ajusta tu tarifa
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded-full border border-emerald-100">
-                          Pago directo sin recibo
+                          Pago directo sin factura
                         </span>
                       )}
                     </div>
