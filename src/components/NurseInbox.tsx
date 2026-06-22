@@ -1,7 +1,6 @@
 import { useMemo, useState, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { calculateNurseNet } from '../data/standardRates';
-import { getDistanceKm, USER_COORDS } from '../lib/distance';
 import type { CareRequest } from '../types';
 import { SHIFTS, type ShiftType } from '../types';
 import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User, Sun, Sunset, Moon } from 'lucide-react';
@@ -134,11 +133,6 @@ export const NurseInbox: FC = () => {
         <div className="space-y-4">
           {incomingRequests.map(req => {
             const familyProfile = profileMap.get(req.user_id);
-            const distance = getDistanceKm(
-              USER_COORDS.lat, USER_COORDS.lng,
-              myNurse.lat, myNurse.lng
-            );
-
             return (
               <div key={req.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
                 {/* Request header */}
@@ -159,11 +153,6 @@ export const NurseInbox: FC = () => {
                     <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full flex-shrink-0">
                       {req.specialization_needed}
                     </span>
-                  </div>
-
-                  {/* Distance badge */}
-                  <div className={`text-[10px] font-bold ${distance <= myNurse.coverage_radius ? 'text-emerald-600' : 'text-amber-600'}`}>
-                    {distance.toFixed(1)} km{distance > myNurse.coverage_radius ? ` · fuera de tu radio de ${myNurse.coverage_radius} km` : ''}
                   </div>
 
                   {/* Patient info */}
@@ -257,6 +246,11 @@ export const NurseInbox: FC = () => {
                           <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 pl-14">
                             <CheckCircle2 className="h-4 w-4" />
                             Ofreciste tu servicio
+                          </div>
+                        ) : offer?.status === 'declined' ? (
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 pl-14">
+                            <Heart className="h-4 w-4" />
+                            La familia eligió otra enfermera
                           </div>
                         ) : (
                           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 pl-14">

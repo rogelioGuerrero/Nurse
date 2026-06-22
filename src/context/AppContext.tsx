@@ -381,7 +381,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     if (!offer) return;
 
     // Marcar offer como aceptado y otros como rechazados
-    setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'accepted' } : { ...o, status: o.status === 'pending' ? 'rejected' : o.status }));
+    setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'accepted' } : { ...o, status: o.status === 'pending' ? 'declined' : o.status, reject_reason: o.status === 'pending' ? 'auto' : o.reject_reason }));
     
     // Marcar request como matched
     setCareRequests(reqs => reqs.map(r => r.id === offer.request_id ? { ...r, status: 'matched' } : r));

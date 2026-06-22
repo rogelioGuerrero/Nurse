@@ -9,7 +9,7 @@ export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 
 export type CareRequestStatus = 'open' | 'matched' | 'closed' | 'expired';
 
-export type CareOfferStatus = 'pending' | 'accepted' | 'rejected';
+export type CareOfferStatus = 'pending' | 'accepted' | 'rejected' | 'declined';
 
 export interface Profile {
   id: string; // auth.user FK
@@ -126,4 +126,5 @@ export interface CareOffer {
   offered_rate: number; // rate offered by nurse for this specific request
   status: CareOfferStatus;
   created_at: string;
+  reject_reason?: 'voluntary' | 'auto';
 }

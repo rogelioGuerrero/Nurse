@@ -1,7 +1,6 @@
 import { useMemo, useState, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { calculateNurseNet } from '../data/standardRates';
-import { getDistanceKm, USER_COORDS } from '../lib/distance';
 import { SHIFTS, type ShiftType } from '../types';
 import { CheckCircle2, XCircle, Star, MapPin, User, Calendar, Clock as ClockIcon, Dumbbell, Users, Heart, MessageCircle, X, BadgeCheck, GraduationCap, Briefcase } from 'lucide-react';
 
@@ -91,12 +90,6 @@ export const OffersReview: FC = () => {
                     <span className="text-xs font-bold">{nurse?.rating || 4.5}</span>
                   </div>
                 </div>
-                {nurse && (
-                  <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
-                    <MapPin className="h-3 w-3" />
-                    <span>A ~{getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, nurse.lat, nurse.lng).toFixed(1)} km de ti</span>
-                  </div>
-                )}
               </div>
               <div className="text-right flex-shrink-0">
                 <div className="text-lg font-bold text-slate-800">
@@ -176,8 +169,6 @@ export const OffersReview: FC = () => {
         const nurse = nurses.find(n => n.id === selectedNurseId);
         const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
         if (!nurse || !nurseProfile) return null;
-        const distance = getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, nurse.lat, nurse.lng);
-
         return (
           <div
             className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -215,12 +206,6 @@ export const OffersReview: FC = () => {
               </div>
 
               <div className="p-5 space-y-4">
-                {/* Distancia */}
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <MapPin className="h-4 w-4 text-indigo-500" />
-                  <span>A ~{distance.toFixed(1)} km de tu ubicación</span>
-                </div>
-
                 {/* Especialidades */}
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Especialidades</h3>
