@@ -134,6 +134,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         
         if (profile) {
           setCurrentUser(profile);
+          setActiveTab(profile.role === 'nurse' ? 'nurse-inbox' : 'care-request');
         }
       }
     };
@@ -151,9 +152,11 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         
         if (profile) {
           setCurrentUser(profile);
+          setActiveTab(profile.role === 'nurse' ? 'nurse-inbox' : 'care-request');
         }
       } else if (event === 'SIGNED_OUT') {
         setCurrentUser(null);
+        setActiveTab('landing');
       }
     });
 
