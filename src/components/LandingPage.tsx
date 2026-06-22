@@ -98,14 +98,23 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse }) => {
           </button>
         </div>
 
-        {/* Demo Button */}
-        <button
-          onClick={() => handleDemoLogin('family')}
-          disabled={demoLoading}
-          className="w-full bg-slate-200 hover:bg-slate-300 disabled:bg-slate-200 disabled:cursor-not-allowed text-slate-600 font-bold py-3 rounded-xl transition text-xs cursor-pointer"
-        >
-          {demoLoading ? 'Cargando...' : 'Entrar como Familia Demo'}
-        </button>
+        {/* Demo Buttons */}
+        <div className="space-y-2">
+          <button
+            onClick={() => handleDemoLogin('family')}
+            disabled={demoLoading}
+            className="w-full bg-slate-200 hover:bg-slate-300 disabled:bg-slate-200 disabled:cursor-not-allowed text-slate-600 font-bold py-3 rounded-xl transition text-xs cursor-pointer"
+          >
+            {demoLoading ? 'Cargando...' : 'Demo Paciente'}
+          </button>
+          <button
+            onClick={() => handleDemoLogin('nurse')}
+            disabled={demoLoading}
+            className="w-full bg-slate-200 hover:bg-slate-300 disabled:bg-slate-200 disabled:cursor-not-allowed text-slate-600 font-bold py-3 rounded-xl transition text-xs cursor-pointer"
+          >
+            {demoLoading ? 'Cargando...' : 'Demo Enfermera'}
+          </button>
+        </div>
 
         {/* Trust badge */}
         <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400">
