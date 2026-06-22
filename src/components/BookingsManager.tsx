@@ -7,10 +7,11 @@ import { useState, useEffect, useMemo, useRef, type FC } from 'react';
 import { useApp, type ServiceLogType } from '../context/AppContext';
 import { Booking, BookingStatus } from '../types';
 import { groqChat } from '../lib/groq';
-import { 
+import {
   Calendar, User, CheckCircle2,
   Activity, PlusCircle, FileText, AlertTriangle,
-  Printer, Phone, ChevronLeft, ChevronRight, MessageCircle
+  Printer, Phone, ChevronLeft, ChevronRight, MessageCircle,
+  MapPin, LogIn, LogOut
 } from 'lucide-react';
 
 const DAY_SHORT = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
@@ -26,11 +27,19 @@ export const BookingsManager: FC = () => {
     profiles, 
     currentUser, 
     updateBookingStatus,
+    checkInBooking,
+    checkOutBooking,
     careLogs,
     saveCareLog
   } = useApp();
 
   const isNurseView = currentUser?.role === 'nurse';
+
+  // Check-in/out state
+  const [checkInBookingId, setCheckInBookingId] = useState<string | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const [gpsError, setGpsError] = useState<string | null>(null);
+  const [reportedAddress, setReportedAddress] = useState('');
 
   // O(1) lookup maps to avoid repeated find() calls inside loops
   const profileMap = useMemo(() => {
@@ -79,6 +88,69 @@ export const BookingsManager: FC = () => {
   const [aiReportId, setAiReportId] = useState<string | null>(null);
   const [aiReportContent, setAiReportContent] = useState<string>('');
   const [aiReportLoading, setAiReportLoading] = useState(false);
+
+  const handleCheckIn = async (bookingId: string) => {
+    setGpsLoading(true);
+    setGpsError(null);
+    setCheckInBookingId(bookingId);
+
+    if (!navigator.geolocation) {
+      setGpsError('Tu dispositivo no soporta geolocalización');
+      setGpsLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        const address = reportedAddress.trim() || 'Ubicación GPS registrada';
+        const mismatch = !!reportedAddress.trim();
+        try {
+          await checkInBooking(bookingId, latitude, longitude, address, mismatch);
+          setCheckInBookingId(null);
+          setReportedAddress('');
+        } catch {
+          setGpsError('Error al registrar check-in');
+        }
+        setGpsLoading(false);
+      },
+      (err) => {
+        setGpsError(`No se pudo obtener tu ubicación: ${err.message}`);
+        setGpsLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  const handleCheckOut = async (bookingId: string) => {
+    setGpsLoading(true);
+    setGpsError(null);
+    setCheckInBookingId(bookingId);
+
+    if (!navigator.geolocation) {
+      setGpsError('Tu dispositivo no soporta geolocalización');
+      setGpsLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        try {
+          await checkOutBooking(bookingId, latitude, longitude);
+          setCheckInBookingId(null);
+        } catch {
+          setGpsError('Error al registrar check-out');
+        }
+        setGpsLoading(false);
+      },
+      (err) => {
+        setGpsError(`No se pudo obtener tu ubicación: ${err.message}`);
+        setGpsLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   if (!currentUser) return null;
 
@@ -553,6 +625,64 @@ export const BookingsManager: FC = () => {
                   </div>
                 )}
 
+                {/* Check-in/out status banner */}
+                {b.status === 'confirmed' && b.check_in_at && (
+                  <div className="px-3 py-2 bg-emerald-50 border-t border-emerald-100 flex items-center gap-2 text-[10px] text-emerald-700">
+                    <LogIn className="h-3.5 w-3.5" />
+                    <span className="font-bold">Check-in:</span>
+                    <span>{new Date(b.check_in_at).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' })}</span>
+                    {b.address_mismatch && (
+                      <span className="text-amber-600 font-bold flex items-center gap-0.5">
+                        <AlertTriangle className="h-3 w-3" />Dirección diferente
+                      </span>
+                    )}
+                    {b.check_out_at && (
+                      <>
+                        <span className="text-slate-300">·</span>
+                        <LogOut className="h-3.5 w-3.5" />
+                        <span className="font-bold">Check-out:</span>
+                        <span>{new Date(b.check_out_at).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' })}</span>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {/* Check-in address report (nurse only, before check-in) */}
+                {b.status === 'confirmed' && isNurseView && !b.check_in_at && checkInBookingId === b.id && (
+                  <div className="px-3 py-3 bg-amber-50 border-t border-amber-100 space-y-2">
+                    <p className="text-[10px] font-bold text-amber-800 flex items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5" />
+                      ¿Estás en la dirección correcta?
+                    </p>
+                    <p className="text-[10px] text-slate-500">Si la dirección real es diferente a la que dio la familia, repórtala aquí para tu protección.</p>
+                    <input
+                      type="text"
+                      value={reportedAddress}
+                      onChange={e => setReportedAddress(e.target.value)}
+                      placeholder="Dirección real (opcional, solo si es diferente)"
+                      className="w-full text-[11px] border border-amber-200 rounded-lg p-2 bg-white"
+                    />
+                    {gpsError && <p className="text-[10px] text-rose-600">{gpsError}</p>}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setCheckInBookingId(null); setReportedAddress(''); setGpsError(null); }}
+                        className="text-[10px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg cursor-pointer"
+                      >Cancelar</button>
+                      <button
+                        onClick={() => handleCheckIn(b.id)}
+                        disabled={gpsLoading}
+                        className="text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer disabled:opacity-60"
+                      >
+                        {gpsLoading ? (
+                          <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>Obteniendo GPS...</>
+                        ) : (
+                          <><LogIn className="h-3 w-3" />Confirmar llegada</>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Action buttons */}
                 <div className="flex items-center justify-end gap-2 p-3 border-t border-slate-100/60">
                   {b.status === 'pending' && (
@@ -570,15 +700,40 @@ export const BookingsManager: FC = () => {
                   {b.status === 'confirmed' && (
                     <>
                       {isNurseView ? (
-                        <button onClick={() => {
-                          if (!careLogs[b.id]) {
-                            handleOpenLogForm(b.id);
-                          } else {
-                            updateBookingStatus(b.id, 'completed').catch(console.error);
-                          }
-                        }} className="text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer">
-                          <CheckCircle2 className="h-3.5 w-3.5" />{careLogs[b.id] ? 'Completar' : 'Registrar y Completar'}
-                        </button>
+                        <>
+                          {!b.check_in_at && checkInBookingId !== b.id && (
+                            <button
+                              onClick={() => setCheckInBookingId(b.id)}
+                              className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer"
+                            >
+                              <LogIn className="h-3.5 w-3.5" />Check-in
+                            </button>
+                          )}
+                          {b.check_in_at && !b.check_out_at && (
+                            <button
+                              onClick={() => handleCheckOut(b.id)}
+                              disabled={gpsLoading}
+                              className="text-[10px] font-bold text-white bg-rose-600 hover:bg-rose-500 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer disabled:opacity-60"
+                            >
+                              {gpsLoading ? (
+                                <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>GPS...</>
+                              ) : (
+                                <><LogOut className="h-3.5 w-3.5" />Check-out</>
+                              )}
+                            </button>
+                          )}
+                          {b.check_in_at && b.check_out_at && (
+                            <button onClick={() => {
+                              if (!careLogs[b.id]) {
+                                handleOpenLogForm(b.id);
+                              } else {
+                                updateBookingStatus(b.id, 'completed').catch(console.error);
+                              }
+                            }} className="text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer">
+                              <CheckCircle2 className="h-3.5 w-3.5" />{careLogs[b.id] ? 'Completar' : 'Registrar y Completar'}
+                            </button>
+                          )}
+                        </>
                       ) : (
                         <button onClick={() => updateBookingStatus(b.id, 'cancelled').catch(console.error)} className="text-[10px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg cursor-pointer">Cancelar</button>
                       )}

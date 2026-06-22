@@ -83,6 +83,15 @@ export interface Booking {
     emergency_contact: string;
   };
   created_at: string;
+  // Check-in / Check-out GPS
+  check_in_at?: string;
+  check_in_lat?: number;
+  check_in_lng?: number;
+  check_in_address?: string;
+  check_out_at?: string;
+  check_out_lat?: number;
+  check_out_lng?: number;
+  address_mismatch?: boolean;
 }
 
 export interface Availability {

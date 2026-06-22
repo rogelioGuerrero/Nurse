@@ -49,6 +49,8 @@ interface AppContextType {
   updateNurseProfile: (nurseData: Partial<Nurse>) => void;
   createBooking: (bookingData: Omit<Booking, 'id' | 'user_id' | 'created_at' | 'status'>) => Promise<Booking>;
   updateBookingStatus: (bookingId: string, status: BookingStatus) => Promise<void>;
+  checkInBooking: (bookingId: string, lat: number, lng: number, address: string, mismatch: boolean) => Promise<void>;
+  checkOutBooking: (bookingId: string, lat: number, lng: number) => Promise<void>;
   getAvailability: (nurseId: string, startDate: string, endDate: string) => Promise<Availability[]>;
   addAvailability: (availabilityData: Omit<Availability, 'id' | 'created_at' | 'updated_at'>) => Promise<Availability>;
   careLogs: Record<string, CareLog>;
@@ -416,6 +418,44 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Action: Check-in booking with GPS
+  const checkInBooking = async (bookingId: string, lat: number, lng: number, address: string, mismatch: boolean) => {
+    const prevBookings = bookings;
+    const now = new Date().toISOString();
+    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, check_in_at: now, check_in_lat: lat, check_in_lng: lng, check_in_address: address, address_mismatch: mismatch } : b));
+
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ check_in_at: now, check_in_lat: lat, check_in_lng: lng, check_in_address: address, address_mismatch: mismatch })
+        .eq('id', bookingId);
+
+      if (error) throw error;
+    } catch {
+      setBookings(prevBookings);
+      console.warn('Check-in failed, rolled back.');
+    }
+  };
+
+  // Action: Check-out booking with GPS
+  const checkOutBooking = async (bookingId: string, lat: number, lng: number) => {
+    const prevBookings = bookings;
+    const now = new Date().toISOString();
+    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, check_out_at: now, check_out_lat: lat, check_out_lng: lng } : b));
+
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ check_out_at: now, check_out_lat: lat, check_out_lng: lng })
+        .eq('id', bookingId);
+
+      if (error) throw error;
+    } catch {
+      setBookings(prevBookings);
+      console.warn('Check-out failed, rolled back.');
+    }
+  };
+
   // Availability functions (with localStorage fallback for demo mode)
   // Seed availability for demo nurses if none exists
   const [availabilityCache, setAvailabilityCache] = useState<Availability[]>(() => {
@@ -519,6 +559,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       updateNurseProfile,
       createBooking,
       updateBookingStatus,
+      checkInBooking,
+      checkOutBooking,
       getAvailability,
       addAvailability,
       careLogs,
