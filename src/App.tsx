@@ -32,6 +32,7 @@ const NurseInbox = lazy(() => import('./components/NurseInbox').then(m => ({ def
 const PlanReview = lazy(() => import('./components/PlanReview').then(m => ({ default: m.PlanReview })));
 const OffersReview = lazy(() => import('./components/OffersReview').then(m => ({ default: m.OffersReview })));
 import { LandingPage } from './components/LandingPage';
+import { AuthForm } from './components/AuthForm';
 
 function MarketplaceApp() {
   const { 
@@ -53,6 +54,10 @@ function MarketplaceApp() {
   const [maxRate, setMaxRate] = useState<number>(40);
   const [sortBy, setSortBy] = useState<string>('distance');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Auth states
+  const [authMode, setAuthMode] = useState<'landing' | 'login' | 'register'>('landing');
+  const [authRole, setAuthRole] = useState<'family' | 'nurse'>('family');
 
   // Calcular ofertas pendientes para badge
   const pendingOffersCount = useMemo(() => {
@@ -321,10 +326,24 @@ function MarketplaceApp() {
         
         {/* Landing page when no user */}
         {activeTab === 'landing' && (
-          <LandingPage
-            onFamily={() => setActiveTab('care-request')}
-            onNurse={() => setActiveTab('nurse-profile-edit')}
-          />
+          <>
+            {authMode === 'landing' ? (
+              <LandingPage
+                onFamily={() => { setAuthRole('family'); setAuthMode('register'); }}
+                onNurse={() => { setAuthRole('nurse'); setAuthMode('register'); }}
+              />
+            ) : (
+              <AuthForm
+                mode={authMode}
+                role={authRole}
+                onBack={() => setAuthMode('landing')}
+                onSuccess={() => {
+                  setAuthMode('landing');
+                  window.location.reload();
+                }}
+              />
+            )}
+          </>
         )}
 
         {/* Dynamic active view routing switch */}
