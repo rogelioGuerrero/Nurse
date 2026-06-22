@@ -1,7 +1,7 @@
 import { useMemo, useState, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { calculateNurseNet } from '../data/standardRates';
-import type { CareRequest } from '../types';
+import type { CareRequest, Nurse, Profile, CareOffer } from '../types';
 import { SHIFTS, type ShiftType } from '../types';
 import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User, Sun, Sunset, Moon } from 'lucide-react';
 
@@ -11,6 +11,49 @@ const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'se
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   return `${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
+}
+
+function getProfileSuggestions(nurse: Nurse | undefined, profile: Profile | undefined, offer: CareOffer | undefined): string[] {
+  if (!nurse) return [];
+  const suggestions: string[] = [];
+
+  // 1. Sin foto de perfil
+  if (!profile?.avatar_url || profile.avatar_url.trim() === '') {
+    suggestions.push('Agrega una foto de perfil. Las familias confían más en enfermeras con foto.');
+  }
+
+  // 2. Bio vacía o muy corta
+  if (!nurse.bio || nurse.bio.trim().length < 30) {
+    suggestions.push('Completa tu biografía. Cuéntale a las familias sobre tu experiencia y estilo de cuidado.');
+  }
+
+  // 3. Sin certificaciones (aparte del CSSP obligatorio)
+  if (!nurse.certifications || nurse.certifications.length === 0) {
+    suggestions.push('Agrega certificaciones a tu perfil. Refuerzan tu credibilidad profesional.');
+  }
+
+  // 4. Mensaje genérico al ofertar
+  if (offer && (!offer.message || offer.message.trim().length < 20 || offer.message.includes('Confirmo disponibilidad'))) {
+    suggestions.push('Escribe un mensaje personalizado al ofertar. La conexión humana marca la diferencia.');
+  }
+
+  // 5. Pocas especialidades
+  if (nurse.specialization.length < 2) {
+    suggestions.push('Agrega más especialidades a tu perfil para coincidir con más solicitudes.');
+  }
+
+  // 6. Poca disponibilidad (menos de 3 días o 2 turnos)
+  if (nurse.available_days.length < 3 || nurse.available_shifts.length < 2) {
+    suggestions.push('Amplía tus días y turnos disponibles para recibir más solicitudes.');
+  }
+
+  // 7. Si todo está bien, sugerir tarifa como último recurso
+  if (suggestions.length === 0) {
+    suggestions.push('Ajustar tu tarifa puede ayudarte a ser más competitiva en próximas ofertas.');
+  }
+
+  // Devolver máximo 2 sugerencias para no abrumar
+  return suggestions.slice(0, 2);
 }
 
 export const NurseInbox: FC = () => {
@@ -248,14 +291,17 @@ export const NurseInbox: FC = () => {
                             Ofreciste tu servicio
                           </div>
                         ) : offer?.status === 'declined' ? (
-                          <div className="pl-14 space-y-1">
+                          <div className="pl-14 space-y-1.5">
                             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
                               <Heart className="h-4 w-4" />
                               La familia eligió otra enfermera
                             </div>
-                            <p className="text-[10px] text-slate-400 leading-relaxed">
-                              Sugerencia: ajustar tu tarifa puede ayudarte a ser más competitiva en próximas ofertas.
-                            </p>
+                            {getProfileSuggestions(myNurse, profileMap.get(myNurse?.user_id || ''), offer).map((s, i) => (
+                              <p key={i} className="text-[10px] text-slate-400 leading-relaxed flex items-start gap-1">
+                                <span className="text-indigo-300 flex-shrink-0">•</span>
+                                <span>{s}</span>
+                              </p>
+                            ))}
                           </div>
                         ) : (
                           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 pl-14">
