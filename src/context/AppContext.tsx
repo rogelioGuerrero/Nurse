@@ -8,7 +8,7 @@ import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, Care
 import { INITIAL_PROFILES, INITIAL_NURSES } from '../data/nurses';
 import { supabase } from '../lib/supabase';
 import { getResponseDeadline } from '../data/platformSettings';
-import { requestNotificationPermission, notifyNewOffer, notifyOfferAccepted, notifyCheckIn, notifyCheckOut } from '../lib/notifications';
+import { requestNotificationPermission, notifyNewOffer, notifyOfferAccepted, notifyCheckIn, notifyCheckOut, notifyPaymentConfirmed } from '../lib/notifications';
 
 // Safe localStorage parser - prevents crash on corrupted data
 function safeParse<T>(key: string, fallback: T): T {
@@ -167,81 +167,130 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     return () => subscription.unsubscribe();
   }, []);
 
-  // Load profiles, nurses and bookings from Supabase Database
+  // Load profiles, nurses, bookings, care requests and offers from Supabase
   useEffect(() => {
     const loadData = async () => {
       const { data: profilesData } = await supabase.from('profiles').select('*');
       const { data: nursesData } = await supabase.from('nurses').select('*');
       const { data: bookingsData } = await supabase.from('bookings').select('*');
+      const { data: requestsData } = await supabase.from('care_requests').select('*');
+      const { data: offersData } = await supabase.from('care_offers').select('*');
+      const { data: logsData } = await supabase.from('care_logs').select('*');
+      const { data: reviewsData } = await supabase.from('nurse_reviews').select('*');
       
       if (profilesData) setProfiles(profilesData);
       if (nursesData) setNurses(nursesData);
       if (bookingsData && bookingsData.length > 0) setBookings(bookingsData);
+      if (requestsData) setCareRequests(requestsData.map((r: any) => ({
+        ...r,
+        slots: typeof r.slots === 'string' ? JSON.parse(r.slots) : r.slots || []
+      })));
+      if (offersData) setCareOffers(offersData.map((o: any) => ({
+        ...o,
+        message: o.notes || o.message || ''
+      })));
+      if (logsData) {
+        const logsMap: Record<string, CareLog> = {};
+        logsData.forEach((l: any) => {
+          logsMap[l.booking_id] = {
+            bookingId: l.booking_id,
+            serviceType: l.service_type || 'clinical',
+            arrivalTime: l.arrival_time || '',
+            departureTime: l.departure_time || '',
+            patientConditionOnArrival: l.patient_condition_on_arrival || 'Bien',
+            patientConditionOnDeparture: l.patient_condition_on_departure || 'Igual',
+            activities: typeof l.activities === 'string' ? JSON.parse(l.activities) : l.activities || [],
+            observations: l.observations || '',
+            narrativeReport: l.narrative_report || '',
+            updatedAt: l.updated_at || new Date().toISOString()
+          };
+        });
+        setCareLogs(logsMap);
+      }
+      if (reviewsData) setNurseReviews(reviewsData);
     };
     
     loadData();
+
+    // Realtime subscriptions
+    const channel = supabase
+      .channel('public-changes')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'care_requests' }, (payload) => {
+        const r = payload.new as any;
+        setCareRequests(prev => prev.find(x => x.id === r.id) ? prev : [{ ...r, slots: typeof r.slots === 'string' ? JSON.parse(r.slots) : r.slots || [] }, ...prev]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'care_requests' }, (payload) => {
+        const r = payload.new as any;
+        setCareRequests(prev => prev.map(x => x.id === r.id ? { ...r, slots: typeof r.slots === 'string' ? JSON.parse(r.slots) : r.slots || [] } : x));
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'care_offers' }, (payload) => {
+        const o = payload.new as any;
+        setCareOffers(prev => prev.find(x => x.id === o.id) ? prev : [{ ...o, message: o.notes || '' }, ...prev]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'care_offers' }, (payload) => {
+        const o = payload.new as any;
+        setCareOffers(prev => prev.map(x => x.id === o.id ? { ...o, message: o.notes || '' } : x));
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, (payload) => {
+        const b = payload.new as any;
+        if (payload.eventType === 'INSERT') {
+          setBookings(prev => prev.find(x => x.id === b.id) ? prev : [b, ...prev]);
+        } else if (payload.eventType === 'UPDATE') {
+          setBookings(prev => prev.map(x => x.id === b.id ? b : x));
+        }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'care_logs' }, (payload) => {
+        const l = payload.new as any;
+        setCareLogs(prev => ({ ...prev, [l.booking_id]: { bookingId: l.booking_id, serviceType: l.service_type || 'clinical', arrivalTime: l.arrival_time || '', departureTime: l.departure_time || '', patientConditionOnArrival: l.patient_condition_on_arrival || 'Bien', patientConditionOnDeparture: l.patient_condition_on_departure || 'Igual', activities: typeof l.activities === 'string' ? JSON.parse(l.activities) : l.activities || [], observations: l.observations || '', narrativeReport: l.narrative_report || '', updatedAt: l.updated_at || new Date().toISOString() } }));
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'care_logs' }, (payload) => {
+        const l = payload.new as any;
+        setCareLogs(prev => ({ ...prev, [l.booking_id]: { bookingId: l.booking_id, serviceType: l.service_type || 'clinical', arrivalTime: l.arrival_time || '', departureTime: l.departure_time || '', patientConditionOnArrival: l.patient_condition_on_arrival || 'Bien', patientConditionOnDeparture: l.patient_condition_on_departure || 'Igual', activities: typeof l.activities === 'string' ? JSON.parse(l.activities) : l.activities || [], observations: l.observations || '', narrativeReport: l.narrative_report || '', updatedAt: l.updated_at || new Date().toISOString() } }));
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'nurse_reviews' }, (payload) => {
+        const rv = payload.new as any;
+        setNurseReviews(prev => prev.find(x => x.id === rv.id) ? prev : [...prev, rv]);
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const [currentNurse, setCurrentNurse] = useState<Nurse | null>(null);
 
   // Care logs state (moved from BookingsManager for centralized access)
-  const [careLogs, setCareLogs] = useState<Record<string, CareLog>>(() => {
-    const saved = safeParse<Record<string, CareLog> | null>('biencuidar_carelogs', null);
-    if (saved) return saved;
-    return {
-      'b-demo-2': {
-        bookingId: 'b-demo-2',
-        serviceType: 'clinical',
-        arrivalTime: '07:00',
-        departureTime: '15:00',
-        patientConditionOnArrival: 'Regular',
-        patientConditionOnDeparture: 'Mejoró',
-        activities: ['Higiene', 'Alimentación', 'Medicación'],
-        observations: 'Paciente completó con éxito su almuerzo y caminó en el jardín por 15 minutos. Se tomó su medicación puntual.',
-        narrativeReport: 'La enfermera llegó a las 07:00 y encontró al paciente en estado regular. Durante el servicio realizó higiene, alimentación y medicación. El paciente completó su almuerzo y caminó en el jardín por 15 minutos. Se administró la medicación puntual. Al retirarse a las 15:00, el paciente había mejorado.',
-        updatedAt: new Date(Date.now() - 86400000 * 3).toISOString()
-      }
-    };
-  });
-
-  useEffect(() => {
-    localStorage.setItem('biencuidar_carelogs', JSON.stringify(careLogs));
-  }, [careLogs]);
+  const [careLogs, setCareLogs] = useState<Record<string, CareLog>>({});
 
   const saveCareLog = useCallback((bookingId: string, log: Omit<CareLog, 'bookingId' | 'updatedAt'>) => {
+    const updatedLog = {
+      ...log,
+      bookingId,
+      updatedAt: new Date().toISOString()
+    };
     setCareLogs(prev => ({
       ...prev,
-      [bookingId]: {
-        ...log,
-        bookingId,
-        updatedAt: new Date().toISOString()
-      }
+      [bookingId]: updatedLog
     }));
+    // Save to Supabase (upsert)
+    supabase.from('care_logs').upsert({
+      booking_id: bookingId,
+      service_type: log.serviceType,
+      arrival_time: log.arrivalTime,
+      departure_time: log.departureTime,
+      patient_condition_on_arrival: log.patientConditionOnArrival,
+      patient_condition_on_departure: log.patientConditionOnDeparture,
+      activities: JSON.stringify(log.activities),
+      observations: log.observations,
+      narrative_report: log.narrativeReport,
+      updated_at: updatedLog.updatedAt
+    }, { onConflict: 'booking_id' }).then(({ error }) => {
+      if (error) console.warn('Failed to save care log to Supabase:', error.message);
+    });
   }, []);
 
   // Care requests state (family posts what they need)
-  // Migration: clear old-format requests that used start_time/end_time instead of shift
-  const [careRequests, setCareRequests] = useState<CareRequest[]>(() => {
-    const raw = safeParse('biencuidar_carerequests', []);
-    const migrated = raw.map((r: CareRequest) => ({
-      ...r,
-      slots: (r.slots || []).map((s: { date: string; shift?: string; start_time?: string }) => ({
-        date: s.date,
-        shift: (s.shift || 'morning') as ShiftType
-      }))
-    }));
-    return migrated;
-  });
-
-  useEffect(() => {
-    localStorage.setItem('biencuidar_carerequests', JSON.stringify(careRequests));
-  }, [careRequests]);
-
-  const [careOffers, setCareOffers] = useState<CareOffer[]>(() => safeParse('biencuidar_careoffers', []));
-
-  useEffect(() => {
-    localStorage.setItem('biencuidar_careoffers', JSON.stringify(careOffers));
-  }, [careOffers]);
+  const [careRequests, setCareRequests] = useState<CareRequest[]>([]);
+  const [careOffers, setCareOffers] = useState<CareOffer[]>([]);
 
   const createCareRequest = useCallback((data: Omit<CareRequest, 'id' | 'user_id' | 'created_at' | 'status' | 'response_deadline'>): CareRequest => {
     if (!currentUser) throw new Error('Debes iniciar sesión para publicar una solicitud.');
@@ -255,6 +304,24 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       created_at: now
     };
     setCareRequests(prev => [newRequest, ...prev]);
+    // Save to Supabase
+    supabase.from('care_requests').insert({
+      id: newRequest.id,
+      user_id: currentUser.id,
+      patient_name: data.patient_name,
+      patient_condition: data.patient_condition,
+      specialization_needed: data.specialization_needed,
+      slots: JSON.stringify(data.slots),
+      location_name: data.location_name,
+      lat: data.lat,
+      lng: data.lng,
+      notes: data.notes || null,
+      status: 'open',
+      response_deadline: newRequest.response_deadline,
+      created_at: now
+    }).then(({ error }) => {
+      if (error) console.warn('Failed to save care request to Supabase:', error.message);
+    });
     return newRequest;
   }, [currentUser]);
 
@@ -266,6 +333,19 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       created_at: new Date().toISOString()
     };
     setCareOffers(prev => [newOffer, ...prev]);
+    // Save to Supabase
+    supabase.from('care_offers').insert({
+      id: newOffer.id,
+      request_id: data.request_id,
+      nurse_id: data.nurse_id,
+      slot_index: data.slot_index,
+      offered_rate: data.offered_rate,
+      status: data.status || 'pending',
+      notes: data.message || null,
+      created_at: newOffer.created_at
+    }).then(({ error }) => {
+      if (error) console.warn('Failed to save care offer to Supabase:', error.message);
+    });
     // Notify family (if they're not the current user)
     const request = careRequests.find(r => r.id === data.request_id);
     if (request && currentUser?.id !== request.user_id) {
@@ -274,7 +354,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       notifyNewOffer(nurseProfile?.full_name || 'Una enfermera', request.patient_name);
     }
     return newOffer;
-  }, []);
+  }, [careRequests, currentUser, nurses, profiles]);
 
   // Synchronize dynamic nurse profile if active user role is 'nurse'
   useEffect(() => {
@@ -392,8 +472,13 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     // Marcar offer como aceptado y otros como rechazados
     setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'accepted' } : { ...o, status: o.status === 'pending' ? 'declined' : o.status, reject_reason: o.status === 'pending' ? 'auto' : o.reject_reason }));
     
+    // Sync offers to Supabase
+    supabase.from('care_offers').update({ status: 'accepted' }).eq('id', offerId).then();
+    supabase.from('care_offers').update({ status: 'rejected' }).eq('request_id', offer.request_id).neq('id', offerId).eq('status', 'pending').then();
+
     // Marcar request como matched
     setCareRequests(reqs => reqs.map(r => r.id === offer.request_id ? { ...r, status: 'matched' } : r));
+    supabase.from('care_requests').update({ status: 'matched' }).eq('id', offer.request_id).then();
 
     // Crear booking automaticamente usando offered_rate
     const request = careRequests.find(r => r.id === offer.request_id);
@@ -426,11 +511,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   }, [careOffers, careRequests, createBooking]);
 
   // Nurse reviews
-  const [nurseReviews, setNurseReviews] = useState<NurseReview[]>(() => safeParse('biencuidar_reviews', []));
-
-  useEffect(() => {
-    localStorage.setItem('biencuidar_reviews', JSON.stringify(nurseReviews));
-  }, [nurseReviews]);
+  const [nurseReviews, setNurseReviews] = useState<NurseReview[]>([]);
 
   const submitReview = async (bookingId: string, nurseId: string, rating: number, comment?: string) => {
     if (!currentUser) return;
@@ -457,7 +538,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         });
       if (error) throw error;
     } catch {
-      // Keep in localStorage as fallback
+      console.warn('Failed to save review to Supabase');
     }
   };
 
@@ -469,6 +550,14 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         .update({ payment_status: 'paid' })
         .eq('id', bookingId);
       if (error) throw error;
+      // Notify nurse that payment is confirmed
+      const booking = bookings.find(b => b.id === bookingId);
+      if (booking) {
+        const nurse = nurses.find(n => n.id === booking.nurse_id);
+        if (nurse && currentUser?.id !== nurse.user_id) {
+          notifyPaymentConfirmed(booking.patient_name);
+        }
+      }
     } catch {
       // Rollback on error
       setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, payment_status: 'pending' } : b));

@@ -100,3 +100,14 @@ export function notifyNewCareRequest(specialization: string): void {
     tag: 'new-request',
   });
 }
+
+/**
+ * Notify nurse that payment has been confirmed by admin.
+ */
+export function notifyPaymentConfirmed(patientName: string): void {
+  sendNotification({
+    title: 'Pago confirmado',
+    body: `El pago para el servicio de ${patientName} ha sido verificado. Ya puedes asistir.`,
+    tag: 'payment-confirmed',
+  });
+}

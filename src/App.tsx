@@ -340,6 +340,14 @@ function MarketplaceApp() {
               </>
             )}
 
+            {/* Logout button for all non-admin users */}
+            <button
+              onClick={async () => { await supabase.auth.signOut(); }}
+              className="px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+            >
+              <span>Salir</span>
+            </button>
+
           </nav>
 
         </div>
