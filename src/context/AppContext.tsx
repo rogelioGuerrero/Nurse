@@ -388,11 +388,27 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   }, [bookings]);
 
   // Action: Update profiles (also syncs currentNurse if user is a nurse)
-  const updateProfile = (profileData: Partial<Profile>) => {
+  const updateProfile = async (profileData: Partial<Profile>) => {
     if (!currentUser) return;
     const updated = { ...currentUser, ...profileData, updated_at: new Date().toISOString() };
     setCurrentUser(updated);
     setProfiles(prev => prev.map(p => p.id === updated.id ? updated : p));
+    // Sync to Supabase
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: updated.full_name,
+          phone: updated.phone,
+          location_name: updated.location_name,
+          avatar_url: updated.avatar_url,
+          updated_at: updated.updated_at
+        })
+        .eq('id', updated.id);
+      if (error) console.warn('Failed to sync profile to Supabase:', error.message);
+    } catch (err) {
+      console.warn('Profile sync error:', err);
+    }
     // Immediately sync currentNurse if the updated user is a nurse
     if (updated.role === 'nurse') {
       setCurrentNurse(prev => prev ? { ...prev } : prev);

@@ -15,7 +15,7 @@ import {
   Stethoscope, Calendar, 
   Star, Sparkles,
   Heart, Users, ChevronRight, GraduationCap, Network, MapPinned, MessageCircle,
-  Menu, X, Search, Inbox, ClipboardList, ShieldCheck
+  Menu, X, Search, Inbox, ClipboardList, ShieldCheck, User
 } from 'lucide-react';
 
 const LoadingSpinner = () => (
@@ -34,6 +34,7 @@ const PlanReview = lazy(() => import('./components/PlanReview').then(m => ({ def
 const OffersReview = lazy(() => import('./components/OffersReview').then(m => ({ default: m.OffersReview })));
 const CSSPReviewPanel = lazy(() => import('./components/CSSPReviewPanel').then(m => ({ default: m.CSSPReviewPanel })));
 const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
+const FamilyProfileEdit = lazy(() => import('./components/FamilyProfileEdit').then(m => ({ default: m.FamilyProfileEdit })));
 import { LandingPage } from './components/LandingPage';
 import { AuthForm } from './components/AuthForm';
 
@@ -279,6 +280,19 @@ function MarketplaceApp() {
                 >
                   <Sparkles className="h-4 w-4 text-amber-500" />
                   <span>Apoyo Clínico</span>
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab('family-profile-edit'); setMobileMenuOpen(false); }}
+                  className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                    activeTab === 'family-profile-edit'
+                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                  id="tab-btn-family-profile"
+                >
+                  <User className="h-4 w-4" />
+                  <span>Mi Perfil</span>
                 </button>
               </>
             )}
@@ -676,6 +690,14 @@ function MarketplaceApp() {
           <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner />}>
               <NurseProfileEdit />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+
+        {activeTab === 'family-profile-edit' && (
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingSpinner />}>
+              <FamilyProfileEdit />
             </Suspense>
           </ErrorBoundary>
         )}
