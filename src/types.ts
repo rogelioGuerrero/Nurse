@@ -32,6 +32,8 @@ export const SHIFTS: Record<ShiftType, { label: string; start: string; end: stri
 
 export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0=Dom ... 6=Sab
 
+export type CSSPVerificationStatus = 'unverified' | 'pending' | 'auto_verified' | 'manual_verified' | 'rejected';
+
 export interface Nurse {
   id: string; // UUID
   user_id: string; // profiles FK
@@ -50,6 +52,10 @@ export interface Nurse {
   // Verificaciones: CSSP obligatorio, demas opcionales
   cssp_registration: string; // Número de registro CSSP (OBLIGATORIO por ley)
   cssp_level: 'Licenciada' | 'Tecnóloga' | 'Técnica' | 'Auxiliar';
+  cssp_verification_status?: CSSPVerificationStatus; // estado de verificación automatizada + manual
+  cssp_verified?: boolean; // true solo cuando está verificada (auto o manual)
+  cssp_verification_date?: string; // ISO date de última verificación
+  cssp_verification_notes?: string; // notas del revisor manual
   verifications?: {
     college_registration?: string; // Número de registro del colegio/asociación
   };

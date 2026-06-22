@@ -8,6 +8,8 @@ import { useApp } from '../context/AppContext';
 import { Save, Edit3, CheckCircle2, Calculator, Sun, Moon, Sunset, ShieldCheck, FileText, Crosshair, Loader2, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import { SHIFTS, type ShiftType, type WeekDay } from '../types';
 import { RETENTION_RATE, calculateNurseNet } from '../data/standardRates';
+import { CSSPVerificationBadge } from './CSSPVerificationBadge';
+import { validateCSSPRegistration } from '../lib/csspValidation';
 
 const allSpecialtyTags = [
   'Geriatría', 'Demencia y Alzheimer', 'Inyecciones', 'Postoperatorio', 
@@ -121,6 +123,12 @@ export const NurseProfileEdit: FC = () => {
 
   const handleProfileSave = (e: FormEvent) => {
     e.preventDefault();
+
+    const csspValidation = validateCSSPRegistration(csspReg);
+    if (!csspValidation.valid) {
+      setStep(3);
+      return;
+    }
 
     updateNurseProfile({
       shift_rate: Number(shiftRate),
@@ -455,6 +463,12 @@ export const NurseProfileEdit: FC = () => {
                   placeholder="Ej: CSSP-ENF-2024-0456"
                   className={`w-full text-xs font-medium bg-slate-50 border outline-none rounded-xl px-3 py-2.5 focus:bg-white focus:ring-1 transition ${csspReg.trim() ? 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-500' : 'border-red-300 focus:border-red-500 focus:ring-red-500'}`}
                 />
+                {csspReg.trim() && !validateCSSPRegistration(csspReg).valid && (
+                  <p className="text-[10px] text-rose-600 font-medium mt-1">{validateCSSPRegistration(csspReg).message}</p>
+                )}
+                {csspReg.trim() && validateCSSPRegistration(csspReg).valid && (
+                  <p className="text-[10px] text-emerald-600 font-medium mt-1">{validateCSSPRegistration(csspReg).message}</p>
+                )}
               </div>
               <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Nivel profesional *</label>
@@ -470,6 +484,11 @@ export const NurseProfileEdit: FC = () => {
                 </select>
               </div>
             </div>
+
+            {/* Estado de verificación CSSP (si ya tiene registro guardado) */}
+            {currentNurse && currentNurse.cssp_registration && (
+              <CSSPVerificationBadge nurse={currentNurse} variant="full" />
+            )}
 
             <div>
               <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Registro del Colegio/Asociación (opcional)</label>

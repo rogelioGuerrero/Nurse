@@ -1,7 +1,8 @@
 import { useState, useEffect, type FC } from 'react';
-import { Stethoscope, User, Mail, Lock, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Stethoscope, User, Mail, Lock, ArrowLeft, CheckCircle2, AlertCircle, FileText } from 'lucide-react';
 import type { Nurse } from '../types';
 import { supabase } from '../lib/supabase';
+import { TermsAndConditions } from './TermsAndConditions';
 
 interface AuthFormProps {
   mode: 'login' | 'register';
@@ -23,6 +24,8 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
 
   const validateEmail = (value: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -52,6 +55,11 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
 
     if (password !== confirmPassword) {
       setError('Las contraseñas no coinciden');
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setError('Debes aceptar los Términos y Condiciones para registrarte');
       return;
     }
 
@@ -438,18 +446,49 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
           )}
 
           {authMode === 'register' && (
-            <p className="text-center text-xs text-slate-500">
-              ¿Ya tienes cuenta?{' '}
-              <button 
-                onClick={() => setAuthMode('login')}
-                className="text-indigo-600 font-bold hover:underline cursor-pointer"
-              >
-                Inicia Sesión
-              </button>
-            </p>
+            <>
+              <div className="space-y-2 pt-1">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0"
+                  />
+                  <span className="text-[11px] text-slate-600 leading-relaxed">
+                    Acepto los{' '}
+                    <button
+                      type="button"
+                      onClick={() => setShowTerms(true)}
+                      className="text-indigo-600 font-bold hover:underline inline-flex items-center gap-0.5"
+                    >
+                      <FileText className="h-3 w-3" />
+                      Términos y Condiciones
+                    </button>{' '}
+                    y comprendo que BienCuidar es una plataforma de intermediación, no empleadora.
+                  </span>
+                </label>
+              </div>
+
+              <p className="text-center text-xs text-slate-500">
+                ¿Ya tienes cuenta?{' '}
+                <button
+                  onClick={() => setAuthMode('login')}
+                  className="text-indigo-600 font-bold hover:underline cursor-pointer"
+                >
+                  Inicia Sesión
+                </button>
+              </p>
+            </>
           )}
         </div>
       </div>
+
+      <TermsAndConditions
+        open={showTerms}
+        onClose={() => setShowTerms(false)}
+        role={role}
+      />
     </div>
   );
 };

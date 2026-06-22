@@ -14,7 +14,7 @@ import {
   Stethoscope, Calendar, 
   Star, Sparkles,
   Heart, Users, ChevronRight, GraduationCap, Network, MapPinned, MessageCircle,
-  Menu, X, Search, Inbox, ClipboardList
+  Menu, X, Search, Inbox, ClipboardList, ShieldCheck
 } from 'lucide-react';
 
 const LoadingSpinner = () => (
@@ -31,6 +31,7 @@ const CareRequestForm = lazy(() => import('./components/CareRequestForm').then(m
 const NurseInbox = lazy(() => import('./components/NurseInbox').then(m => ({ default: m.NurseInbox })));
 const PlanReview = lazy(() => import('./components/PlanReview').then(m => ({ default: m.PlanReview })));
 const OffersReview = lazy(() => import('./components/OffersReview').then(m => ({ default: m.OffersReview })));
+const CSSPReviewPanel = lazy(() => import('./components/CSSPReviewPanel').then(m => ({ default: m.CSSPReviewPanel })));
 import { LandingPage } from './components/LandingPage';
 import { AuthForm } from './components/AuthForm';
 
@@ -333,6 +334,28 @@ function MarketplaceApp() {
       </header>
       )}
 
+      {/* Admin Bar - solo para admin */}
+      {currentUser?.role === 'admin' && activeTab !== 'landing' && (
+        <div className="bg-indigo-900 text-white text-xs py-2 px-4">
+          <div className="max-w-2xl mx-auto flex items-center justify-between">
+            <span className="font-bold flex items-center gap-1.5">
+              <ShieldCheck className="h-3.5 w-3.5" />
+              Panel de Administración
+            </span>
+            <button
+              onClick={() => { setActiveTab('cssp-review'); setMobileMenuOpen(false); }}
+              className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+                activeTab === 'cssp-review'
+                  ? 'bg-white text-indigo-900'
+                  : 'bg-indigo-800 hover:bg-indigo-700 text-white'
+              }`}
+            >
+              Revisión CSSP
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Content Pane */}
       <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-4" id="main-content-layout">
         
@@ -593,6 +616,14 @@ function MarketplaceApp() {
           <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner />}>
               <NurseProfileEdit />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+
+        {activeTab === 'cssp-review' && (
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingSpinner />}>
+              <CSSPReviewPanel />
             </Suspense>
           </ErrorBoundary>
         )}

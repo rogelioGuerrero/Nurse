@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { calculateNurseNet } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
 import { CheckCircle2, XCircle, Star, MapPin, User, Calendar, Clock as ClockIcon, Dumbbell, Users, Heart, MessageCircle, X, BadgeCheck, GraduationCap, Briefcase } from 'lucide-react';
+import { CSSPVerificationBadge } from './CSSPVerificationBadge';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -245,13 +246,7 @@ export const OffersReview: FC = () => {
                 </div>
 
                 {/* CSSP */}
-                <div className="flex items-center gap-2 bg-emerald-50 rounded-xl p-3">
-                  <BadgeCheck className="h-5 w-5 text-emerald-600 flex-shrink-0" />
-                  <div>
-                    <p className="text-xs font-bold text-emerald-800">Registro CSSP vigente</p>
-                    <p className="text-[10px] text-emerald-600">{nurse.cssp_registration}</p>
-                  </div>
-                </div>
+                <CSSPVerificationBadge nurse={nurse} variant="full" />
 
                 {/* Certificaciones */}
                 {nurse.certifications.length > 0 && (

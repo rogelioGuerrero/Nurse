@@ -3,6 +3,8 @@ import { useApp } from '../context/AppContext';
 import { calculateFamilyPrice } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
 import { CheckCircle2, XCircle, Clock, MapPin, Calendar, Star, User, Phone, Heart, Send, ChevronLeft, Sun, Sunset, Moon, FileText } from 'lucide-react';
+import { LegalDisclaimer } from './LegalDisclaimer';
+import { ServiceContract } from './ServiceContract';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -16,6 +18,7 @@ export const PlanReview: FC = () => {
   const [patientAge, setPatientAge] = useState('');
   const [emergencyContact, setEmergencyContact] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [showContract, setShowContract] = useState(false);
 
   const profileMap = useMemo(() => new Map(profiles.map(p => [p.id, p])), [profiles]);
 
@@ -74,6 +77,7 @@ export const PlanReview: FC = () => {
   // Submitted state (after accepting and filling complementary data)
   if (submitted) {
     return (
+      <>
       <div className="min-h-[80vh] flex items-center justify-center px-5 py-8">
         <div className="w-full max-w-sm text-center space-y-5">
           <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
@@ -94,8 +98,37 @@ export const PlanReview: FC = () => {
               <p><span className="font-semibold">Total:</span> ${totalPrice.toFixed(0)} · {totalShifts} turno(s)</p>
             </div>
           </div>
+          <LegalDisclaimer variant="compact" />
+
+          <button
+            onClick={() => setShowContract(true)}
+            className="w-full bg-white border border-indigo-200 hover:bg-indigo-50 text-indigo-700 font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <FileText className="h-4 w-4" />
+            Ver contrato de servicios
+          </button>
         </div>
       </div>
+
+      <ServiceContract
+        open={showContract}
+        onClose={() => setShowContract(false)}
+        familyName={currentUser?.full_name || 'Familia'}
+        patientName={patientName}
+        patientCondition={myRequest?.patient_condition || ''}
+        emergencyContact={emergencyContact}
+        slots={slotDetails.filter(s => s.hasNurse && s.nurse && s.nurseProfile).map(s => ({
+          date: s.slot.date,
+          shift: s.slot.shift as ShiftType,
+          nurseName: s.nurseProfile?.full_name || 'Enfermera',
+          nurseRate: s.nurseRate,
+          csspReg: s.nurse?.cssp_registration || 'N/A',
+          csspLevel: s.nurse?.cssp_level || 'Técnica',
+        }))}
+        totalShifts={totalShifts}
+        totalPrice={totalPrice}
+      />
+      </>
     );
   }
 
@@ -303,6 +336,8 @@ export const PlanReview: FC = () => {
       {/* Action buttons */}
       {allCovered && (
         <>
+          <LegalDisclaimer variant="full" />
+
           <div className="flex gap-3 mt-4">
             <button
               onClick={() => setRejected(true)}

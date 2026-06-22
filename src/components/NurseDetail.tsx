@@ -10,6 +10,8 @@ import {
   Star, Clock, ChevronLeft, ChevronRight, MapPin, Award, ShieldCheck,
   Stethoscope, AlertCircle, Heart, CheckCircle2, MessageCircle, BadgeCheck, FileText
 } from 'lucide-react';
+import { LegalDisclaimer } from './LegalDisclaimer';
+import { CSSPVerificationBadge } from './CSSPVerificationBadge';
 
 export const NurseDetail: FC = () => {
   const {
@@ -290,14 +292,8 @@ export const NurseDetail: FC = () => {
                   Registro profesional
                 </h4>
                 <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100/60 space-y-3">
+                  <CSSPVerificationBadge nurse={nurse} variant="full" />
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-emerald-100 shadow-sm">
-                      <BadgeCheck className="h-5 w-5 text-emerald-600 shrink-0" />
-                      <div>
-                        <span className="text-[10px] font-black text-slate-800 block">Registro CSSP</span>
-                        <span className="text-[9px] text-slate-400 font-semibold block">{nurse.cssp_registration}</span>
-                      </div>
-                    </div>
                     <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-emerald-100 shadow-sm">
                       <BadgeCheck className="h-5 w-5 text-emerald-600 shrink-0" />
                       <div>
@@ -306,14 +302,6 @@ export const NurseDetail: FC = () => {
                       </div>
                     </div>
                   </div>
-                  <a
-                    href="https://cssp.gob.sv/profesionales/faces/consulta/buscar.xhtml"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[10px] text-indigo-600 font-bold hover:underline flex items-center gap-1"
-                  >
-                    Verificar en el portal del CSSP →
-                  </a>
                   <div className="flex items-center gap-2 bg-white p-2 rounded-xl border border-emerald-100 shadow-sm">
                     <FileText className="h-5 w-5 text-emerald-600 shrink-0" />
                     <div>
@@ -788,6 +776,8 @@ export const NurseDetail: FC = () => {
                   </div>
                 </form>
               )}
+
+              <LegalDisclaimer variant="full" />
 
               <p className="text-[10px] text-slate-400 text-center leading-normal">
                 No realizamos cargos a tu tarjeta hasta que el cuidador confirme su visita. Cancela sin costo hasta 24 horas antes del servicio.
