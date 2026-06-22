@@ -133,7 +133,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         
         if (profile) {
           setCurrentUser(profile);
-          setActiveTab(profile.role === 'nurse' ? 'nurse-inbox' : 'care-request');
+          setActiveTab(profile.role === 'nurse' ? 'nurse-inbox' : profile.role === 'admin' ? 'admin-panel' : 'care-request');
           requestNotificationPermission();
         }
       }
@@ -152,7 +152,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         
         if (profile) {
           setCurrentUser(profile);
-          setActiveTab(profile.role === 'nurse' ? 'nurse-inbox' : 'care-request');
+          setActiveTab(profile.role === 'nurse' ? 'nurse-inbox' : profile.role === 'admin' ? 'admin-panel' : 'care-request');
         }
       } else if (event === 'SIGNED_OUT') {
         setCurrentUser(null);
@@ -632,7 +632,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
 
   const switchUser = (profile: Profile) => {
     setCurrentUser(profile);
-    setActiveTab(profile.role === 'nurse' ? 'nurse-inbox' : 'care-request');
+    setActiveTab(profile.role === 'nurse' ? 'nurse-inbox' : profile.role === 'admin' ? 'admin-panel' : 'care-request');
   };
 
   return (

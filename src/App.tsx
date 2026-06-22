@@ -5,6 +5,7 @@
 
 import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { AppContextProvider, useApp } from './context/AppContext';
+import { supabase } from './lib/supabase';
 import { MapComponent } from './components/MapComponent';
 import { SearchFilters } from './components/SearchFilters';
 import { ToastProvider } from './components/Toast';
@@ -60,6 +61,16 @@ function MarketplaceApp() {
   // Auth states
   const [authMode, setAuthMode] = useState<'landing' | 'login' | 'register'>('landing');
   const [authRole, setAuthRole] = useState<'family' | 'nurse'>('family');
+  const [isAdminAccess, setIsAdminAccess] = useState(false);
+
+  // Detect /?admin=true for hidden admin login
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('admin') === 'true') {
+      setIsAdminAccess(true);
+      setAuthMode('login');
+    }
+  }, []);
 
   // Calcular ofertas pendientes para badge
   const pendingOffersCount = useMemo(() => {
@@ -150,8 +161,8 @@ function MarketplaceApp() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col selection:bg-indigo-100" id="main-layout-root">
 
-      {/* Main Premium Navbar - hidden on landing */}
-      {activeTab !== 'landing' && (
+      {/* Main Premium Navbar - hidden on landing and admin */}
+      {activeTab !== 'landing' && currentUser?.role !== 'admin' && (
       <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40" id="main-header">
         <div className="max-w-2xl mx-auto px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           
@@ -364,6 +375,12 @@ function MarketplaceApp() {
               >
                 Revisión CSSP
               </button>
+              <button
+                onClick={async () => { await supabase.auth.signOut(); }}
+                className="px-3 py-1.5 rounded-lg font-bold transition cursor-pointer bg-rose-600 hover:bg-rose-500 text-white"
+              >
+                Salir
+              </button>
             </div>
           </div>
         </div>
@@ -375,7 +392,29 @@ function MarketplaceApp() {
         {/* Landing page when no user */}
         {activeTab === 'landing' && (
           <>
-            {authMode === 'landing' ? (
+            {isAdminAccess ? (
+              <div className="min-h-[80vh] flex items-center justify-center px-5 py-8">
+                <div className="w-full max-w-sm space-y-4">
+                  <div className="text-center space-y-2">
+                    <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto">
+                      <ShieldCheck className="h-7 w-7 text-white" />
+                    </div>
+                    <h1 className="text-lg font-bold text-slate-800">Acceso Administradores</h1>
+                    <p className="text-xs text-slate-500">BienCuidar · Panel de administración</p>
+                  </div>
+                  <AuthForm
+                    mode="login"
+                    role="family"
+                    onBack={() => { setIsAdminAccess(false); setAuthMode('landing'); }}
+                    onSuccess={() => {
+                      setIsAdminAccess(false);
+                      setAuthMode('landing');
+                      window.location.reload();
+                    }}
+                  />
+                </div>
+              </div>
+            ) : authMode === 'landing' ? (
               <LandingPage
                 onFamily={() => { setActiveTab('care-request'); setAuthMode('landing'); }}
                 onNurse={() => { setAuthRole('nurse'); setAuthMode('register'); }}
@@ -387,7 +426,6 @@ function MarketplaceApp() {
                 onBack={() => setAuthMode('landing')}
                 onSuccess={() => {
                   setAuthMode('landing');
-                  // Redirigir al tab correcto según rol
                   if (authRole === 'nurse') {
                     setActiveTab('nurse-profile-edit');
                   } else {
