@@ -180,7 +180,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       
       if (profilesData) setProfiles(profilesData);
       if (nursesData) setNurses(nursesData);
-      if (bookingsData && bookingsData.length > 0) setBookings(bookingsData);
+      if (bookingsData && bookingsData.length > 0) setBookings(bookingsData.map((b: any) => ({ ...b, wants_invoice: b.wants_invoice ?? false })));
       if (requestsData) setCareRequests(requestsData.map((r: any) => ({
         ...r,
         wants_invoice: r.wants_invoice ?? false,
@@ -469,7 +469,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           total_price: bookingData.total_price,
           notes: bookingData.notes,
           patient_name: bookingData.patient_name,
-          patient_condition: bookingData.patient_condition
+          patient_condition: bookingData.patient_condition,
+          wants_invoice: bookingData.wants_invoice ?? false
         })
         .select()
         .single();
@@ -525,6 +526,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         notes: request.notes,
         lat: request.lat,
         lng: request.lng,
+        wants_invoice: request.wants_invoice,
       });
 
       // Notify nurse (if they're not the current user)

@@ -151,6 +151,7 @@ export const PlanReview: FC = () => {
         }))}
         totalPrice={totalPrice}
         nursePhone={slotDetails.find(s => s.hasNurse && s.nurseProfile)?.nurseProfile?.phone}
+        wantsInvoice={myRequest.wants_invoice}
       />
       </>
     );

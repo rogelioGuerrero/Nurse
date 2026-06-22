@@ -595,7 +595,7 @@ export const NurseProfileEdit: FC = () => {
           {showPaymentInfo && (
             <div className="px-4 pb-4 space-y-4">
               <p className="text-[10px] text-slate-500 leading-relaxed">
-                La familia te paga directamente. BienCuidar no intermedia el dinero ni realiza retenciones. Tú acordas el método de pago (efectivo, transferencia, etc.) directamente con la familia.
+                Hay dos caminos según lo que elija la familia al publicar la solicitud. Tú ves la preferencia antes de ofertar y puedes ajustar tu tarifa.
               </p>
 
               <div className="bg-white rounded-xl p-3.5 border border-slate-200 space-y-2">
@@ -605,7 +605,7 @@ export const NurseProfileEdit: FC = () => {
                     <span className="font-bold text-slate-800">${shiftRate.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-slate-400">
-                    <span>ISR a declarar (10%) — tu responsabilidad</span>
+                    <span>ISR (10%)</span>
                     <span>-${(shiftRate * RETENTION_RATE).toFixed(2)}</span>
                   </div>
                   <div className="border-t border-slate-200 pt-1.5 flex justify-between">
@@ -619,13 +619,19 @@ export const NurseProfileEdit: FC = () => {
                 <div className="flex items-start gap-1.5">
                   <span className="text-[10px]">💵</span>
                   <p className="text-[10px] text-slate-600 leading-relaxed">
-                    <strong>Pago directo:</strong> La familia te paga directamente a ti. BienCuidar no cobra comisión ni retiene dinero.
+                    <strong>Sin factura (pago directo):</strong> La familia te paga directamente. Tú declaras tu ISR ante Hacienda por tu cuenta. BienCuidar no interviene.
                   </p>
                 </div>
                 <div className="flex items-start gap-1.5">
                   <span className="text-[10px]">📋</span>
                   <p className="text-[10px] text-slate-600 leading-relaxed">
-                    <strong>¿Necesitas comprobante de ingreso?</strong> Pide a la familia que solicite factura (FSEE) desde la plataforma. La factura sirve como tu registro formal de ingreso ante Hacienda, cooperativas o trámites de visa. Si la familia no quiere pagar el costo administrativo, puedes bajar tu tarifa para compensar.
+                    <strong>Con factura (FSEE):</strong> La familia transfiere a BienCuidar, quien retiene el 10% ISR y te transfiere el neto. BienCuidar emite la FSEE que sirve como tu comprobante de ingreso ante Hacienda, cooperativas o trámites de visa.
+                  </p>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="text-[10px]">💡</span>
+                  <p className="text-[10px] text-slate-600 leading-relaxed">
+                    <strong>Ajusta tu tarifa:</strong> Si la familia pide factura, recibes 10% menos. Puedes ofertar más alto para compensar. Si no pide factura, puedes ofertar más bajo.
                   </p>
                 </div>
                 <div className="flex items-start gap-1.5">

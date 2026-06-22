@@ -97,6 +97,7 @@ export interface Booking {
   address_mismatch?: boolean;
   // Payment
   payment_status?: 'pending' | 'paid';
+  wants_invoice?: boolean;
 }
 
 export interface Availability {

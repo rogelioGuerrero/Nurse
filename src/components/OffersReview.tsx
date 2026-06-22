@@ -237,14 +237,14 @@ export const OffersReview: FC = () => {
               {/* Invoice info based on request preference */}
               <div className={`rounded-xl p-3 flex items-start gap-2.5 ${request.wants_invoice ? 'bg-indigo-50 border border-indigo-100' : 'bg-emerald-50 border border-emerald-100'}`}>
                 <FileText className={`h-4 w-4 shrink-0 mt-0.5 ${request.wants_invoice ? 'text-indigo-600' : 'text-emerald-600'}`} />
-                <div>
+                <div className="space-y-1">
                   <p className={`text-xs font-bold ${request.wants_invoice ? 'text-indigo-800' : 'text-emerald-800'}`}>
                     {request.wants_invoice ? 'Con factura electrónica (FSEE)' : 'Pago directo sin factura'}
                   </p>
-                  <p className={`text-[10px] leading-relaxed mt-0.5 ${request.wants_invoice ? 'text-indigo-600' : 'text-emerald-600'}`}>
+                  <p className={`text-[10px] leading-relaxed ${request.wants_invoice ? 'text-indigo-600' : 'text-emerald-600'}`}>
                     {request.wants_invoice
-                      ? 'Se emitirá factura válida ante Hacienda. Tarifa de gestión fiscal y administrativa US$ 5.'
-                      : 'El pago se realiza directamente a la enfermera, sin comprobante fiscal ni costos administrativos.'}
+                      ? 'Transfiere a la cuenta de BienCuidar. Se retiene ISR 10%, se emite FSEE válida ante Hacienda y se transfiere el neto a la enfermera. Tarifa de gestión US$ 5.'
+                      : 'Paga directamente a la enfermera (efectivo, transferencia o como acuerden). Sin comprobante fiscal ni costos administrativos.'}
                   </p>
                 </div>
               </div>

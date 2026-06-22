@@ -672,7 +672,9 @@ export const BookingsManager: FC = () => {
                   }`}>
                     <DollarSign className="h-3.5 w-3.5" />
                     {b.payment_status === 'paid' ? (
-                      <span className="font-bold">Pago confirmado por la familia</span>
+                      <span className="font-bold">Pago confirmado</span>
+                    ) : b.wants_invoice ? (
+                      <span className="font-bold">{isNurseView ? 'Pago por transferencia a BienCuidar (con factura)' : 'Transfiere a la cuenta de BienCuidar'}</span>
                     ) : (
                       <span className="font-bold">{isNurseView ? 'Pendiente de pago — coordina con la familia' : 'Paga directamente a la enfermera'}</span>
                     )}
