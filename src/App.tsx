@@ -40,8 +40,7 @@ function MarketplaceApp() {
     activeTab, 
     setActiveTab,
     selectedNurseId,
-    setSelectedNurseId,
-    switchUser
+    setSelectedNurseId
   } = useApp();
 
   // Search and general filtering states
@@ -280,24 +279,6 @@ function MarketplaceApp() {
             )}
 
           </nav>
-
-            {/* Demo: cambiar rol */}
-            <button
-              onClick={() => {
-                const family = profiles.find(p => p.role !== 'nurse');
-                const nurse = profiles.find(p => p.role === 'nurse');
-                if (currentUser?.role === 'nurse' && family) {
-                  switchUser(family);
-                } else if (nurse) {
-                  switchUser(nurse);
-                }
-                setMobileMenuOpen(false);
-              }}
-              className="ml-2 px-2 py-1.5 bg-amber-100 hover:bg-amber-200 text-amber-700 text-[10px] font-bold rounded-lg transition cursor-pointer"
-              title="Cambiar rol (demo)"
-            >
-              {currentUser?.role === 'nurse' ? 'Ver como Familia' : 'Ver como Enfermera'}
-            </button>
 
         </div>
       </header>
