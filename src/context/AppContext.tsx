@@ -27,21 +27,13 @@ export type ServiceLogType = 'clinical' | 'physio' | 'companion';
 export interface CareLog {
   bookingId: string;
   serviceType: ServiceLogType;
-  // Campos clínicos (cuidado clínico)
-  bloodPressure: string;
-  heartRate: string;
-  glucose: string;
-  temperature: string;
-  mood: string;
-  // Campos fisioterapia
-  exercisesDone: string;
-  mobilityLevel: string;
-  painBefore: string;
-  painAfter: string;
-  // Campos acompañamiento
-  activitiesDone: string;
-  // Común a todos
-  remarks: string;
+  // Reporte de visita universal
+  arrivalTime: string;
+  departureTime: string;
+  patientConditionOnArrival: 'Bien' | 'Regular' | 'Deteriorado' | 'Crítico';
+  patientConditionOnDeparture: 'Mejoró' | 'Igual' | 'Empeoró';
+  activities: string[];
+  observations: string;
   updatedAt: string;
 }
 
@@ -186,17 +178,12 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       'b-demo-2': {
         bookingId: 'b-demo-2',
         serviceType: 'clinical',
-        bloodPressure: '120/80 mmHg',
-        heartRate: '72 lpm',
-        glucose: '115 mg/dL',
-        temperature: '36.6 °C',
-        mood: 'Alegre',
-        exercisesDone: '',
-        mobilityLevel: '',
-        painBefore: '',
-        painAfter: '',
-        activitiesDone: '',
-        remarks: 'Paciente completó con éxito su almuerzo y caminó en el jardín por 15 minutos. Nivel de oxígeno estable. Se tomó su recordatorio de medicina puntual.',
+        arrivalTime: '07:00',
+        departureTime: '15:00',
+        patientConditionOnArrival: 'Regular',
+        patientConditionOnDeparture: 'Mejoró',
+        activities: ['Higiene', 'Alimentación', 'Medicación'],
+        observations: 'Paciente completó con éxito su almuerzo y caminó en el jardín por 15 minutos. Se tomó su medicación puntual.',
         updatedAt: new Date(Date.now() - 86400000 * 3).toISOString()
       }
     };

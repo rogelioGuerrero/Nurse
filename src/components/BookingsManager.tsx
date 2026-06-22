@@ -4,13 +4,13 @@
  */
 
 import { useState, useEffect, useMemo, useRef, type FC } from 'react';
-import { useApp, type CareLog, type ServiceLogType } from '../context/AppContext';
+import { useApp, type ServiceLogType } from '../context/AppContext';
 import { Booking, BookingStatus } from '../types';
 import { groqChat } from '../lib/groq';
 import { 
   Calendar, User, CheckCircle2,
-  Activity, Smile, PlusCircle, FileText, AlertTriangle,
-  Printer, Phone, ChevronLeft, ChevronRight, Dumbbell, Users
+  Activity, PlusCircle, FileText, AlertTriangle,
+  Printer, Phone, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 const DAY_SHORT = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
@@ -18,18 +18,6 @@ const MONTH_FULL = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Juli
 
 const PHYSIO_SPECS = ['Fisioterapia Básica'];
 const COMPANION_SPECS = ['Acompañamiento'];
-
-const SERVICE_LABELS: Record<ServiceLogType, string> = {
-  clinical: 'Signos Vitales',
-  physio: 'Fisioterapia',
-  companion: 'Acompañamiento',
-};
-
-const SERVICE_ICONS: Record<ServiceLogType, typeof Activity> = {
-  clinical: Activity,
-  physio: Dumbbell,
-  companion: Users,
-};
 
 export const BookingsManager: FC = () => {
   const { 
@@ -71,24 +59,14 @@ export const BookingsManager: FC = () => {
   }, [selectedReceiptBooking]);
 
   // Care logs now managed by AppContext
-  // Forms for editing/creating care log
+  // Forms for visit report
   const [editingBookingId, setEditingBookingId] = useState<string | null>(null);
-  const [formServiceType, setFormServiceType] = useState<ServiceLogType>('clinical');
-  // Campos clínicos
-  const [formBloodPressure, setFormBloodPressure] = useState('');
-  const [formHeartRate, setFormHeartRate] = useState('');
-  const [formGlucose, setFormGlucose] = useState('');
-  const [formTemperature, setFormTemperature] = useState('');
-  const [formMood, setFormMood] = useState('Tranquilo');
-  // Campos fisioterapia
-  const [formExercises, setFormExercises] = useState('');
-  const [formMobility, setFormMobility] = useState('');
-  const [formPainBefore, setFormPainBefore] = useState('');
-  const [formPainAfter, setFormPainAfter] = useState('');
-  // Campos acompañamiento
-  const [formActivities, setFormActivities] = useState('');
-  // Común
-  const [formRemarks, setFormRemarks] = useState('');
+  const [formArrivalTime, setFormArrivalTime] = useState('07:00');
+  const [formDepartureTime, setFormDepartureTime] = useState('15:00');
+  const [formConditionArrival, setFormConditionArrival] = useState<'Bien' | 'Regular' | 'Deteriorado' | 'Crítico'>('Regular');
+  const [formConditionDeparture, setFormConditionDeparture] = useState<'Mejoró' | 'Igual' | 'Empeoró'>('Igual');
+  const [formActivities, setFormActivities] = useState<string[]>([]);
+  const [formObservations, setFormObservations] = useState('');
 
   // Calendario
   const [calendarMonth, setCalendarMonth] = useState(() => {
@@ -113,37 +91,26 @@ export const BookingsManager: FC = () => {
 
   const handleOpenLogForm = (bookingId: string) => {
     const log = careLogs[bookingId];
-    const booking = bookings.find(b => b.id === bookingId);
-    const sType = log?.serviceType || (booking ? inferServiceType(booking) : 'clinical');
     setEditingBookingId(bookingId);
-    setFormServiceType(sType);
-    setFormBloodPressure(log?.bloodPressure || '120/80 mmHg');
-    setFormHeartRate(log?.heartRate || '75 lpm');
-    setFormGlucose(log?.glucose || '100 mg/dL');
-    setFormTemperature(log?.temperature || '36.5 °C');
-    setFormMood(log?.mood || 'Tranquilo');
-    setFormExercises(log?.exercisesDone || '');
-    setFormMobility(log?.mobilityLevel || '');
-    setFormPainBefore(log?.painBefore || '');
-    setFormPainAfter(log?.painAfter || '');
-    setFormActivities(log?.activitiesDone || '');
-    setFormRemarks(log?.remarks || '');
+    setFormArrivalTime(log?.arrivalTime || '07:00');
+    setFormDepartureTime(log?.departureTime || '15:00');
+    setFormConditionArrival(log?.patientConditionOnArrival || 'Regular');
+    setFormConditionDeparture(log?.patientConditionOnDeparture || 'Igual');
+    setFormActivities(log?.activities || []);
+    setFormObservations(log?.observations || '');
   };
 
   const handleSaveLog = (bookingId: string) => {
+    const booking = bookings.find(b => b.id === bookingId);
+    const sType = booking ? inferServiceType(booking) : 'clinical';
     saveCareLog(bookingId, {
-      serviceType: formServiceType,
-      bloodPressure: formBloodPressure,
-      heartRate: formHeartRate,
-      glucose: formGlucose,
-      temperature: formTemperature,
-      mood: formMood,
-      exercisesDone: formExercises,
-      mobilityLevel: formMobility,
-      painBefore: formPainBefore,
-      painAfter: formPainAfter,
-      activitiesDone: formActivities,
-      remarks: formRemarks
+      serviceType: sType,
+      arrivalTime: formArrivalTime,
+      departureTime: formDepartureTime,
+      patientConditionOnArrival: formConditionArrival,
+      patientConditionOnDeparture: formConditionDeparture,
+      activities: formActivities,
+      observations: formObservations
     });
     setEditingBookingId(null);
   };
@@ -156,32 +123,15 @@ export const BookingsManager: FC = () => {
     setAiReportContent('');
     setAiReportLoading(true);
 
-    const systemPrompt = log.serviceType === 'physio'
-      ? 'Eres un fisioterapeuta experto en El Salvador. Analiza la sesión de fisioterapia de un paciente adulto mayor y proporciona un informe corto, empático y profesional para sus familiares. Evalúa la tolerancia al ejercicio, evolución del dolor y movilidad.'
-      : log.serviceType === 'companion'
-        ? 'Eres un cuidador geriátrico experto en El Salvador. Analiza la jornada de acompañamiento de un paciente adulto mayor y proporciona un informe corto, empático y profesional para sus familiares. Evalúa el estado general, actividades realizadas y bienestar.'
-        : 'Eres un enfermero geriatra clínico experto en El Salvador. Analiza los signos vitales de un paciente adulto mayor y proporciona un informe corto, empático y profesional de la jornada para sus familiares. Explica si los valores están en rangos normales y da recomendaciones prácticas salvadoreñas de cuidado.';
+    const systemPrompt = 'Eres un enfermero geriatra experto en El Salvador. Analiza el reporte de visita de un paciente adulto mayor y proporciona un informe corto, empático y profesional para sus familiares. Evalúa el estado general, las actividades realizadas y el bienestar del paciente.';
 
-    const userContent = log.serviceType === 'physio'
-      ? `Analiza esta bitácora de fisioterapia del paciente ${patientName}:
-        - Ejercicios realizados: ${log.exercisesDone}
-        - Nivel de movilidad: ${log.mobilityLevel}
-        - Dolor antes (0-10): ${log.painBefore}
-        - Dolor después (0-10): ${log.painAfter}
-        - Estado de ánimo: ${log.mood}
-        - Comentarios: ${log.remarks}`
-      : log.serviceType === 'companion'
-        ? `Analiza esta bitácora de acompañamiento del paciente ${patientName}:
-        - Actividades realizadas: ${log.activitiesDone}
-        - Estado de ánimo: ${log.mood}
-        - Comentarios: ${log.remarks}`
-        : `Analiza esta bitácora del paciente ${patientName}:
-        - Presión Arterial: ${log.bloodPressure}
-        - Ritmo Cardíaco: ${log.heartRate}
-        - Glucemia (Glucosa): ${log.glucose}
-        - Temperatura: ${log.temperature}
-        - Estado de ánimo: ${log.mood}
-        - Comentarios del enfermero: ${log.remarks}`;
+    const userContent = `Analiza este reporte de visita del paciente ${patientName}:
+        - Hora de llegada: ${log.arrivalTime}
+        - Hora de salida: ${log.departureTime}
+        - Estado al llegar: ${log.patientConditionOnArrival}
+        - Estado al retirarse: ${log.patientConditionOnDeparture}
+        - Actividades realizadas: ${log.activities.join(', ')}
+        - Observaciones: ${log.observations}`;
 
     try {
       const content = await groqChat(
@@ -373,8 +323,6 @@ export const BookingsManager: FC = () => {
             const counterPartyAvatar = isNurseView
               ? (clientProfile?.avatar_url ?? 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?w=200')
               : (nurseProfile?.avatar_url ?? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=200');
-            const sType = careLogs[b.id]?.serviceType || inferServiceType(b);
-            const SIcon = SERVICE_ICONS[sType];
             const log = careLogs[b.id];
 
             return (
@@ -408,117 +356,92 @@ export const BookingsManager: FC = () => {
                   <p className="text-slate-500 mt-0.5 pl-4 truncate">{b.patient_condition}</p>
                 </div>
 
-                {/* Bitácora por tipo de servicio */}
+                {/* Reporte de visita */}
                 {(b.status === 'confirmed' || b.status === 'completed') && (
                   <div className="border-t border-slate-100 p-3 space-y-3">
-                    {/* Service type badge */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
-                        <SIcon className="h-4 w-4 text-indigo-600" />
-                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">{SERVICE_LABELS[sType]}</span>
+                        <FileText className="h-4 w-4 text-indigo-600" />
+                        <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">Reporte de Visita</span>
                       </div>
                     </div>
 
                     {editingBookingId === b.id ? (
-                      /* FORMULARIO EDICION */
+                      /* FORMULARIO REPORTE */
                       <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-3 text-xs">
-                        {/* Selector tipo servicio */}
-                        <div>
-                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Tipo de registro</label>
-                          <div className="flex gap-1.5">
-                            {(['clinical', 'physio', 'companion'] as ServiceLogType[]).map(t => {
-                              const Icon = SERVICE_ICONS[t];
-                              return (
-                                <button
-                                  key={t}
-                                  type="button"
-                                  onClick={() => setFormServiceType(t)}
-                                  className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-[10px] font-bold transition cursor-pointer ${
-                                    formServiceType === t ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 border border-slate-200'
-                                  }`}
-                                >
-                                  <Icon className="h-3 w-3" />
-                                  {SERVICE_LABELS[t]}
-                                </button>
-                              );
-                            })}
+                        {/* Horas */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hora de llegada</label>
+                            <input type="time" value={formArrivalTime} onChange={e => setFormArrivalTime(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hora de salida</label>
+                            <input type="time" value={formDepartureTime} onChange={e => setFormDepartureTime(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold" />
                           </div>
                         </div>
 
-                        {/* Campos según tipo */}
-                        {formServiceType === 'clinical' && (
-                          <div className="grid grid-cols-2 gap-2">
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">P. Arterial</label>
-                              <input type="text" value={formBloodPressure} onChange={e => setFormBloodPressure(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold" placeholder="120/80" />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">F. Cardíaca</label>
-                              <input type="text" value={formHeartRate} onChange={e => setFormHeartRate(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold" placeholder="75 lpm" />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Glucemia</label>
-                              <input type="text" value={formGlucose} onChange={e => setFormGlucose(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold" placeholder="100 mg/dL" />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Temp.</label>
-                              <input type="text" value={formTemperature} onChange={e => setFormTemperature(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold" placeholder="36.5°C" />
-                            </div>
+                        {/* Estado al llegar */}
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Estado del paciente al llegar</label>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {(['Bien', 'Regular', 'Deteriorado', 'Crítico'] as const).map(c => (
+                              <button
+                                key={c}
+                                type="button"
+                                onClick={() => setFormConditionArrival(c)}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+                                  formConditionArrival === c ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 border border-slate-200'
+                                }`}
+                              >
+                                {c}
+                              </button>
+                            ))}
                           </div>
-                        )}
+                        </div>
 
-                        {formServiceType === 'physio' && (
-                          <div className="space-y-2">
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ejercicios realizados</label>
-                              <input type="text" value={formExercises} onChange={e => setFormExercises(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold" placeholder="Rango articular, marcha..." />
-                            </div>
-                            <div>
-                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nivel de movilidad</label>
-                              <select value={formMobility} onChange={e => setFormMobility(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold cursor-pointer">
-                                <option value="">Seleccionar...</option>
-                                <option value="Independiente">Independiente</option>
-                                <option value="Con apoyo">Con apoyo</option>
-                                <option value="Asistido">Asistido</option>
-                                <option value="Encamado">Encamado</option>
-                              </select>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Dolor antes (0-10)</label>
-                                <input type="number" min="0" max="10" value={formPainBefore} onChange={e => setFormPainBefore(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold" placeholder="0" />
-                              </div>
-                              <div>
-                                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Dolor después (0-10)</label>
-                                <input type="number" min="0" max="10" value={formPainAfter} onChange={e => setFormPainAfter(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold" placeholder="0" />
-                              </div>
-                            </div>
+                        {/* Estado al retirarse */}
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Estado del paciente al retirarse</label>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {(['Mejoró', 'Igual', 'Empeoró'] as const).map(c => (
+                              <button
+                                key={c}
+                                type="button"
+                                onClick={() => setFormConditionDeparture(c)}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+                                  formConditionDeparture === c ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 border border-slate-200'
+                                }`}
+                              >
+                                {c}
+                              </button>
+                            ))}
                           </div>
-                        )}
+                        </div>
 
-                        {formServiceType === 'companion' && (
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Actividades realizadas</label>
-                            <textarea value={formActivities} onChange={e => setFormActivities(e.target.value)} rows={2} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold resize-none" placeholder="Acompañamiento, conversación, paseo..." />
+                        {/* Actividades */}
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Actividades realizadas</label>
+                          <div className="flex gap-1.5 flex-wrap">
+                            {['Higiene', 'Alimentación', 'Movilización', 'Medicación', 'Acompañamiento', 'Curación', 'Fisioterapia', 'Otro'].map(a => (
+                              <button
+                                key={a}
+                                type="button"
+                                onClick={() => setFormActivities(prev => prev.includes(a) ? prev.filter(x => x !== a) : [...prev, a])}
+                                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+                                  formActivities.includes(a) ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 border border-slate-200'
+                                }`}
+                              >
+                                {a}
+                              </button>
+                            ))}
                           </div>
-                        )}
+                        </div>
 
-                        {/* Comunes: ánimo + observaciones */}
-                        <div className="grid grid-cols-1 gap-2">
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Estado de ánimo</label>
-                            <select value={formMood} onChange={e => setFormMood(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold cursor-pointer">
-                              <option value="Alegre">Alegre / Estimulado</option>
-                              <option value="Tranquilo">Tranquilo / Relajado</option>
-                              <option value="Ansioso">Ansioso / Inquieto</option>
-                              <option value="Agitado">Agitado / Reactivo</option>
-                              <option value="Somnoliento">Somnoliento / Decaído</option>
-                            </select>
-                          </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Observaciones</label>
-                            <textarea value={formRemarks} onChange={e => setFormRemarks(e.target.value)} rows={2} className="w-full bg-white border border-slate-200 rounded-lg p-2 resize-none" placeholder="Notas de la jornada..." />
-                          </div>
+                        {/* Observaciones */}
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Observaciones</label>
+                          <textarea value={formObservations} onChange={e => setFormObservations(e.target.value)} rows={3} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold resize-none" placeholder="Notas de la visita..." />
                         </div>
 
                         <div className="flex gap-2 justify-end pt-1">
@@ -527,56 +450,12 @@ export const BookingsManager: FC = () => {
                         </div>
                       </div>
                     ) : log ? (
-                      /* MOSTRAR BITACORA REGISTRADA */
+                      /* MOSTRAR REPORTE NARRATIVO */
                       <div className="space-y-2">
-                        {log.serviceType === 'clinical' && (
-                          <div className="grid grid-cols-2 gap-2 text-center">
-                            <div className="bg-indigo-50/45 p-2 rounded-lg border border-indigo-100/30">
-                              <span className="text-[9px] uppercase font-bold text-slate-400 block">P. Arterial</span>
-                              <span className="text-xs font-black text-indigo-900">{log.bloodPressure}</span>
-                            </div>
-                            <div className="bg-indigo-50/45 p-2 rounded-lg border border-indigo-100/30">
-                              <span className="text-[9px] uppercase font-bold text-slate-400 block">F. Cardíaca</span>
-                              <span className="text-xs font-black text-indigo-900">{log.heartRate}</span>
-                            </div>
-                            <div className="bg-indigo-50/45 p-2 rounded-lg border border-indigo-100/30">
-                              <span className="text-[9px] uppercase font-bold text-slate-400 block">Glucemia</span>
-                              <span className="text-xs font-black text-indigo-900">{log.glucose}</span>
-                            </div>
-                            <div className="bg-indigo-50/45 p-2 rounded-lg border border-indigo-100/30">
-                              <span className="text-[9px] uppercase font-bold text-slate-400 block">Temp.</span>
-                              <span className="text-xs font-black text-indigo-900">{log.temperature}</span>
-                            </div>
-                          </div>
-                        )}
-
-                        {log.serviceType === 'physio' && (
-                          <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 space-y-1.5 text-[11px]">
-                            <div><span className="font-bold text-slate-500">Ejercicios:</span> <span className="text-slate-700">{log.exercisesDone || '—'}</span></div>
-                            <div><span className="font-bold text-slate-500">Movilidad:</span> <span className="text-slate-700">{log.mobilityLevel || '—'}</span></div>
-                            <div className="flex gap-4">
-                              <span><span className="font-bold text-slate-500">Dolor pre:</span> <span className="text-rose-600 font-bold">{log.painBefore || '—'}</span></span>
-                              <span><span className="font-bold text-slate-500">post:</span> <span className="text-emerald-600 font-bold">{log.painAfter || '—'}</span></span>
-                            </div>
-                          </div>
-                        )}
-
-                        {log.serviceType === 'companion' && (
-                          <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-[11px]">
-                            <div className="font-bold text-slate-500 mb-0.5">Actividades:</div>
-                            <p className="text-slate-700">{log.activitiesDone || '—'}</p>
-                          </div>
-                        )}
-
-                        {/* Común: ánimo + observaciones */}
-                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-2.5 text-[11px] space-y-1.5">
-                          <div className="flex items-center gap-1.5">
-                            <Smile className="h-3.5 w-3.5 text-indigo-500" />
-                            <span className="font-bold text-slate-500">Ánimo:</span>
-                            <span className="bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded text-[9px]">{log.mood}</span>
-                          </div>
-                          {log.remarks && (
-                            <p className="text-slate-600 leading-relaxed">{log.remarks}</p>
+                        <div className="bg-indigo-50/40 border border-indigo-100/40 rounded-xl p-3 text-[11px] text-slate-700 leading-relaxed">
+                          {`Llegué a las ${log.arrivalTime} y encontré a ${b.patient_name} en estado ${log.patientConditionOnArrival.toLowerCase()}. Durante el servicio realicé ${log.activities.length > 0 ? log.activities.map(a => a.toLowerCase()).join(', ') : 'atención general'}. Al retirarme a las ${log.departureTime}, ${b.patient_name} ${log.patientConditionOnDeparture.toLowerCase()}.`}
+                          {log.observations && (
+                            <p className="mt-2 text-slate-600 italic">{log.observations}</p>
                           )}
                         </div>
 
@@ -611,15 +490,15 @@ export const BookingsManager: FC = () => {
                         )}
                       </div>
                     ) : (
-                      /* SIN BITACORA */
+                      /* SIN REPORTE */
                       <div className="bg-slate-50 border border-dashed border-slate-200 rounded-xl p-3 text-center text-[11px] space-y-2">
-                        <p className="text-slate-500">No se ha registrado bitácora de {SERVICE_LABELS[sType].toLowerCase()}.</p>
+                        <p className="text-slate-500">No se ha registrado el reporte de visita.</p>
                         {isNurseView ? (
                           <button onClick={() => handleOpenLogForm(b.id)} className="text-[10px] font-bold text-white bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg inline-flex items-center gap-1 cursor-pointer">
-                            <PlusCircle className="h-3.5 w-3.5" />Registrar
+                            <PlusCircle className="h-3.5 w-3.5" />Registrar Reporte
                           </button>
                         ) : (
-                          <p className="text-[9px] text-slate-400">La enfermera registrará la bitácora durante la visita.</p>
+                          <p className="text-[9px] text-slate-400">La enfermera registrará el reporte durante la visita.</p>
                         )}
                       </div>
                     )}

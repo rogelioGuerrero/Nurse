@@ -609,6 +609,12 @@ export const NurseProfileEdit: FC = () => {
                     <strong>Sin trámites:</strong> Generamos automáticamente tus comprobantes FSE.
                   </p>
                 </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="text-[10px]">🏦</span>
+                  <p className="text-[10px] text-slate-600 leading-relaxed">
+                    <strong>Respaldo para microcréditos:</strong> Tu historial de ingresos facturados sirve como comprobante verificable ante cooperativas y entidades financieras.
+                  </p>
+                </div>
               </div>
             </div>
           )}
