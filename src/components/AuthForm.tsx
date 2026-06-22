@@ -1,5 +1,5 @@
 import { useState, type FC } from 'react';
-import { Stethoscope, User, Phone, Lock, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Stethoscope, User, Mail, Lock, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface AuthFormProps {
   mode: 'login' | 'register';
@@ -11,18 +11,18 @@ interface AuthFormProps {
 export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) => {
   
   const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [pin, setPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const validatePhone = (value: string): boolean => {
-    return /^\d{8}$/.test(value);
+  const validateEmail = (value: string): boolean => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
   };
 
-  const validatePin = (value: string): boolean => {
-    return /^\d{4}$/.test(value);
+  const validatePassword = (value: string): boolean => {
+    return value.length >= 6;
   };
 
   const handleRegister = () => {
@@ -33,25 +33,25 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
       return;
     }
 
-    if (!validatePhone(phone)) {
-      setError('Ingresa un número de teléfono válido (8 dígitos)');
+    if (!validateEmail(email)) {
+      setError('Ingresa un email válido');
       return;
     }
 
-    if (!validatePin(pin)) {
-      setError('El PIN debe ser de 4 dígitos');
+    if (!validatePassword(password)) {
+      setError('La contraseña debe tener al menos 6 caracteres');
       return;
     }
 
-    if (pin !== confirmPin) {
-      setError('Los PIN no coinciden');
+    if (password !== confirmPassword) {
+      setError('Las contraseñas no coinciden');
       return;
     }
 
-    // Check if phone already exists in localStorage
-    const existingUser = localStorage.getItem(`biencuidar_user_${phone}`);
+    // Check if email already exists in localStorage
+    const existingUser = localStorage.getItem(`biencuidar_user_${email}`);
     if (existingUser) {
-      setError('Este número de teléfono ya está registrado');
+      setError('Este email ya está registrado');
       return;
     }
 
@@ -62,19 +62,20 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
       const newProfile = {
         id: `p-${Date.now()}`,
         full_name: fullName,
-        phone: phone,
+        phone: '',
+        email: email,
         role: role === 'nurse' ? 'nurse' : 'user',
         location_name: '',
         created_at: new Date().toISOString()
       };
 
-      // Store user data with PIN
+      // Store user data with password (in production: hash this!)
       const userData = {
         ...newProfile,
-        pin: pin // In production: hash this!
+        password: password
       };
 
-      localStorage.setItem(`biencuidar_user_${phone}`, JSON.stringify(userData));
+      localStorage.setItem(`biencuidar_user_${email}`, JSON.stringify(userData));
       
       // Set current user
       localStorage.setItem('biencuidar_current_user', JSON.stringify(newProfile));
@@ -90,13 +91,13 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
   const handleLogin = () => {
     setError('');
     
-    if (!validatePhone(phone)) {
-      setError('Ingresa un número de teléfono válido (8 dígitos)');
+    if (!validateEmail(email)) {
+      setError('Ingresa un email válido');
       return;
     }
 
-    if (!validatePin(pin)) {
-      setError('Ingresa tu PIN de 4 dígitos');
+    if (!validatePassword(password)) {
+      setError('Ingresa tu contraseña');
       return;
     }
 
@@ -104,16 +105,16 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
 
     try {
       // Check stored user data
-      const userData = localStorage.getItem(`biencuidar_user_${phone}`);
+      const userData = localStorage.getItem(`biencuidar_user_${email}`);
       if (!userData) {
-        setError('Número de teléfono no registrado');
+        setError('Email no registrado');
         setLoading(false);
         return;
       }
 
       const parsedUser = JSON.parse(userData);
-      if (parsedUser.pin !== pin) {
-        setError('PIN incorrecto');
+      if (parsedUser.password !== password) {
+        setError('Contraseña incorrecta');
         setLoading(false);
         return;
       }
@@ -130,7 +131,8 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
       const userProfile = {
         id: parsedUser.id || `p-${Date.now()}`,
         full_name: parsedUser.full_name,
-        phone: parsedUser.phone,
+        phone: parsedUser.phone || '',
+        email: parsedUser.email,
         role: parsedUser.role,
         location_name: parsedUser.location_name || '',
         created_at: parsedUser.created_at
@@ -211,18 +213,17 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
 
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-              Número de Teléfono
+              Correo Electrónico
             </label>
             <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
               <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
-                <Phone className="h-4 w-4" />
+                <Mail className="h-4 w-4" />
               </div>
               <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                placeholder="79293710"
-                maxLength={8}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="maria@gmail.com"
                 className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
               />
             </div>
@@ -230,7 +231,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
 
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-              PIN de Acceso (4 dígitos)
+              Contraseña
             </label>
             <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
               <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
@@ -238,10 +239,10 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
               </div>
               <input
                 type="password"
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                placeholder="••••"
-                maxLength={4}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••"
+                minLength={6}
                 className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
               />
             </div>
@@ -250,7 +251,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
           {mode === 'register' && (
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-                Confirmar PIN
+                Confirmar Contraseña
               </label>
               <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
                 <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
@@ -258,10 +259,10 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
                 </div>
                 <input
                   type="password"
-                  value={confirmPin}
-                  onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-                  placeholder="••••"
-                  maxLength={4}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••"
+                  minLength={6}
                   className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
                 />
               </div>
