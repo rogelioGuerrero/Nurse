@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { calculateNurseNet } from '../data/standardRates';
 import type { CareRequest, Nurse, Profile, CareOffer } from '../types';
 import { SHIFTS, type ShiftType } from '../types';
-import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User, Sun, Sunset, Moon } from 'lucide-react';
+import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User, Sun, Sunset, Moon, FileText } from 'lucide-react';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -208,6 +208,19 @@ export const NurseInbox: FC = () => {
                     {req.notes && (
                       <p className="text-xs text-slate-500 italic pl-5">Nota: {req.notes}</p>
                     )}
+                    {/* Invoice preference badge */}
+                    <div className="pt-1">
+                      {req.wants_invoice ? (
+                        <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-full border border-indigo-100">
+                          <FileText className="h-3 w-3" />
+                          Con factura (FSEE) — ajusta tu tarifa considerando retención ISR 10%
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded-full border border-emerald-100">
+                          Pago directo sin factura
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -219,7 +232,7 @@ export const NurseInbox: FC = () => {
                     const dateConflict = isDateBooked(slot.date) && !responded;
                     const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.morning;
                     const nurseRate = myNurse.shift_rate || 25;
-                    const wantsInvoicing = true; // FSE automatico
+                    const wantsInvoicing = req.wants_invoice;
                     const payout = calculateNurseNet(nurseRate, wantsInvoicing);
 
                     const SHIFT_ICON: Record<ShiftType, typeof Sun> = { morning: Sun, afternoon: Sunset, night: Moon };

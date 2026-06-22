@@ -2,7 +2,7 @@ import { useState, useEffect, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { getAllSpecializations } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
-import { MapPin, Calendar, Trash2, Stethoscope, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Sunset, Moon, Clock, X } from 'lucide-react';
+import { MapPin, Calendar, Trash2, Stethoscope, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Sunset, Moon, Clock, X, FileText } from 'lucide-react';
 import { AuthForm } from './AuthForm';
 
 interface DaySelection {
@@ -49,6 +49,7 @@ export const CareRequestForm: FC = () => {
   const [locating, setLocating] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [published, setPublished] = useState(false);
+  const [wantsInvoice, setWantsInvoice] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
 
   // Restore form data from localStorage if available
@@ -193,6 +194,7 @@ export const CareRequestForm: FC = () => {
       lat: gpsCoords?.lat,
       lng: gpsCoords?.lng,
       notes: notes.trim() || undefined,
+      wants_invoice: wantsInvoice,
     });
     setPublished(true);
   };
@@ -550,6 +552,47 @@ export const CareRequestForm: FC = () => {
               </div>
               <p className="text-[10px] text-slate-400 mt-1">Te avisaremos por notificación y WhatsApp cuando haya novedades.</p>
             </div>
+          </div>
+
+          {/* Invoice preference */}
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-indigo-600 shrink-0" />
+              <p className="text-xs font-bold text-slate-700">¿Necesitas factura electrónica?</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setWantsInvoice(false)}
+                className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  !wantsInvoice
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                Sin factura
+              </button>
+              <button
+                type="button"
+                onClick={() => setWantsInvoice(true)}
+                className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  wantsInvoice
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                Con factura (FSEE)
+              </button>
+            </div>
+            {wantsInvoice ? (
+              <p className="text-[10px] text-indigo-600 leading-relaxed">
+                Se emitirá una Factura de Sujeto Excluido válida ante Hacienda. Beneficios: deducible de ISR, reembolso de seguro, respaldo legal. Tarifa de gestión fiscal y administrativa US$ 5.
+              </p>
+            ) : (
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                Pago directo a la enfermera sin comprobante fiscal. Más económico, sin costos administrativos.
+              </p>
+            )}
           </div>
 
           <div className="flex gap-3">

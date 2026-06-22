@@ -183,6 +183,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       if (bookingsData && bookingsData.length > 0) setBookings(bookingsData);
       if (requestsData) setCareRequests(requestsData.map((r: any) => ({
         ...r,
+        wants_invoice: r.wants_invoice ?? false,
         slots: typeof r.slots === 'string' ? JSON.parse(r.slots) : r.slots || []
       })));
       if (offersData) setCareOffers(offersData.map((o: any) => ({
@@ -323,6 +324,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       lat: data.lat,
       lng: data.lng,
       notes: data.notes || null,
+      wants_invoice: data.wants_invoice,
       status: 'open',
       response_deadline: newRequest.response_deadline,
       created_at: now

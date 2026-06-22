@@ -2,7 +2,7 @@ import { useMemo, useState, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { calculateNurseNet } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
-import { CheckCircle2, XCircle, Star, MapPin, User, Calendar, Clock as ClockIcon, Dumbbell, Users, Heart, MessageCircle, X, BadgeCheck, GraduationCap, Briefcase, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, XCircle, Star, MapPin, User, Calendar, Clock as ClockIcon, Dumbbell, Users, Heart, MessageCircle, X, BadgeCheck, GraduationCap, Briefcase, ShieldAlert, FileText } from 'lucide-react';
 import { CSSPVerificationBadge } from './CSSPVerificationBadge';
 import { LegalDisclaimer } from './LegalDisclaimer';
 
@@ -20,7 +20,6 @@ export const OffersReview: FC = () => {
   const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
   const [confirmingOfferId, setConfirmingOfferId] = useState<string | null>(null);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [wantsInvoice, setWantsInvoice] = useState(false);
 
   const profileMap = useMemo(() => new Map(profiles.map(p => [p.id, p])), [profiles]);
 
@@ -128,6 +127,20 @@ export const OffersReview: FC = () => {
               <span className="text-slate-400">({shiftInfo.start}-{shiftInfo.end})</span>
             </div>
 
+            {/* Invoice preference badge */}
+            <div className="flex items-center gap-1.5">
+              {request.wants_invoice ? (
+                <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-full border border-indigo-100">
+                  <FileText className="h-3 w-3" />
+                  Con factura (FSEE)
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded-full border border-emerald-100">
+                  Pago directo sin factura
+                </span>
+              )}
+            </div>
+
             {/* Message from nurse */}
             {offer.message && (
               <div className="bg-slate-50 rounded-xl p-3">
@@ -156,7 +169,6 @@ export const OffersReview: FC = () => {
                 onClick={() => {
                   setConfirmingOfferId(offer.id);
                   setAgreedToTerms(false);
-                  setWantsInvoice(false);
                 }}
                 className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
               >
@@ -222,41 +234,19 @@ export const OffersReview: FC = () => {
                 <LegalDisclaimer variant="direct-payment" />
               </div>
 
-              {/* Invoice option */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
-                <p className="text-xs font-bold text-slate-700">¿Necesitas factura electrónica?</p>
-                <label className="flex items-center gap-2.5 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="invoice-option"
-                    checked={!wantsInvoice}
-                    onChange={() => setWantsInvoice(false)}
-                    className="accent-indigo-600 h-4 w-4 cursor-pointer"
-                  />
-                  <span className="text-xs text-slate-600">No, pago directo sin factura</span>
-                </label>
-                <label className="flex items-center gap-2.5 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="invoice-option"
-                    checked={wantsInvoice}
-                    onChange={() => setWantsInvoice(true)}
-                    className="accent-indigo-600 h-4 w-4 cursor-pointer"
-                  />
-                  <span className="text-xs text-slate-600">
-                    Sí, necesito factura (FSEE) — <span className="font-bold">Tarifa de gestión fiscal y administrativa US$ 5</span>
-                  </span>
-                </label>
-                {wantsInvoice && (
-                  <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-2.5 space-y-1 mt-1">
-                    <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-wide">Beneficios de tu factura:</p>
-                    <ul className="text-[10px] text-indigo-600 leading-relaxed space-y-0.5 pl-3 list-disc">
-                      <li>Deducible de ISR en tu declaración de renta</li>
-                      <li>Reembolso de seguro médico o gastos empresariales</li>
-                      <li>Comprobante legal verificable del servicio pagado</li>
-                    </ul>
-                  </div>
-                )}
+              {/* Invoice info based on request preference */}
+              <div className={`rounded-xl p-3 flex items-start gap-2.5 ${request.wants_invoice ? 'bg-indigo-50 border border-indigo-100' : 'bg-emerald-50 border border-emerald-100'}`}>
+                <FileText className={`h-4 w-4 shrink-0 mt-0.5 ${request.wants_invoice ? 'text-indigo-600' : 'text-emerald-600'}`} />
+                <div>
+                  <p className={`text-xs font-bold ${request.wants_invoice ? 'text-indigo-800' : 'text-emerald-800'}`}>
+                    {request.wants_invoice ? 'Con factura electrónica (FSEE)' : 'Pago directo sin factura'}
+                  </p>
+                  <p className={`text-[10px] leading-relaxed mt-0.5 ${request.wants_invoice ? 'text-indigo-600' : 'text-emerald-600'}`}>
+                    {request.wants_invoice
+                      ? 'Se emitirá factura válida ante Hacienda. Tarifa de gestión fiscal y administrativa US$ 5.'
+                      : 'El pago se realiza directamente a la enfermera, sin comprobante fiscal ni costos administrativos.'}
+                  </p>
+                </div>
               </div>
 
               {/* Checkbox de aceptación */}

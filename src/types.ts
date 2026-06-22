@@ -134,6 +134,7 @@ export interface CareRequest {
   lat?: number;
   lng?: number;
   notes?: string;
+  wants_invoice: boolean;
   status: CareRequestStatus;
   response_deadline: string; // ISO datetime when the response window closes
   created_at: string;
