@@ -329,7 +329,7 @@ function MarketplaceApp() {
           <>
             {authMode === 'landing' ? (
               <LandingPage
-                onFamily={() => { setAuthRole('family'); setAuthMode('register'); }}
+                onFamily={() => { setActiveTab('care-request'); setAuthMode('landing'); }}
                 onNurse={() => { setAuthRole('nurse'); setAuthMode('register'); }}
               />
             ) : (

@@ -2,7 +2,8 @@ import { useState, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { getAllSpecializations } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
-import { MapPin, Calendar, Trash2, Stethoscope, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Sunset, Moon, Clock } from 'lucide-react';
+import { MapPin, Calendar, Trash2, Stethoscope, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Sunset, Moon, Clock, X } from 'lucide-react';
+import { AuthForm } from './AuthForm';
 
 interface DaySelection {
   date: string;
@@ -29,7 +30,7 @@ const STEPS = [
 ];
 
 export const CareRequestForm: FC = () => {
-  const { createCareRequest } = useApp();
+  const { createCareRequest, currentUser } = useApp();
   const specializations = getAllSpecializations();
 
   const [step, setStep] = useState(1);
@@ -47,6 +48,7 @@ export const CareRequestForm: FC = () => {
   const [phone, setPhone] = useState('');
   const [locating, setLocating] = useState(false);
   const [published, setPublished] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
 
   const toggleConditionTag = (tag: string) => {
     setConditionTags(prev =>
@@ -137,6 +139,13 @@ export const CareRequestForm: FC = () => {
 
   const handleSubmit = () => {
     if (!canSubmit) return;
+    
+    // Check if user is logged in
+    if (!currentUser) {
+      setShowRegisterModal(true);
+      return;
+    }
+    
     const condition = [...conditionTags, conditionExtra.trim()].filter(Boolean).join('; ');
     const finalSpec = otherSpecialization.trim() || specializationNeeded || 'Geriatría';
     createCareRequest({
@@ -521,6 +530,34 @@ export const CareRequestForm: FC = () => {
               <Send className="h-5 w-5" />
               Enviar solicitud
             </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Registration Modal */}
+      {showRegisterModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-800">Regístrate para enviar solicitud</h2>
+              <button
+                onClick={() => setShowRegisterModal(false)}
+                className="p-1 hover:bg-slate-100 rounded-lg cursor-pointer"
+              >
+                <X className="h-5 w-5 text-slate-500" />
+              </button>
+            </div>
+            <div className="p-4">
+              <AuthForm
+                mode="register"
+                role="family"
+                onBack={() => setShowRegisterModal(false)}
+                onSuccess={() => {
+                  setShowRegisterModal(false);
+                  window.location.reload();
+                }}
+              />
+            </div>
           </div>
         </div>
       )}
