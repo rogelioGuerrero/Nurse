@@ -1,5 +1,6 @@
-import { type FC } from 'react';
+import { type FC, useState } from 'react';
 import { Stethoscope, Search, ShieldCheck } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 interface LandingPageProps {
   onFamily: () => void;
@@ -7,6 +8,52 @@ interface LandingPageProps {
 }
 
 export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse }) => {
+  const [demoLoading, setDemoLoading] = useState(false);
+
+  const handleDemoLogin = async (role: 'family' | 'nurse') => {
+    setDemoLoading(true);
+    
+    const email = role === 'family' ? 'familia@biencudar.com' : 'enfermera@biencudar.com';
+    const password = 'demo123';
+    const fullName = role === 'family' ? 'María García (Demo)' : 'Ana Martínez (Demo)';
+
+    try {
+      // Try to sign up (will fail if user exists)
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            role: role === 'nurse' ? 'nurse' : 'user'
+          }
+        }
+      });
+
+      // If user already exists, just log in
+      if (signUpError && !signUpError.message.includes('already registered')) {
+        console.error('Demo signup error:', signUpError);
+      }
+
+      // Log in
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (signInError) {
+        console.error('Demo login error:', signInError);
+        setDemoLoading(false);
+        return;
+      }
+
+      // Reload to trigger AppContext to load user
+      window.location.reload();
+    } catch (err) {
+      console.error('Demo login error:', err);
+      setDemoLoading(false);
+    }
+  };
   return (
     <div className="min-h-[100vh] flex flex-col items-center justify-center px-6 py-10 bg-gradient-to-b from-slate-50 to-slate-100">
       <div className="w-full max-w-sm space-y-8">
@@ -50,6 +97,15 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse }) => {
             Enfermera registro/ingreso
           </button>
         </div>
+
+        {/* Demo Button */}
+        <button
+          onClick={() => handleDemoLogin('family')}
+          disabled={demoLoading}
+          className="w-full bg-slate-200 hover:bg-slate-300 disabled:bg-slate-200 disabled:cursor-not-allowed text-slate-600 font-bold py-3 rounded-xl transition text-xs cursor-pointer"
+        >
+          {demoLoading ? 'Cargando...' : 'Entrar como Familia Demo'}
+        </button>
 
         {/* Trust badge */}
         <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400">
