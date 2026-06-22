@@ -30,6 +30,7 @@ const ClinicalAI = lazy(() => import('./components/ClinicalAI'));
 const CareRequestForm = lazy(() => import('./components/CareRequestForm').then(m => ({ default: m.CareRequestForm })));
 const NurseInbox = lazy(() => import('./components/NurseInbox').then(m => ({ default: m.NurseInbox })));
 const PlanReview = lazy(() => import('./components/PlanReview').then(m => ({ default: m.PlanReview })));
+const OffersReview = lazy(() => import('./components/OffersReview').then(m => ({ default: m.OffersReview })));
 import { LandingPage } from './components/LandingPage';
 
 function MarketplaceApp() {
@@ -40,7 +41,9 @@ function MarketplaceApp() {
     activeTab, 
     setActiveTab,
     selectedNurseId,
-    setSelectedNurseId
+    setSelectedNurseId,
+    careRequests,
+    careOffers
   } = useApp();
 
   // Search and general filtering states
@@ -50,6 +53,17 @@ function MarketplaceApp() {
   const [maxRate, setMaxRate] = useState<number>(40);
   const [sortBy, setSortBy] = useState<string>('distance');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Calcular ofertas pendientes para badge
+  const pendingOffersCount = useMemo(() => {
+    if (!currentUser || currentUser.role === 'nurse') return 0;
+    const myRequestIds = careRequests
+      .filter(r => r.user_id === currentUser.id && r.status === 'open')
+      .map(r => r.id);
+    return careOffers.filter(o => 
+      myRequestIds.includes(o.request_id) && o.status === 'pending'
+    ).length;
+  }, [careRequests, careOffers, currentUser]);
 
   // Si no hay usuario, mostrar landing page
   useEffect(() => {
@@ -191,6 +205,24 @@ function MarketplaceApp() {
                 >
                   <ClipboardList className="h-4 w-4" />
                   <span>Mis Solicitudes</span>
+                </button>
+
+                <button
+                  onClick={() => { setSelectedNurseId(null); setActiveTab('offers-review'); setMobileMenuOpen(false); }}
+                  className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer relative ${
+                    activeTab === 'offers-review'
+                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                  id="tab-btn-offers-review"
+                >
+                  <Inbox className="h-4 w-4" />
+                  <span>Ofertas Recibidas</span>
+                  {pendingOffersCount > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                      {pendingOffersCount}
+                    </span>
+                  )}
                 </button>
 
                 <button
@@ -484,6 +516,14 @@ function MarketplaceApp() {
           <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner />}>
               <PlanReview />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+
+        {activeTab === 'offers-review' && (
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingSpinner />}>
+              <OffersReview />
             </Suspense>
           </ErrorBoundary>
         )}
