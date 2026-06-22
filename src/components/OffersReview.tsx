@@ -243,7 +243,7 @@ export const OffersReview: FC = () => {
                   </p>
                   <p className={`text-[10px] leading-relaxed ${request.wants_invoice ? 'text-indigo-600' : 'text-emerald-600'}`}>
                     {request.wants_invoice
-                      ? 'Transfiere a la cuenta de BienCuidar. Se retiene ISR 10%, se emite FSEE válida ante Hacienda y se transfiere el neto a la enfermera. Tarifa de gestión US$ 5.'
+                      ? 'Transfiere a la cuenta de BienCuidar. Se retiene ISR 10%, se emite Factura a tu nombre y FSEE a la enfermera. Tarifa de gestión US$ 5.'
                       : 'Paga directamente a la enfermera (efectivo, transferencia o como acuerden). Sin comprobante fiscal ni costos administrativos.'}
                   </p>
                 </div>

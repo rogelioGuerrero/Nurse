@@ -586,7 +586,7 @@ export const CareRequestForm: FC = () => {
             </div>
             {wantsInvoice ? (
               <p className="text-[10px] text-indigo-600 leading-relaxed">
-                Se emitirá una Factura de Sujeto Excluido válida ante Hacienda. Beneficios: deducible de ISR, reembolso de seguro, respaldo legal. Tarifa de gestión fiscal y administrativa US$ 5.
+                BienCuidar emite Factura de Consumidor Final a tu nombre (servicio de salud, 0% IVA) y FSEE a la enfermera. Se retiene ISR 10% y se transfiere el neto. Pago por transferencia a cuenta de BienCuidar. Tarifa de gestión US$ 5.
               </p>
             ) : (
               <p className="text-[10px] text-slate-500 leading-relaxed">

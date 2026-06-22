@@ -212,7 +212,7 @@ export const AdminPanel: FC = () => {
                 <FileText className="h-4 w-4" />
                 Facturas familiares (FSEE) ({bookings.filter(b => b.wants_invoice && b.status === 'completed').length})
               </h3>
-              <p className="text-[10px] text-slate-500 mt-0.5">Servicios con factura. BienCuidar retiene ISR 10% y emite FSEE. Cobro: US$ 5.65 (gestión + IVA).</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">BienCuidar retiene ISR 10%, emite Factura a la familia y FSEE a la enfermera. Comisión: US$ 5.65 (gestión + IVA).</p>
             </div>
             {bookings.filter(b => b.wants_invoice && b.status === 'completed').length === 0 ? (
               <div className="p-6 text-center text-xs text-slate-400">Sin servicios con factura.</div>
