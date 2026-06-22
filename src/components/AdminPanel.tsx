@@ -210,7 +210,7 @@ export const AdminPanel: FC = () => {
             <div className="px-4 py-3 bg-indigo-50 border-b border-indigo-100">
               <h3 className="text-xs font-bold text-indigo-800 uppercase tracking-wide flex items-center gap-1.5">
                 <FileText className="h-4 w-4" />
-                Facturas familiares (FSEE) ({bookings.filter(b => b.wants_invoice && b.status === 'completed').length})
+                Facturas familiares ({bookings.filter(b => b.wants_invoice && b.status === 'completed').length})
               </h3>
               <p className="text-[10px] text-slate-500 mt-0.5">BienCuidar retiene ISR 10%, emite Factura a la familia y FSEE a la enfermera. Comisión: US$ 5.65 (gestión + IVA).</p>
             </div>
@@ -243,7 +243,7 @@ export const AdminPanel: FC = () => {
                         className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-2 rounded-lg cursor-pointer"
                       >
                         <FileText className="h-3.5 w-3.5" />
-                        Emitir FSEE
+                        Emitir factura
                       </button>
                     </div>
                   );

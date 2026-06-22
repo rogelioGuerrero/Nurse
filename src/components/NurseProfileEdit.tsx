@@ -625,7 +625,7 @@ export const NurseProfileEdit: FC = () => {
                 <div className="flex items-start gap-1.5">
                   <span className="text-[10px]">📋</span>
                   <p className="text-[10px] text-slate-600 leading-relaxed">
-                    <strong>Con factura (FSEE):</strong> La familia transfiere a BienCuidar, quien retiene el 10% ISR y te transfiere el neto. BienCuidar emite la FSEE que sirve como tu comprobante de ingreso ante Hacienda, cooperativas o trámites de visa.
+                    <strong>Con factura:</strong> La familia transfiere a BienCuidar, quien retiene el 10% ISR y te transfiere el neto. Se emite Factura a la familia y FSEE a ti como comprobante de ingreso ante Hacienda, cooperativas o trámites de visa.
                   </p>
                 </div>
                 <div className="flex items-start gap-1.5">

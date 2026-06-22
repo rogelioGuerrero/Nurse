@@ -96,7 +96,7 @@ export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyN
               </div>
 
               <p className="text-[10px] text-indigo-600 leading-relaxed pl-6">
-                BienCuidar retiene el ISR, entera a Hacienda y emite la FSEE. Transfiere el total (${(totalPrice + managementFee).toFixed(2)}) a la cuenta arriba.
+                BienCuidar retiene el ISR, entera a Hacienda y emite la factura. Transfiere el total (${(totalPrice + managementFee).toFixed(2)}) a la cuenta arriba.
               </p>
             </div>
           ) : (
@@ -139,9 +139,9 @@ export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyN
             <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-start gap-2.5">
               <FileText className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs font-bold text-indigo-800">¿Necesitas factura electrónica?</p>
+                <p className="text-xs font-bold text-indigo-800">¿Necesitas factura?</p>
                 <p className="text-[10px] text-indigo-600 leading-relaxed mt-0.5">
-                  Si después necesitas FSEE, puedes solicitarla. Tarifa de gestión fiscal y administrativa US$ 5.
+                  Si después necesitas factura, puedes solicitarla. Tarifa de gestión fiscal y administrativa US$ 5 más IVA.
                 </p>
               </div>
             </div>

@@ -132,7 +132,7 @@ export const OffersReview: FC = () => {
               {request.wants_invoice ? (
                 <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-full border border-indigo-100">
                   <FileText className="h-3 w-3" />
-                  Con factura (FSEE)
+                  Con factura
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-1 rounded-full border border-emerald-100">
@@ -239,11 +239,11 @@ export const OffersReview: FC = () => {
                 <FileText className={`h-4 w-4 shrink-0 mt-0.5 ${request.wants_invoice ? 'text-indigo-600' : 'text-emerald-600'}`} />
                 <div className="space-y-1">
                   <p className={`text-xs font-bold ${request.wants_invoice ? 'text-indigo-800' : 'text-emerald-800'}`}>
-                    {request.wants_invoice ? 'Con factura electrónica (FSEE)' : 'Pago directo sin factura'}
+                    {request.wants_invoice ? 'Con factura electrónica' : 'Pago directo sin factura'}
                   </p>
                   <p className={`text-[10px] leading-relaxed ${request.wants_invoice ? 'text-indigo-600' : 'text-emerald-600'}`}>
                     {request.wants_invoice
-                      ? 'Transfiere a la cuenta de BienCuidar. Se retiene ISR 10%, se emite Factura a tu nombre y FSEE a la enfermera. Tarifa de gestión US$ 5.'
+                      ? 'Factura de Consumidor Final emitida a tu nombre. Pago por transferencia a cuenta de BienCuidar. Tarifa de gestión US$ 5 más IVA.'
                       : 'Paga directamente a la enfermera (efectivo, transferencia o como acuerden). Sin comprobante fiscal ni costos administrativos.'}
                   </p>
                 </div>
