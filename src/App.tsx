@@ -32,6 +32,7 @@ const NurseInbox = lazy(() => import('./components/NurseInbox').then(m => ({ def
 const PlanReview = lazy(() => import('./components/PlanReview').then(m => ({ default: m.PlanReview })));
 const OffersReview = lazy(() => import('./components/OffersReview').then(m => ({ default: m.OffersReview })));
 const CSSPReviewPanel = lazy(() => import('./components/CSSPReviewPanel').then(m => ({ default: m.CSSPReviewPanel })));
+const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
 import { LandingPage } from './components/LandingPage';
 import { AuthForm } from './components/AuthForm';
 
@@ -337,21 +338,33 @@ function MarketplaceApp() {
       {/* Admin Bar - solo para admin */}
       {currentUser?.role === 'admin' && activeTab !== 'landing' && (
         <div className="bg-indigo-900 text-white text-xs py-2 px-4">
-          <div className="max-w-2xl mx-auto flex items-center justify-between">
-            <span className="font-bold flex items-center gap-1.5">
+          <div className="max-w-2xl mx-auto flex items-center justify-between gap-2">
+            <span className="font-bold flex items-center gap-1.5 shrink-0">
               <ShieldCheck className="h-3.5 w-3.5" />
               Panel de Administración
             </span>
-            <button
-              onClick={() => { setActiveTab('cssp-review'); setMobileMenuOpen(false); }}
-              className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
-                activeTab === 'cssp-review'
-                  ? 'bg-white text-indigo-900'
-                  : 'bg-indigo-800 hover:bg-indigo-700 text-white'
-              }`}
-            >
-              Revisión CSSP
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => { setActiveTab('admin-panel'); setMobileMenuOpen(false); }}
+                className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+                  activeTab === 'admin-panel'
+                    ? 'bg-white text-indigo-900'
+                    : 'bg-indigo-800 hover:bg-indigo-700 text-white'
+                }`}
+              >
+                Notificaciones
+              </button>
+              <button
+                onClick={() => { setActiveTab('cssp-review'); setMobileMenuOpen(false); }}
+                className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+                  activeTab === 'cssp-review'
+                    ? 'bg-white text-indigo-900'
+                    : 'bg-indigo-800 hover:bg-indigo-700 text-white'
+                }`}
+              >
+                Revisión CSSP
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -624,6 +637,14 @@ function MarketplaceApp() {
           <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner />}>
               <CSSPReviewPanel />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+
+        {activeTab === 'admin-panel' && (
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingSpinner />}>
+              <AdminPanel />
             </Suspense>
           </ErrorBoundary>
         )}

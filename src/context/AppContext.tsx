@@ -8,6 +8,7 @@ import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, Care
 import { INITIAL_PROFILES, INITIAL_NURSES } from '../data/nurses';
 import { supabase } from '../lib/supabase';
 import { getResponseDeadline } from '../data/platformSettings';
+import { requestNotificationPermission, notifyNewOffer, notifyOfferAccepted, notifyCheckIn, notifyCheckOut } from '../lib/notifications';
 
 // Safe localStorage parser - prevents crash on corrupted data
 function safeParse<T>(key: string, fallback: T): T {
@@ -130,6 +131,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         if (profile) {
           setCurrentUser(profile);
           setActiveTab(profile.role === 'nurse' ? 'nurse-inbox' : 'care-request');
+          requestNotificationPermission();
         }
       }
     };
@@ -255,6 +257,13 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       created_at: new Date().toISOString()
     };
     setCareOffers(prev => [newOffer, ...prev]);
+    // Notify family (if they're not the current user)
+    const request = careRequests.find(r => r.id === data.request_id);
+    if (request && currentUser?.id !== request.user_id) {
+      const nurse = nurses.find(n => n.id === data.nurse_id);
+      const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
+      notifyNewOffer(nurseProfile?.full_name || 'Una enfermera', request.patient_name);
+    }
     return newOffer;
   }, []);
 
@@ -398,6 +407,12 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         lat: request.lat,
         lng: request.lng,
       });
+
+      // Notify nurse (if they're not the current user)
+      const nurse = nurses.find(n => n.id === offer.nurse_id);
+      if (nurse && currentUser?.id !== nurse.user_id) {
+        notifyOfferAccepted(request.patient_name);
+      }
     }
   }, [careOffers, careRequests, createBooking]);
 
@@ -433,6 +448,15 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         .eq('id', bookingId);
 
       if (error) throw error;
+      // Notify family
+      const booking = bookings.find(b => b.id === bookingId);
+      if (booking) {
+        const nurse = nurses.find(n => n.id === booking.nurse_id);
+        const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
+        if (currentUser?.id !== booking.user_id) {
+          notifyCheckIn(nurseProfile?.full_name || 'La enfermera');
+        }
+      }
     } catch {
       setBookings(prevBookings);
       console.warn('Check-in failed, rolled back.');
@@ -452,6 +476,15 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         .eq('id', bookingId);
 
       if (error) throw error;
+      // Notify family
+      const booking = bookings.find(b => b.id === bookingId);
+      if (booking) {
+        const nurse = nurses.find(n => n.id === booking.nurse_id);
+        const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
+        if (currentUser?.id !== booking.user_id) {
+          notifyCheckOut(nurseProfile?.full_name || 'La enfermera');
+        }
+      }
     } catch {
       setBookings(prevBookings);
       console.warn('Check-out failed, rolled back.');
