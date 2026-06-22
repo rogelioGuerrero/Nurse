@@ -54,7 +54,7 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse }) => {
         {/* Trust badge */}
         <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-          <span>Profesionales verificadas ante el Ministerio de Salud</span>
+          <span>Profesionales registradas ante el Ministerio de Salud</span>
         </div>
 
       </div>
