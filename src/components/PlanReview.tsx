@@ -2,7 +2,7 @@ import { useState, useMemo, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { calculateFamilyPrice } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
-import { CheckCircle2, XCircle, Clock, MapPin, Calendar, Star, User, Phone, Heart, Send, ChevronLeft, Share2, Sun, Sunset, Moon, FileText } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, MapPin, Calendar, Star, User, Phone, Heart, Send, ChevronLeft, Sun, Sunset, Moon, FileText } from 'lucide-react';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -249,7 +249,7 @@ export const PlanReview: FC = () => {
                               <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
                               {detail.nurse.rating}
                             </span>
-                            <span className="font-bold text-emerald-700">${detail.price.toFixed(0)}</span>
+                            <span className="font-bold text-emerald-700">${detail.price.toFixed(2)}</span>
                           </div>
                         </div>
                       </div>
@@ -320,24 +320,6 @@ export const PlanReview: FC = () => {
             </button>
           </div>
 
-          {/* WhatsApp share button */}
-          <a
-            href={`https://wa.me/?text=${encodeURIComponent(
-              `Hola, te comparto el plan de atención de BienCuidar:\n\n` +
-              `📍 Ubicación: ${myRequest.location_name}\n` +
-              `🩺 Condiciones: ${myRequest.patient_condition}\n` +
-              `📅 Fechas: ${slotDetails.length} día(s)\n` +
-              `📅 Turnos: ${totalShifts}\n` +
-              `💰 Total: $${totalPrice.toFixed(2)}\n\n` +
-              `Revisa el plan completo aquí: ${window.location.origin}/#/plan`
-            )}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer text-sm mt-2"
-          >
-            <Share2 className="h-4 w-4" />
-            Compartir plan por WhatsApp
-          </a>
         </>
       )}
     </div>
