@@ -1,5 +1,6 @@
-import { useState, type FC } from 'react';
+import { useState, useEffect, type FC } from 'react';
 import { Stethoscope, User, Mail, Lock, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import type { Nurse } from '../types';
 
 interface AuthFormProps {
   mode: 'login' | 'register';
@@ -82,6 +83,31 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
       };
 
       localStorage.setItem(`biencuidar_user_${email}`, JSON.stringify(userData));
+      
+      // If nurse, create Nurse profile
+      if (role === 'nurse') {
+        const nurses = JSON.parse(localStorage.getItem('biencuidar_nurses') || '[]');
+        const newNurse: Nurse = {
+          id: `n-${Date.now()}`,
+          user_id: newProfile.id,
+          specialization: [],
+          shift_rate: 15,
+          coverage_radius: 10,
+          available_shifts: ['morning'],
+          available_days: [1, 2, 3, 4, 5],
+          rating: 0,
+          review_count: 0,
+          lat: 13.6929,
+          lng: -89.2182,
+          bio: '',
+          experience_years: 0,
+          certifications: ['CSSP'],
+          cssp_registration: '',
+          cssp_level: 'Técnica'
+        };
+        nurses.push(newNurse);
+        localStorage.setItem('biencuidar_nurses', JSON.stringify(nurses));
+      }
       
       // Set current user
       localStorage.setItem('biencuidar_current_user', JSON.stringify(newProfile));
