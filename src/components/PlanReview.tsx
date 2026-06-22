@@ -1,10 +1,11 @@
 import { useState, useMemo, type FC } from 'react';
 import { useApp } from '../context/AppContext';
-import { calculateFamilyPrice } from '../data/standardRates';
+import { calculateFamilyPrice, PLATFORM_COMMISSION, IVA_RATE, RETENTION_RATE } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
 import { CheckCircle2, XCircle, Clock, MapPin, Calendar, Star, User, Phone, Heart, Send, ChevronLeft, Sun, Sunset, Moon, FileText } from 'lucide-react';
 import { LegalDisclaimer } from './LegalDisclaimer';
 import { ServiceContract } from './ServiceContract';
+import { FSEDocument } from './FSEDocument';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -19,6 +20,7 @@ export const PlanReview: FC = () => {
   const [emergencyContact, setEmergencyContact] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [showContract, setShowContract] = useState(false);
+  const [showFSE, setShowFSE] = useState(false);
 
   const profileMap = useMemo(() => new Map(profiles.map(p => [p.id, p])), [profiles]);
 
@@ -107,6 +109,14 @@ export const PlanReview: FC = () => {
             <FileText className="h-4 w-4" />
             Ver contrato de servicios
           </button>
+
+          <button
+            onClick={() => setShowFSE(true)}
+            className="w-full bg-white border border-emerald-200 hover:bg-emerald-50 text-emerald-700 font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <FileText className="h-4 w-4" />
+            Ver Factura (FSE)
+          </button>
         </div>
       </div>
 
@@ -127,6 +137,20 @@ export const PlanReview: FC = () => {
         }))}
         totalShifts={totalShifts}
         totalPrice={totalPrice}
+      />
+
+      <FSEDocument
+        open={showFSE}
+        onClose={() => setShowFSE(false)}
+        familyName={currentUser?.full_name || 'Familia'}
+        familyEmail={currentUser?.email}
+        slots={slotDetails.filter(s => s.hasNurse && s.nurse && s.nurseProfile).map(s => ({
+          date: s.slot.date,
+          shift: s.slot.shift as string,
+          nurseName: s.nurseProfile?.full_name || 'Enfermera',
+          nurseRate: s.nurseRate,
+          csspReg: s.nurse?.cssp_registration || 'N/A',
+        }))}
       />
       </>
     );
@@ -316,15 +340,38 @@ export const PlanReview: FC = () => {
               <span className="text-sm font-bold text-slate-700">Total a pagar</span>
               <span className="text-xl font-black text-indigo-700">${totalPrice.toFixed(2)}</span>
             </div>
+
+            {/* Tax breakdown */}
+            <div className="bg-white rounded-xl p-3 border border-slate-200 mt-2 space-y-1.5">
+              <p className="text-[10px] font-bold text-slate-500 uppercase">Desglose tributario</p>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-slate-500">Servicio de enfermería (exento IVA Art. 29 num. 18)</span>
+                <span className="font-bold text-slate-600">${slotDetails.reduce((sum, s) => sum + s.nurseRate, 0).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-slate-500">Comisión BienCuidar ({totalShifts} × ${PLATFORM_COMMISSION.toFixed(2)})</span>
+                <span className="font-bold text-slate-600">${(totalShifts * PLATFORM_COMMISSION).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-[10px]">
+                <span className="text-slate-500">IVA 13% sobre comisión</span>
+                <span className="font-bold text-slate-600">${(totalShifts * PLATFORM_COMMISSION * IVA_RATE).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-[10px] pt-1 border-t border-slate-100">
+                <span className="text-slate-500">Retención 10% ISR (Art. 156 Código Tributario)</span>
+                <span className="font-bold text-rose-500">-${(slotDetails.reduce((sum, s) => sum + s.nurseRate, 0) * RETENTION_RATE).toFixed(2)}</span>
+              </div>
+            </div>
+
             {allCovered && (
               <div className="bg-white rounded-xl p-4 border border-emerald-200 mt-2 space-y-2">
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-emerald-600 shrink-0" />
-                  <span className="text-xs font-bold text-emerald-700">Facturación incluida</span>
+                  <span className="text-xs font-bold text-emerald-700">Facturación incluida (FSE)</span>
                 </div>
                 <ul className="text-[10px] text-slate-600 space-y-1 pl-6 list-disc">
-                  <li>Factura electrónica (DTE)</li>
-                  <li>Válida ante el Ministerio de Hacienda</li>
+                  <li>Factura Sujeto Excluido válida ante Ministerio de Hacienda</li>
+                  <li>Retención ISR 10% calculada automáticamente</li>
+                  <li>IVA 13% solo sobre comisión de intermediación</li>
                   <li>100% deducible de tu Impuesto sobre la Renta</li>
                 </ul>
               </div>
