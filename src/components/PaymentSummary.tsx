@@ -1,5 +1,6 @@
-import { type FC } from 'react';
-import { Receipt, X, Mail } from 'lucide-react';
+import { useState, type FC } from 'react';
+import { Receipt, X, Mail, Building2, Copy, Check } from 'lucide-react';
+import { PLATFORM_SETTINGS } from '../data/platformSettings';
 
 interface SummarySlot {
   date: string;
@@ -25,7 +26,17 @@ function formatDate(dateStr: string): string {
 }
 
 export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyName, slots, totalPrice }) => {
+  const [copied, setCopied] = useState(false);
   if (!open) return null;
+
+  const reference = `BC-${familyName.substring(0, 3).toUpperCase()}-${slots.length}T`;
+
+  const copyAccount = () => {
+    const text = `${PLATFORM_SETTINGS.bankName} - ${PLATFORM_SETTINGS.bankAccountType}\nTitular: ${PLATFORM_SETTINGS.bankAccountHolder}\nCuenta: ${PLATFORM_SETTINGS.bankAccountNumber}\nReferencia: ${reference}\nMonto: $${totalPrice.toFixed(2)}`;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" id="payment-summary-modal">
@@ -62,6 +73,34 @@ export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyN
           <div className="border-t border-slate-200 pt-3 flex justify-between items-center">
             <span className="text-sm font-bold text-slate-700">Total a pagar</span>
             <span className="text-xl font-black text-indigo-700">${totalPrice.toFixed(2)}</span>
+          </div>
+
+          {/* Payment instructions */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-amber-600 shrink-0" />
+              <p className="text-xs font-bold text-amber-800">Instrucciones de pago</p>
+            </div>
+            <div className="text-[11px] text-slate-700 space-y-1 pl-6">
+              <p><span className="font-bold">Banco:</span> {PLATFORM_SETTINGS.bankName}</p>
+              <p><span className="font-bold">Titular:</span> {PLATFORM_SETTINGS.bankAccountHolder}</p>
+              <p><span className="font-bold">Cuenta:</span> {PLATFORM_SETTINGS.bankAccountNumber} <span className="text-slate-500">({PLATFORM_SETTINGS.bankAccountType})</span></p>
+              <p><span className="font-bold">Referencia:</span> {reference}</p>
+              <p><span className="font-bold">Monto:</span> ${totalPrice.toFixed(2)}</p>
+            </div>
+            <button
+              onClick={copyAccount}
+              className="w-full flex items-center justify-center gap-1.5 text-[10px] font-bold text-amber-700 bg-white border border-amber-200 hover:bg-amber-50 py-2 rounded-lg transition cursor-pointer"
+            >
+              {copied ? (
+                <><Check className="h-3 w-3" />Copiado al portapapeles</>
+              ) : (
+                <><Copy className="h-3 w-3" />Copiar datos de transferencia</>
+              )}
+            </button>
+            <p className="text-[10px] text-amber-600 leading-relaxed pl-6">
+              Realiza la transferencia y envía el comprobante por WhatsApp. Una vez confirmado el pago, tu servicio quedará activo.
+            </p>
           </div>
 
           <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-start gap-2.5">

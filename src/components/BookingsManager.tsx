@@ -11,7 +11,7 @@ import {
   Calendar, User, CheckCircle2,
   PlusCircle, FileText, AlertTriangle,
   Printer, Phone, ChevronLeft, ChevronRight, MessageCircle,
-  MapPin, LogIn, LogOut
+  MapPin, LogIn, LogOut, Star
 } from 'lucide-react';
 
 const DAY_SHORT = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
@@ -21,16 +21,18 @@ const PHYSIO_SPECS = ['Fisioterapia Básica'];
 const COMPANION_SPECS = ['Acompañamiento'];
 
 export const BookingsManager: FC = () => {
-  const { 
-    bookings, 
-    nurses, 
-    profiles, 
-    currentUser, 
+  const {
+    bookings,
+    nurses,
+    profiles,
+    currentUser,
     updateBookingStatus,
     checkInBooking,
     checkOutBooking,
     careLogs,
-    saveCareLog
+    saveCareLog,
+    nurseReviews,
+    submitReview
   } = useApp();
 
   const isNurseView = currentUser?.role === 'nurse';
@@ -77,6 +79,12 @@ export const BookingsManager: FC = () => {
   const [formActivities, setFormActivities] = useState<string[]>([]);
   const [formObservations, setFormObservations] = useState('');
   const [savingReport, setSavingReport] = useState(false);
+
+  // Review state
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewingBookingId, setReviewingBookingId] = useState<string | null>(null);
+  const [hoverRating, setHoverRating] = useState(0);
 
   // Calendario
   const [calendarMonth, setCalendarMonth] = useState(() => {
@@ -572,6 +580,88 @@ export const BookingsManager: FC = () => {
                     )}
                   </div>
                 )}
+
+                {/* Nurse review - family only, completed bookings */}
+                {b.status === 'completed' && !isNurseView && (() => {
+                  const existingReview = nurseReviews.find(r => r.booking_id === b.id);
+                  if (existingReview) {
+                    return (
+                      <div className="border-t border-slate-100 p-3">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                          <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">Tu calificación</span>
+                        </div>
+                        <div className="flex items-center gap-0.5 mb-1">
+                          {[1, 2, 3, 4, 5].map(n => (
+                            <Star key={n} className={`h-3.5 w-3.5 ${n <= existingReview.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-300'}`} />
+                          ))}
+                        </div>
+                        {existingReview.comment && (
+                          <p className="text-[11px] text-slate-600 italic">"{existingReview.comment}"</p>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (reviewingBookingId === b.id) {
+                    return (
+                      <div className="border-t border-slate-100 p-3 space-y-3">
+                        <div className="flex items-center gap-1.5">
+                          <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                          <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">Califica a la enfermera</span>
+                        </div>
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4, 5].map(n => (
+                            <button
+                              key={n}
+                              onClick={() => setReviewRating(n)}
+                              onMouseEnter={() => setHoverRating(n)}
+                              onMouseLeave={() => setHoverRating(0)}
+                              className="cursor-pointer"
+                            >
+                              <Star className={`h-6 w-6 transition ${(hoverRating || reviewRating) >= n ? 'text-amber-400 fill-amber-400' : 'text-slate-300'}`} />
+                            </button>
+                          ))}
+                        </div>
+                        <textarea
+                          value={reviewComment}
+                          onChange={e => setReviewComment(e.target.value)}
+                          rows={2}
+                          placeholder="Comentario (opcional)..."
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs resize-none"
+                        />
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={() => { setReviewingBookingId(null); setReviewRating(0); setReviewComment(''); }}
+                            className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-[11px] cursor-pointer"
+                          >Cancelar</button>
+                          <button
+                            onClick={async () => {
+                              if (reviewRating > 0) {
+                                await submitReview(b.id, b.nurse_id, reviewRating, reviewComment.trim() || undefined);
+                                setReviewingBookingId(null);
+                                setReviewRating(0);
+                                setReviewComment('');
+                              }
+                            }}
+                            disabled={reviewRating === 0}
+                            className="bg-amber-500 hover:bg-amber-400 text-white px-4 py-1.5 rounded-lg font-bold text-[11px] cursor-pointer disabled:opacity-40"
+                          >Enviar calificación</button>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="border-t border-slate-100 p-3">
+                      <button
+                        onClick={() => setReviewingBookingId(b.id)}
+                        className="w-full flex items-center justify-center gap-1.5 text-[10px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 py-2 rounded-lg border border-amber-200 cursor-pointer"
+                      >
+                        <Star className="h-3.5 w-3.5" />
+                        Calificar enfermera
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 {/* Cancellation policy note */}
                 {b.status === 'confirmed' && !b.check_in_at && (

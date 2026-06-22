@@ -322,6 +322,29 @@ export const PlanReview: FC = () => {
           ))}
         </div>
 
+        {/* Confirmation banner */}
+        {allCovered && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              <p className="text-sm font-bold text-emerald-800">Servicio confirmado</p>
+            </div>
+            <div className="text-[11px] text-slate-600 space-y-1 pl-7">
+              {slotDetails.map((s, i) => {
+                const d = new Date(s.slot.date + 'T00:00:00');
+                const dateLabel = `${DAY_NAMES[d.getDay()]} ${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
+                return (
+                  <p key={i}>
+                    <span className="font-bold">{s.shiftInfo.label}</span> · {dateLabel}
+                    {s.nurseProfile && <> · {s.nurseProfile.full_name}</>}
+                    {' · '}<span className="font-bold text-emerald-700">${s.price.toFixed(2)}</span>
+                  </p>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Price summary */}
         {allCovered && (
           <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 space-y-2">

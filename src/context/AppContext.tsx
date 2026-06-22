@@ -4,7 +4,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, useCallback, type FC, type ReactNode } from 'react';
-import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareOffer, ShiftType, SHIFTS } from '../types';
+import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareOffer, ShiftType, SHIFTS, NurseReview } from '../types';
 import { INITIAL_PROFILES, INITIAL_NURSES } from '../data/nurses';
 import { supabase } from '../lib/supabase';
 import { getResponseDeadline } from '../data/platformSettings';
@@ -61,6 +61,8 @@ interface AppContextType {
   careOffers: CareOffer[];
   createCareOffer: (data: Omit<CareOffer, 'id' | 'created_at' | 'status'> & { status?: CareOffer['status'] }) => CareOffer;
   acceptCareOffer: (offerId: string) => void;
+  nurseReviews: NurseReview[];
+  submitReview: (bookingId: string, nurseId: string, rating: number, comment?: string) => Promise<void>;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   selectedNurseId: string | null;
@@ -416,6 +418,42 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [careOffers, careRequests, createBooking]);
 
+  // Nurse reviews
+  const [nurseReviews, setNurseReviews] = useState<NurseReview[]>(() => safeParse('biencuidar_reviews', []));
+
+  useEffect(() => {
+    localStorage.setItem('biencuidar_reviews', JSON.stringify(nurseReviews));
+  }, [nurseReviews]);
+
+  const submitReview = async (bookingId: string, nurseId: string, rating: number, comment?: string) => {
+    if (!currentUser) return;
+    const newReview: NurseReview = {
+      id: `rev-${Date.now()}`,
+      booking_id: bookingId,
+      nurse_id: nurseId,
+      user_id: currentUser.id,
+      rating,
+      comment,
+      created_at: new Date().toISOString(),
+    };
+    setNurseReviews(prev => [...prev, newReview]);
+
+    try {
+      const { error } = await supabase
+        .from('nurse_reviews')
+        .insert({
+          booking_id: bookingId,
+          nurse_id: nurseId,
+          user_id: currentUser.id,
+          rating,
+          comment: comment || null,
+        });
+      if (error) throw error;
+    } catch {
+      // Keep in localStorage as fallback
+    }
+  };
+
   // Action: Update state of booking (optimistic update with rollback)
   const updateBookingStatus = async (bookingId: string, status: BookingStatus) => {
     const prevBookings = bookings;
@@ -605,6 +643,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       careOffers,
       createCareOffer,
       acceptCareOffer,
+      nurseReviews,
+      submitReview,
       activeTab,
       setActiveTab,
       selectedNurseId,

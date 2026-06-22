@@ -148,3 +148,13 @@ export interface CareOffer {
   created_at: string;
   reject_reason?: 'voluntary' | 'auto';
 }
+
+export interface NurseReview {
+  id: string;
+  booking_id: string;
+  nurse_id: string;
+  user_id: string;
+  rating: number;
+  comment?: string;
+  created_at: string;
+}

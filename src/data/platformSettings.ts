@@ -8,12 +8,21 @@ export interface PlatformSettings {
   requestExpirationHours: number;
   // Hours after which a pending booking auto-cancels
   pendingBookingExpirationHours: number;
+  // Bank account for manual transfers
+  bankName: string;
+  bankAccountHolder: string;
+  bankAccountNumber: string;
+  bankAccountType: string;
 }
 
 export const PLATFORM_SETTINGS: PlatformSettings = {
   responseWindowHours: 6,
   requestExpirationHours: 24,
   pendingBookingExpirationHours: 24,
+  bankName: 'BAC Credomatic',
+  bankAccountHolder: 'BienCuidar SV',
+  bankAccountNumber: '123456789',
+  bankAccountType: 'Cuenta Corriente',
 };
 
 export function getResponseDeadline(createdAt: string): string {
