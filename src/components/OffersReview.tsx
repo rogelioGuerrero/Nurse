@@ -247,6 +247,16 @@ export const OffersReview: FC = () => {
                     Sí, necesito factura (FSEE) — <span className="font-bold">Tarifa de gestión fiscal y administrativa US$ 5</span>
                   </span>
                 </label>
+                {wantsInvoice && (
+                  <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-2.5 space-y-1 mt-1">
+                    <p className="text-[10px] font-bold text-indigo-700 uppercase tracking-wide">Beneficios de tu factura:</p>
+                    <ul className="text-[10px] text-indigo-600 leading-relaxed space-y-0.5 pl-3 list-disc">
+                      <li>Deducible de ISR en tu declaración de renta</li>
+                      <li>Reembolso de seguro médico o gastos empresariales</li>
+                      <li>Comprobante legal verificable del servicio pagado</li>
+                    </ul>
+                  </div>
+                )}
               </div>
 
               {/* Checkbox de aceptación */}
