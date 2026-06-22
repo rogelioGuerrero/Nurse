@@ -605,7 +605,7 @@ export const NurseProfileEdit: FC = () => {
                     <span className="font-bold text-slate-800">${shiftRate.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-slate-400">
-                    <span>Retención ISR (10%) — tu responsabilidad</span>
+                    <span>ISR a declarar (10%) — tu responsabilidad</span>
                     <span>-${(shiftRate * RETENTION_RATE).toFixed(2)}</span>
                   </div>
                   <div className="border-t border-slate-200 pt-1.5 flex justify-between">

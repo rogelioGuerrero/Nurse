@@ -168,7 +168,7 @@ export const AdminPanel: FC = () => {
                 <FileText className="h-4 w-4" />
                 Facturas familiares (FSEE) ({bookings.filter(b => b.status === 'completed').length})
               </h3>
-              <p className="text-[10px] text-slate-500 mt-0.5">Solicitudes de factura electrónica. Cobro: US$ 5.65 (gestión + IVA) + retención ISR 10% del servicio.</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">Solicitudes de factura electrónica. Cobro: US$ 5.65 (gestión + IVA). ISR es responsabilidad de la enfermera.</p>
             </div>
             {bookings.filter(b => b.status === 'completed').length === 0 ? (
               <div className="p-6 text-center text-xs text-slate-400">Sin solicitudes de factura.</div>
@@ -180,7 +180,6 @@ export const AdminPanel: FC = () => {
                   const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
                   const serviceAmount = b.total_price || 0;
                   const managementFee = 5.65;
-                  const isrRetention = serviceAmount * 0.10;
                   return (
                     <div key={b.id} className="px-4 py-3 flex items-center justify-between gap-3">
                       <div className="min-w-0 flex-1">
@@ -194,7 +193,6 @@ export const AdminPanel: FC = () => {
                         <div className="text-[10px] text-slate-500 mt-1 space-y-0.5">
                           <div className="flex gap-2"><span>Servicio:</span><span className="font-bold">${serviceAmount.toFixed(2)}</span></div>
                           <div className="flex gap-2"><span>Gestión + IVA:</span><span className="font-bold">${managementFee.toFixed(2)}</span></div>
-                          <div className="flex gap-2"><span>ISR 10%:</span><span className="font-bold text-rose-600">-${isrRetention.toFixed(2)}</span></div>
                         </div>
                       </div>
                       <button
