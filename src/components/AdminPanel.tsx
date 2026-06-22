@@ -1,9 +1,9 @@
 import { useState, useMemo, type FC } from 'react';
 import { useApp } from '../context/AppContext';
-import { MessageCircle, ShieldCheck, Users, FileText, Clock, MapPin, Phone } from 'lucide-react';
+import { MessageCircle, ShieldCheck, Users, FileText, Clock, MapPin, Phone, DollarSign, CheckCircle2 } from 'lucide-react';
 
 export const AdminPanel: FC = () => {
-  const { currentUser, careRequests, careOffers, profiles, nurses, bookings } = useApp();
+  const { currentUser, careRequests, careOffers, profiles, nurses, bookings, confirmPayment } = useApp();
   const [section, setSection] = useState<'notifications' | 'cssp'>('notifications');
 
   if (!currentUser || currentUser.role !== 'admin') {
@@ -161,6 +161,48 @@ export const AdminPanel: FC = () => {
             )}
           </div>
 
+          {/* Pending payments - admin validates transfer receipts */}
+          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+            <div className="px-4 py-3 bg-amber-50 border-b border-amber-100">
+              <h3 className="text-xs font-bold text-amber-800 uppercase tracking-wide flex items-center gap-1.5">
+                <DollarSign className="h-4 w-4" />
+                Pagos por validar ({bookings.filter(b => b.status === 'confirmed' && b.payment_status !== 'paid').length})
+              </h3>
+              <p className="text-[10px] text-slate-500 mt-0.5">Confirma que recibiste el comprobante de transferencia para activar el servicio.</p>
+            </div>
+            {bookings.filter(b => b.status === 'confirmed' && b.payment_status !== 'paid').length === 0 ? (
+              <div className="p-6 text-center text-xs text-slate-400">No hay pagos pendientes de validar.</div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {bookings.filter(b => b.status === 'confirmed' && b.payment_status !== 'paid').map(b => {
+                  const family = profileMap.get(b.user_id);
+                  const nurse = nurseMap.get(b.nurse_id);
+                  const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
+                  return (
+                    <div key={b.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-700">{b.patient_name}</p>
+                        <p className="text-[10px] text-slate-500">
+                          Enfermera: {nurseProfile?.full_name || 'N/A'} · ${b.total_price?.toFixed(2) || 'N/A'}
+                        </p>
+                        <p className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                          <Phone className="h-2.5 w-2.5" />{family?.phone || 'Sin teléfono'}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => confirmPayment(b.id)}
+                        className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-lg cursor-pointer"
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Confirmar pago
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Recent bookings overview */}
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
             <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
@@ -178,12 +220,17 @@ export const AdminPanel: FC = () => {
                   <div key={b.id} className="px-4 py-2.5 text-[10px]">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-slate-700">{b.patient_name}</span>
-                      <span className={`px-2 py-0.5 rounded-full font-bold ${
-                        b.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
-                        b.status === 'confirmed' ? 'bg-indigo-100 text-indigo-700' :
-                        b.status === 'cancelled' ? 'bg-rose-100 text-rose-700' :
-                        'bg-amber-100 text-amber-700'
-                      }`}>{b.status}</span>
+                      <div className="flex items-center gap-1">
+                        {b.payment_status === 'paid' && (
+                          <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-700">Pagado</span>
+                        )}
+                        <span className={`px-2 py-0.5 rounded-full font-bold ${
+                          b.status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                          b.status === 'confirmed' ? 'bg-indigo-100 text-indigo-700' :
+                          b.status === 'cancelled' ? 'bg-rose-100 text-rose-700' :
+                          'bg-amber-100 text-amber-700'
+                        }`}>{b.status}</span>
+                      </div>
                     </div>
                     <p className="text-slate-500 mt-0.5">
                       Enfermera: {nurseProfile?.full_name || 'N/A'} · Familia: {family?.full_name || 'N/A'}

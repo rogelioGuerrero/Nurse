@@ -95,6 +95,8 @@ export interface Booking {
   check_out_lat?: number;
   check_out_lng?: number;
   address_mismatch?: boolean;
+  // Payment
+  payment_status?: 'pending' | 'paid';
 }
 
 export interface Availability {

@@ -63,6 +63,7 @@ interface AppContextType {
   acceptCareOffer: (offerId: string) => void;
   nurseReviews: NurseReview[];
   submitReview: (bookingId: string, nurseId: string, rating: number, comment?: string) => Promise<void>;
+  confirmPayment: (bookingId: string) => Promise<void>;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   selectedNurseId: string | null;
@@ -454,6 +455,20 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  const confirmPayment = async (bookingId: string) => {
+    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, payment_status: 'paid' } : b));
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ payment_status: 'paid' })
+        .eq('id', bookingId);
+      if (error) throw error;
+    } catch {
+      // Rollback on error
+      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, payment_status: 'pending' } : b));
+    }
+  };
+
   // Action: Update state of booking (optimistic update with rollback)
   const updateBookingStatus = async (bookingId: string, status: BookingStatus) => {
     const prevBookings = bookings;
@@ -645,6 +660,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       acceptCareOffer,
       nurseReviews,
       submitReview,
+      confirmPayment,
       activeTab,
       setActiveTab,
       selectedNurseId,

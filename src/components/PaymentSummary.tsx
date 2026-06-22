@@ -99,7 +99,7 @@ export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyN
               )}
             </button>
             <p className="text-[10px] text-amber-600 leading-relaxed pl-6">
-              Realiza la transferencia y envía el comprobante por WhatsApp. Una vez confirmado el pago, tu servicio quedará activo.
+              El pago es por adelantado. Realiza la transferencia y envía el comprobante por WhatsApp. El administrador confirmará tu pago para activar el servicio.
             </p>
           </div>
 

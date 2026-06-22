@@ -11,7 +11,7 @@ import {
   Calendar, User, CheckCircle2,
   PlusCircle, FileText, AlertTriangle,
   Printer, Phone, ChevronLeft, ChevronRight, MessageCircle,
-  MapPin, LogIn, LogOut, Star
+  MapPin, LogIn, LogOut, Star, DollarSign
 } from 'lucide-react';
 
 const DAY_SHORT = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
@@ -662,6 +662,22 @@ export const BookingsManager: FC = () => {
                     </div>
                   );
                 })()}
+
+                {/* Payment status badge */}
+                {b.status === 'confirmed' && (
+                  <div className={`px-3 py-2 border-t flex items-center gap-2 text-[10px] ${
+                    b.payment_status === 'paid'
+                      ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                      : 'bg-amber-50 border-amber-100 text-amber-700'
+                  }`}>
+                    <DollarSign className="h-3.5 w-3.5" />
+                    {b.payment_status === 'paid' ? (
+                      <span className="font-bold">Pago verificado</span>
+                    ) : (
+                      <span className="font-bold">Pago pendiente {isNurseView ? '— espera confirmación antes de ir' : '— transfiere y envía comprobante por WhatsApp'}</span>
+                    )}
+                  </div>
+                )}
 
                 {/* Cancellation policy note */}
                 {b.status === 'confirmed' && !b.check_in_at && (
