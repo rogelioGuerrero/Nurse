@@ -248,9 +248,14 @@ export const NurseInbox: FC = () => {
                             Ofreciste tu servicio
                           </div>
                         ) : offer?.status === 'declined' ? (
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 pl-14">
-                            <Heart className="h-4 w-4" />
-                            La familia eligió otra enfermera
+                          <div className="pl-14 space-y-1">
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                              <Heart className="h-4 w-4" />
+                              La familia eligió otra enfermera
+                            </div>
+                            <p className="text-[10px] text-slate-400 leading-relaxed">
+                              Sugerencia: ajustar tu tarifa puede ayudarte a ser más competitiva en próximas ofertas.
+                            </p>
                           </div>
                         ) : (
                           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 pl-14">
