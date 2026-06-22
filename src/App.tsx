@@ -418,6 +418,7 @@ function MarketplaceApp() {
               <LandingPage
                 onFamily={() => { setActiveTab('care-request'); setAuthMode('landing'); }}
                 onNurse={() => { setAuthRole('nurse'); setAuthMode('register'); }}
+                onAdminAccess={() => { setIsAdminAccess(true); setAuthMode('login'); }}
               />
             ) : (
               <AuthForm

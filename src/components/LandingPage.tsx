@@ -1,14 +1,28 @@
-import { type FC, useState } from 'react';
+import { type FC, useState, useRef } from 'react';
 import { Stethoscope, Search, ShieldCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface LandingPageProps {
   onFamily: () => void;
   onNurse: () => void;
+  onAdminAccess?: () => void;
 }
 
-export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse }) => {
+export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAccess }) => {
   const [demoLoading, setDemoLoading] = useState(false);
+  const logoClicks = useRef(0);
+  const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleLogoClick = () => {
+    logoClicks.current += 1;
+    if (clickTimer.current) clearTimeout(clickTimer.current);
+    clickTimer.current = setTimeout(() => {
+      if (logoClicks.current >= 5 && onAdminAccess) {
+        onAdminAccess();
+      }
+      logoClicks.current = 0;
+    }, 800);
+  };
 
   const handleDemoLogin = async (role: 'family' | 'nurse') => {
     setDemoLoading(true);
@@ -38,12 +52,15 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse }) => {
     <div className="min-h-[100vh] flex flex-col items-center justify-center px-6 py-10 bg-gradient-to-b from-slate-50 to-slate-100">
       <div className="w-full max-w-sm space-y-8">
 
-        {/* Logo */}
+        {/* Logo - 5 clicks to reveal admin login */}
         <div className="text-center space-y-3">
-          <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm">
+          <div 
+            onClick={handleLogoClick}
+            className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm cursor-pointer select-none"
+          >
             <Stethoscope className="h-7 w-7 text-white" />
           </div>
-          <div>
+          <div onClick={handleLogoClick} className="cursor-pointer select-none">
             <h1 className="text-2xl font-serif italic tracking-tight text-slate-900">BienCuidar</h1>
             <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mt-1">Cuidado del Adulto Mayor</p>
           </div>
