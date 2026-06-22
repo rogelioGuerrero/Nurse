@@ -462,6 +462,17 @@ export const BookingsManager: FC = () => {
                     <span className="font-bold">{b.patient_name}</span>
                   </div>
                   <p className="text-slate-500 mt-0.5 pl-4 truncate">{b.patient_condition}</p>
+                  {isNurseView && b.lat && b.lng && (
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 cursor-pointer"
+                    >
+                      <MapPin className="h-3 w-3" />
+                      Cómo llegar (Google Maps)
+                    </a>
+                  )}
                 </div>
 
                 {/* Reporte de visita */}
@@ -622,6 +633,16 @@ export const BookingsManager: FC = () => {
                         )}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Cancellation policy note */}
+                {b.status === 'confirmed' && !b.check_in_at && (
+                  <div className="px-3 py-2 bg-slate-50 border-t border-slate-100 text-[9px] text-slate-400 leading-relaxed">
+                    {isNurseView
+                      ? 'Si la familia cancela después de tu check-in, recibes el 50% del turno por movilización.'
+                      : 'Puedes cancelar sin costo antes del check-in. Si cancelas después, se cobra el 50% por movilización de la enfermera.'
+                    }
                   </div>
                 )}
 

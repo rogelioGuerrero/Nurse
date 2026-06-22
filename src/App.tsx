@@ -632,15 +632,24 @@ function MarketplaceApp() {
 
       {/* Footer */}
       <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 py-8 mt-12 shrink-0">
-        <div className="max-w-2xl mx-auto px-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-[11px] text-slate-500">
-          <div className="flex items-center gap-2.5">
-            <div className="h-7 w-7 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
-              <Stethoscope className="h-3.5 w-3.5" />
+        <div className="max-w-2xl mx-auto px-4 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-[11px] text-slate-500">
+            <div className="flex items-center gap-2.5">
+              <div className="h-7 w-7 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+                <Stethoscope className="h-3.5 w-3.5" />
+              </div>
+              <span className="text-white font-bold text-sm">BienCuidar</span>
+              <span className="text-slate-600">| Cuidado del Adulto Mayor en El Salvador</span>
             </div>
-            <span className="text-white font-bold text-sm">BienCuidar</span>
-            <span className="text-slate-600">| Cuidado del Adulto Mayor en El Salvador</span>
+            <p>© 2026 BienCuidar · Hecho en El Salvador</p>
           </div>
-          <p>© 2026 BienCuidar · Hecho en El Salvador</p>
+          <div className="border-t border-slate-800 pt-4">
+            <p className="text-[10px] text-slate-600 leading-relaxed text-center">
+              BienCuidar es una plataforma de intermediación tecnológica que conecta familias con enfermeras independientes.
+              No es empleador ni responsable de los actos clínicos. El contrato de servicios se celebra directamente
+              entre la familia y la enfermera. Verifica el registro CSSP antes de contratar.
+            </p>
+          </div>
         </div>
       </footer>
 

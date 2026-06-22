@@ -1,5 +1,5 @@
 import { useState, useEffect, type FC } from 'react';
-import { Stethoscope, User, Mail, Lock, ArrowLeft, CheckCircle2, AlertCircle, FileText } from 'lucide-react';
+import { Stethoscope, User, Mail, Lock, ArrowLeft, CheckCircle2, AlertCircle, FileText, ShieldAlert } from 'lucide-react';
 import type { Nurse } from '../types';
 import { supabase } from '../lib/supabase';
 import { TermsAndConditions } from './TermsAndConditions';
@@ -447,6 +447,15 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
 
           {authMode === 'register' && (
             <>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2.5">
+                <ShieldAlert className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-[10px] text-amber-800 leading-relaxed">
+                  BienCuidar es una plataforma de intermediación tecnológica. No es empleador ni responsable
+                  de los actos clínicos de las enfermeras. El contrato de servicios se celebra directamente
+                  entre la familia y la enfermera.
+                </p>
+              </div>
+
               <div className="space-y-2 pt-1">
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input

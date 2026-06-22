@@ -351,6 +351,24 @@ export const PlanReview: FC = () => {
                 </div>
               </div>
             )}
+
+            {allCovered && (
+              <div className="bg-white rounded-xl p-3 border border-slate-200 mt-2 space-y-1.5">
+                <p className="text-[10px] font-bold text-slate-600 uppercase">Política de cancelación</p>
+                <div className="flex items-start gap-1.5 text-[10px] text-slate-500">
+                  <span className="text-emerald-500 font-bold">✓</span>
+                  <span>Cancela sin costo <strong>antes</strong> de que la enfermera llegue.</span>
+                </div>
+                <div className="flex items-start gap-1.5 text-[10px] text-slate-500">
+                  <span className="text-amber-500 font-bold">50%</span>
+                  <span>Si cancelas <strong>después del check-in</strong>, se cobra el 50% del turno por gastos de movilización de la enfermera.</span>
+                </div>
+                <div className="flex items-start gap-1.5 text-[10px] text-slate-500">
+                  <span className="text-rose-500 font-bold">0%</span>
+                  <span>Si la enfermera <strong>no llega</strong>, no pagas nada. Reembolso total.</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

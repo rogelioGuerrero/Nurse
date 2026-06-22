@@ -47,6 +47,7 @@ export const CareRequestForm: FC = () => {
   const [locationName, setLocationName] = useState('');
   const [phone, setPhone] = useState('');
   const [locating, setLocating] = useState(false);
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [published, setPublished] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
 
@@ -84,6 +85,7 @@ export const CareRequestForm: FC = () => {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords;
+        setGpsCoords({ lat: latitude, lng: longitude });
         try {
           const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=16&addressdetails=1`,
@@ -188,6 +190,8 @@ export const CareRequestForm: FC = () => {
       specialization_needed: finalSpec,
       slots,
       location_name: locationName,
+      lat: gpsCoords?.lat,
+      lng: gpsCoords?.lng,
       notes: notes.trim() || undefined,
     });
     setPublished(true);
@@ -204,6 +208,7 @@ export const CareRequestForm: FC = () => {
     setSelectedDays([]);
     setLocationName('');
     setPhone('');
+    setGpsCoords(null);
   };
 
   /* ── Published state ── */

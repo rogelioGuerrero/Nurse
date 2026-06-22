@@ -394,7 +394,9 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         total_price: totalPrice,
         patient_name: request.patient_name,
         patient_condition: request.patient_condition,
-        notes: request.notes
+        notes: request.notes,
+        lat: request.lat,
+        lng: request.lng,
       });
     }
   }, [careOffers, careRequests, createBooking]);

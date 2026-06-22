@@ -83,6 +83,9 @@ export interface Booking {
     emergency_contact: string;
   };
   created_at: string;
+  // Location
+  lat?: number;
+  lng?: number;
   // Check-in / Check-out GPS
   check_in_at?: string;
   check_in_lat?: number;
@@ -126,6 +129,8 @@ export interface CareRequest {
   specialization_needed: string; // e.g., "Geriatría"
   slots: CareRequestSlot[]; // multiple dates/times needed
   location_name: string;
+  lat?: number;
+  lng?: number;
   notes?: string;
   status: CareRequestStatus;
   response_deadline: string; // ISO datetime when the response window closes
