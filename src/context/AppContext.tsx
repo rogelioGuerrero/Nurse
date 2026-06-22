@@ -34,6 +34,7 @@ export interface CareLog {
   patientConditionOnDeparture: 'Mejoró' | 'Igual' | 'Empeoró';
   activities: string[];
   observations: string;
+  narrativeReport: string;
   updatedAt: string;
 }
 
@@ -184,6 +185,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         patientConditionOnDeparture: 'Mejoró',
         activities: ['Higiene', 'Alimentación', 'Medicación'],
         observations: 'Paciente completó con éxito su almuerzo y caminó en el jardín por 15 minutos. Se tomó su medicación puntual.',
+        narrativeReport: 'La enfermera llegó a las 07:00 y encontró al paciente en estado regular. Durante el servicio realizó higiene, alimentación y medicación. El paciente completó su almuerzo y caminó en el jardín por 15 minutos. Se administró la medicación puntual. Al retirarse a las 15:00, el paciente había mejorado.',
         updatedAt: new Date(Date.now() - 86400000 * 3).toISOString()
       }
     };

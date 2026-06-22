@@ -10,7 +10,7 @@ import { groqChat } from '../lib/groq';
 import { 
   Calendar, User, CheckCircle2,
   Activity, PlusCircle, FileText, AlertTriangle,
-  Printer, Phone, ChevronLeft, ChevronRight
+  Printer, Phone, ChevronLeft, ChevronRight, MessageCircle
 } from 'lucide-react';
 
 const DAY_SHORT = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
@@ -67,6 +67,7 @@ export const BookingsManager: FC = () => {
   const [formConditionDeparture, setFormConditionDeparture] = useState<'Mejoró' | 'Igual' | 'Empeoró'>('Igual');
   const [formActivities, setFormActivities] = useState<string[]>([]);
   const [formObservations, setFormObservations] = useState('');
+  const [savingReport, setSavingReport] = useState(false);
 
   // Calendario
   const [calendarMonth, setCalendarMonth] = useState(() => {
@@ -100,9 +101,42 @@ export const BookingsManager: FC = () => {
     setFormObservations(log?.observations || '');
   };
 
-  const handleSaveLog = (bookingId: string) => {
+  const handleSaveLog = async (bookingId: string) => {
     const booking = bookings.find(b => b.id === bookingId);
     const sType = booking ? inferServiceType(booking) : 'clinical';
+    const patientName = booking?.patient_name || 'el paciente';
+
+    setSavingReport(true);
+
+    // Prompt anti-alucinación: solo usa los datos proporcionados, no inventa
+    const systemPrompt = 'Eres un redactor profesional de reportes de visita domiciliaria para enfermeras en El Salvador. Redacta un párrafo breve, claro y profesional basado EXCLUSIVAMENTE en los datos proporcionados. REGLAS ESTRICTAS: (1) No inventes información que no se te dio. (2) No agregues observaciones médicas, diagnósticos ni recomendaciones. (3) No interpretes los signos vitales ni sugieras tratamientos. (4) Si un campo está vacío, omítelo naturalmente, no lo menciones. (5) Usa tercera persona ("la enfermera llegó...", "el paciente..."). (6) Máximo 80 palabras. (7) Tono profesional, objetivo y empático. (8) No uses frases como "se recomienda" o "se sugiere".';
+
+    const activitiesStr = formActivities.length > 0 ? formActivities.join(', ') : 'No se registraron actividades específicas';
+    const observationsStr = formObservations.trim() || 'Sin observaciones adicionales';
+
+    const userContent = `Redacta el reporte de visita con estos datos EXACTOS. No agregues nada más:
+- Nombre del paciente: ${patientName}
+- Hora de llegada: ${formArrivalTime}
+- Hora de salida: ${formDepartureTime}
+- Estado al llegar: ${formConditionArrival}
+- Estado al retirarse: ${formConditionDeparture}
+- Actividades realizadas: ${activitiesStr}
+- Observaciones de la enfermera: ${observationsStr}`;
+
+    let narrativeReport = '';
+    try {
+      narrativeReport = await groqChat(
+        [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent }
+        ],
+        { temperature: 0.3, maxTokens: 200 }
+      );
+    } catch {
+      // Si Groq falla, usar template simple sin alucinación
+      narrativeReport = `La enfermera llegó a las ${formArrivalTime} y encontró a ${patientName} en estado ${formConditionArrival.toLowerCase()}. Durante el servicio ${formActivities.length > 0 ? 'realizó ' + formActivities.map(a => a.toLowerCase()).join(', ') : 'brindó atención general'}. Al retirarse a las ${formDepartureTime}, ${patientName} ${formConditionDeparture.toLowerCase()}.${formObservations.trim() ? ' ' + formObservations.trim() : ''}`;
+    }
+
     saveCareLog(bookingId, {
       serviceType: sType,
       arrivalTime: formArrivalTime,
@@ -110,8 +144,10 @@ export const BookingsManager: FC = () => {
       patientConditionOnArrival: formConditionArrival,
       patientConditionOnDeparture: formConditionDeparture,
       activities: formActivities,
-      observations: formObservations
+      observations: formObservations,
+      narrativeReport
     });
+    setSavingReport(false);
     setEditingBookingId(null);
   };
 
@@ -446,17 +482,18 @@ export const BookingsManager: FC = () => {
 
                         <div className="flex gap-2 justify-end pt-1">
                           <button type="button" onClick={() => setEditingBookingId(null)} className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-[11px] cursor-pointer">Cancelar</button>
-                          <button type="button" onClick={() => handleSaveLog(b.id)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-lg font-bold text-[11px] cursor-pointer">Guardar</button>
+                          <button type="button" onClick={() => handleSaveLog(b.id)} disabled={savingReport} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-1.5 rounded-lg font-bold text-[11px] cursor-pointer flex items-center gap-1.5 disabled:opacity-60">
+                            {savingReport ? (
+                              <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>Generando...</>
+                            ) : 'Guardar'}
+                          </button>
                         </div>
                       </div>
                     ) : log ? (
                       /* MOSTRAR REPORTE NARRATIVO */
                       <div className="space-y-2">
                         <div className="bg-indigo-50/40 border border-indigo-100/40 rounded-xl p-3 text-[11px] text-slate-700 leading-relaxed">
-                          {`Llegué a las ${log.arrivalTime} y encontré a ${b.patient_name} en estado ${log.patientConditionOnArrival.toLowerCase()}. Durante el servicio realicé ${log.activities.length > 0 ? log.activities.map(a => a.toLowerCase()).join(', ') : 'atención general'}. Al retirarme a las ${log.departureTime}, ${b.patient_name} ${log.patientConditionOnDeparture.toLowerCase()}.`}
-                          {log.observations && (
-                            <p className="mt-2 text-slate-600 italic">{log.observations}</p>
-                          )}
+                          {log.narrativeReport || `La enfermera llegó a las ${log.arrivalTime} y encontró a ${b.patient_name} en estado ${log.patientConditionOnArrival.toLowerCase()}. Durante el servicio ${log.activities.length > 0 ? 'realizó ' + log.activities.map(a => a.toLowerCase()).join(', ') : 'brindó atención general'}. Al retirarse a las ${log.departureTime}, ${b.patient_name} ${log.patientConditionOnDeparture.toLowerCase()}.`}
                         </div>
 
                         {/* Botones */}
@@ -464,9 +501,16 @@ export const BookingsManager: FC = () => {
                           {isNurseView ? (
                             <button onClick={() => handleOpenLogForm(b.id)} className="text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-100 cursor-pointer">Editar</button>
                           ) : (
-                            <button onClick={() => handleGenerateAIInterpretation(b.id, b.patient_name)} className="text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-100 flex items-center gap-1 cursor-pointer">
-                              <Activity className="h-3 w-3" />Reporte Clínico
-                            </button>
+                            <>
+                              <button onClick={() => handleGenerateAIInterpretation(b.id, b.patient_name)} className="text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-100 flex items-center gap-1 cursor-pointer">
+                                <Activity className="h-3 w-3" />Análisis Clínico
+                              </button>
+                              {nurseProfile?.phone && (
+                                <a href={`tel:${nurseProfile.phone}`} className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-100 flex items-center gap-1">
+                                  <MessageCircle className="h-3 w-3" />Consultar
+                                </a>
+                              )}
+                            </>
                           )}
                         </div>
 
@@ -522,8 +566,14 @@ export const BookingsManager: FC = () => {
                   {b.status === 'confirmed' && (
                     <>
                       {isNurseView ? (
-                        <button onClick={() => updateBookingStatus(b.id, 'completed').catch(console.error)} className="text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer">
-                          <CheckCircle2 className="h-3.5 w-3.5" />Completar
+                        <button onClick={() => {
+                          if (!careLogs[b.id]) {
+                            handleOpenLogForm(b.id);
+                          } else {
+                            updateBookingStatus(b.id, 'completed').catch(console.error);
+                          }
+                        }} className="text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer">
+                          <CheckCircle2 className="h-3.5 w-3.5" />{careLogs[b.id] ? 'Completar' : 'Registrar y Completar'}
                         </button>
                       ) : (
                         <button onClick={() => updateBookingStatus(b.id, 'cancelled').catch(console.error)} className="text-[10px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg cursor-pointer">Cancelar</button>

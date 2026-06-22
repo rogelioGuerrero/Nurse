@@ -13,38 +13,38 @@ function formatDate(dateStr: string): string {
   return `${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
 }
 
-function getProfileSuggestions(nurse: Nurse | undefined, profile: Profile | undefined, offer: CareOffer | undefined): string[] {
+function getProfileSuggestions(nurse: Nurse | undefined, offer: CareOffer | undefined): string[] {
   if (!nurse) return [];
   const suggestions: string[] = [];
 
-  // 1. Sin foto de perfil
-  if (!profile?.avatar_url || profile.avatar_url.trim() === '') {
-    suggestions.push('Agrega una foto de perfil. Las familias confían más en enfermeras con foto.');
-  }
-
-  // 2. Bio vacía o muy corta
+  // 1. Bio vacía o muy corta
   if (!nurse.bio || nurse.bio.trim().length < 30) {
     suggestions.push('Completa tu biografía. Cuéntale a las familias sobre tu experiencia y estilo de cuidado.');
   }
 
-  // 3. Sin certificaciones (aparte del CSSP obligatorio)
+  // 2. Sin certificaciones (aparte del CSSP obligatorio)
   if (!nurse.certifications || nurse.certifications.length === 0) {
     suggestions.push('Agrega certificaciones a tu perfil. Refuerzan tu credibilidad profesional.');
   }
 
-  // 4. Mensaje genérico al ofertar
+  // 3. Mensaje genérico al ofertar
   if (offer && (!offer.message || offer.message.trim().length < 20 || offer.message.includes('Confirmo disponibilidad'))) {
     suggestions.push('Escribe un mensaje personalizado al ofertar. La conexión humana marca la diferencia.');
   }
 
-  // 5. Pocas especialidades
+  // 4. Pocas especialidades
   if (nurse.specialization.length < 2) {
     suggestions.push('Agrega más especialidades a tu perfil para coincidir con más solicitudes.');
   }
 
-  // 6. Poca disponibilidad (menos de 3 días o 2 turnos)
+  // 5. Poca disponibilidad (menos de 3 días o 2 turnos)
   if (nurse.available_days.length < 3 || nurse.available_shifts.length < 2) {
     suggestions.push('Amplía tus días y turnos disponibles para recibir más solicitudes.');
+  }
+
+  // 6. Pocas reseñas → sugerir acumular reputación
+  if (nurse.review_count < 3) {
+    suggestions.push('Acumula buenas reseñas completando servicios. Tu reputación es tu mejor carta de presentación.');
   }
 
   // 7. Si todo está bien, sugerir tarifa como último recurso
@@ -296,7 +296,7 @@ export const NurseInbox: FC = () => {
                               <Heart className="h-4 w-4" />
                               La familia eligió otra enfermera
                             </div>
-                            {getProfileSuggestions(myNurse, profileMap.get(myNurse?.user_id || ''), offer).map((s, i) => (
+                            {getProfileSuggestions(myNurse, offer).map((s, i) => (
                               <p key={i} className="text-[10px] text-slate-400 leading-relaxed flex items-start gap-1">
                                 <span className="text-indigo-300 flex-shrink-0">•</span>
                                 <span>{s}</span>
