@@ -119,11 +119,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   const [activeTab, setActiveTab] = useState<string>('landing');
   const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
 
-  const [currentUser, setCurrentUser] = useState<Profile | null>(() => {
-    // Try localStorage first (for demo users)
-    const saved = safeParse<Profile | null>('biencuidar_current_user', null);
-    return saved || null;
-  });
+  const [currentUser, setCurrentUser] = useState<Profile | null>(null);
 
   // Load user from Supabase Auth on mount
   useEffect(() => {

@@ -15,55 +15,19 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse }) => {
     
     const email = role === 'family' ? 'familia@biencudar.com' : 'enfermera@biencudar.com';
     const password = 'demo123';
-    const fullName = role === 'family' ? 'María García (Demo)' : 'Ana Martínez (Demo)';
 
     try {
-      // Create demo user in localStorage
-      const demoUser = {
-        id: role === 'family' ? 'demo-family-id' : 'demo-nurse-id',
-        full_name: fullName,
-        phone: role === 'family' ? '503-7890-1234' : '503-7890-5678',
-        email: email,
-        role: role === 'nurse' ? 'nurse' : 'user',
-        location_name: 'San Salvador',
-        created_at: new Date().toISOString()
-      };
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
-      // Store user data
-      localStorage.setItem(`biencuidar_user_${email}`, JSON.stringify({
-        ...demoUser,
-        password: password
-      }));
-      
-      // Set as current user
-      localStorage.setItem('biencuidar_current_user', JSON.stringify(demoUser));
-
-      // If nurse, create nurse profile in localStorage
-      if (role === 'nurse') {
-        const nurses = JSON.parse(localStorage.getItem('biencuidar_nurses') || '[]');
-        const demoNurse = {
-          id: 'demo-nurse-profile-id',
-          user_id: demoUser.id,
-          specialization: ['Geriatría'],
-          shift_rate: 15,
-          coverage_radius: 10,
-          available_shifts: ['morning'],
-          available_days: [1, 2, 3, 4, 5],
-          rating: 5,
-          review_count: 0,
-          lat: 13.6929,
-          lng: -89.2182,
-          bio: 'Enfermera profesional con 5 años de experiencia en cuidado de adultos mayores.',
-          experience_years: 5,
-          certifications: ['CSSP'],
-          cssp_registration: 'CSSP-12345',
-          cssp_level: 'Técnica'
-        };
-        nurses.push(demoNurse);
-        localStorage.setItem('biencuidar_nurses', JSON.stringify(nurses));
+      if (error) {
+        console.error('Demo login error:', error.message);
+        setDemoLoading(false);
+        return;
       }
 
-      // Reload to trigger AppContext to load user
       window.location.reload();
     } catch (err) {
       console.error('Demo login error:', err);
