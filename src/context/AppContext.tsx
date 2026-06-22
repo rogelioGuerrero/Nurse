@@ -90,12 +90,13 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         start_time: '09:00',
         end_time: '14:00',
         hours: 5,
-        status: 'pending',
+        status: 'confirmed',
         total_price: 60,
         patient_name: 'Don Alberto Gómez (Padre)',
         patient_condition: 'Etapa inicial de Alzheimer, requiere cuidados e hidratación.',
         notes: 'Le agrada conversar de historia y caminar un poco en el jardín.',
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
+        payment_status: 'pending'
       },
       {
         id: 'b-demo-2',
@@ -110,7 +111,10 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         patient_name: 'Doña Teresa Ramos (Abuela)',
         patient_condition: 'Postoperatorio de fractura de cadera.',
         notes: 'Muy importante recordar la movilización cada 2 horas.',
-        created_at: new Date(Date.now() - 86400000 * 5).toISOString()
+        created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
+        payment_status: 'paid',
+        check_in_at: new Date(Date.now() - 86400000 * 3).toISOString(),
+        check_out_at: new Date(Date.now() - 86400000 * 3 + 28800000).toISOString()
       }
     ];
   });
@@ -342,7 +346,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       ...bookingData,
       id: `b-${Date.now()}`,
       user_id: currentUser.id,
-      status: 'pending',
+      status: 'confirmed',
       created_at: new Date().toISOString()
     };
 
@@ -356,7 +360,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           start_time: bookingData.start_time,
           end_time: bookingData.end_time,
           hours: bookingData.hours,
-          status: 'pending',
+          status: 'confirmed',
           total_price: bookingData.total_price,
           notes: bookingData.notes,
           patient_name: bookingData.patient_name,
@@ -522,12 +526,12 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   const checkOutBooking = async (bookingId: string, lat: number, lng: number) => {
     const prevBookings = bookings;
     const now = new Date().toISOString();
-    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, check_out_at: now, check_out_lat: lat, check_out_lng: lng } : b));
+    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, check_out_at: now, check_out_lat: lat, check_out_lng: lng, status: 'completed' } : b));
 
     try {
       const { error } = await supabase
         .from('bookings')
-        .update({ check_out_at: now, check_out_lat: lat, check_out_lng: lng })
+        .update({ check_out_at: now, check_out_lat: lat, check_out_lng: lng, status: 'completed' })
         .eq('id', bookingId);
 
       if (error) throw error;
