@@ -76,7 +76,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
   // Load or seed data from local storage (with safe parsing)
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [nurses, setNurses] = useState<Nurse[]>([]);
+  const [nurses, setNurses] = useState<Nurse[]>(() => safeParse('biencuidar_nurses', INITIAL_NURSES));
 
   const [bookings, setBookings] = useState<Booking[]>(() => {
     const saved = safeParse<Booking[] | null>('biencuidar_bookings', null);
@@ -119,7 +119,11 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   const [activeTab, setActiveTab] = useState<string>('landing');
   const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
 
-  const [currentUser, setCurrentUser] = useState<Profile | null>(null);
+  const [currentUser, setCurrentUser] = useState<Profile | null>(() => {
+    // Try localStorage first (for demo users)
+    const saved = safeParse<Profile | null>('biencuidar_current_user', null);
+    return saved || null;
+  });
 
   // Load user from Supabase Auth on mount
   useEffect(() => {
