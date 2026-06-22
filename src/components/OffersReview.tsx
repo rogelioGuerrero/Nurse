@@ -1,8 +1,9 @@
-import { useMemo, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { calculateNurseNet } from '../data/standardRates';
+import { getDistanceKm, USER_COORDS } from '../lib/distance';
 import { SHIFTS, type ShiftType } from '../types';
-import { CheckCircle2, XCircle, Star, MapPin, User, Calendar, Clock as ClockIcon, Dumbbell, Users, Heart, MessageCircle } from 'lucide-react';
+import { CheckCircle2, XCircle, Star, MapPin, User, Calendar, Clock as ClockIcon, Dumbbell, Users, Heart, MessageCircle, X, BadgeCheck, GraduationCap, Briefcase } from 'lucide-react';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -14,6 +15,8 @@ function formatDate(dateStr: string): string {
 
 export const OffersReview: FC = () => {
   const { careRequests, careOffers, nurses, profiles, currentUser, acceptCareOffer } = useApp();
+
+  const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
 
   const profileMap = useMemo(() => new Map(profiles.map(p => [p.id, p])), [profiles]);
 
@@ -65,23 +68,35 @@ export const OffersReview: FC = () => {
           <div key={offer.id} className="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm">
             {/* Header: nurse info */}
             <div className="flex items-start gap-3">
-              <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <User className="h-6 w-6 text-indigo-600" />
-              </div>
+              <button
+                onClick={() => setSelectedNurseId(offer.nurse_id)}
+                className="w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden bg-indigo-100 cursor-pointer hover:ring-2 hover:ring-indigo-400 transition"
+              >
+                {nurseProfile?.avatar_url ? (
+                  <img src={nurseProfile.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <User className="h-6 w-6 text-indigo-600" />
+                )}
+              </button>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <h3 className="font-bold text-slate-800 truncate">
+                  <button
+                    onClick={() => setSelectedNurseId(offer.nurse_id)}
+                    className="font-bold text-slate-800 truncate hover:text-indigo-600 transition cursor-pointer"
+                  >
                     {nurseProfile?.full_name || 'Enfermera'}
-                  </h3>
+                  </button>
                   <div className="flex items-center gap-0.5 text-amber-500">
                     <Star className="h-3.5 w-3.5 fill-current" />
                     <span className="text-xs font-bold">{nurse?.rating || 4.5}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
-                  <MapPin className="h-3 w-3" />
-                  <span>{nurse?.coverage_radius || 10} km de radio</span>
-                </div>
+                {nurse && (
+                  <div className="flex items-center gap-1 text-xs text-slate-500 mt-0.5">
+                    <MapPin className="h-3 w-3" />
+                    <span>A ~{getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, nurse.lat, nurse.lng).toFixed(1)} km de ti</span>
+                  </div>
+                )}
               </div>
               <div className="text-right flex-shrink-0">
                 <div className="text-lg font-bold text-slate-800">
@@ -156,6 +171,136 @@ export const OffersReview: FC = () => {
           </div>
         );
       })}
+      {/* Modal: Perfil de la enfermera */}
+      {selectedNurseId && (() => {
+        const nurse = nurses.find(n => n.id === selectedNurseId);
+        const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
+        if (!nurse || !nurseProfile) return null;
+        const distance = getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, nurse.lat, nurse.lng);
+
+        return (
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={e => { if (e.target === e.currentTarget) setSelectedNurseId(null); }}
+          >
+            <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+              {/* Header con foto y nombre */}
+              <div className="relative bg-gradient-to-br from-indigo-600 to-indigo-800 p-6 text-white rounded-t-3xl">
+                <button
+                  onClick={() => setSelectedNurseId(null)}
+                  className="absolute top-4 right-4 w-8 h-8 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center cursor-pointer transition"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 rounded-full overflow-hidden bg-white/20 flex items-center justify-center flex-shrink-0">
+                    {nurseProfile.avatar_url ? (
+                      <img src={nurseProfile.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="h-8 w-8" />
+                    )}
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-lg font-bold truncate">{nurseProfile.full_name}</h2>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-0.5">
+                        <Star className="h-3.5 w-3.5 fill-amber-300 text-amber-300" />
+                        <span className="text-sm font-bold">{nurse.rating}</span>
+                      </div>
+                      <span className="text-white/60">•</span>
+                      <span className="text-xs font-medium">{nurse.cssp_level}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {/* Distancia */}
+                <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <MapPin className="h-4 w-4 text-indigo-500" />
+                  <span>A ~{distance.toFixed(1)} km de tu ubicación</span>
+                </div>
+
+                {/* Especialidades */}
+                <div>
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Especialidades</h3>
+                  <div className="flex flex-wrap gap-1.5">
+                    {nurse.specialization.map(spec => (
+                      <span key={spec} className="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                        {spec}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Sobre Ana */}
+                {nurse.bio && (
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">Sobre ella</h3>
+                    <p className="text-sm text-slate-700 leading-relaxed">{nurse.bio}</p>
+                  </div>
+                )}
+
+                {/* Experiencia */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-50 rounded-xl p-3">
+                    <div className="flex items-center gap-1.5 text-slate-500 mb-1">
+                      <Briefcase className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-bold uppercase">Experiencia</span>
+                    </div>
+                    <p className="text-sm font-bold text-slate-800">{nurse.experience_years} años</p>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl p-3">
+                    <div className="flex items-center gap-1.5 text-slate-500 mb-1">
+                      <GraduationCap className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-bold uppercase">Nivel CSSP</span>
+                    </div>
+                    <p className="text-sm font-bold text-slate-800">{nurse.cssp_level}</p>
+                  </div>
+                </div>
+
+                {/* CSSP */}
+                <div className="flex items-center gap-2 bg-emerald-50 rounded-xl p-3">
+                  <BadgeCheck className="h-5 w-5 text-emerald-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-emerald-800">Registro CSSP vigente</p>
+                    <p className="text-[10px] text-emerald-600">{nurse.cssp_registration}</p>
+                  </div>
+                </div>
+
+                {/* Certificaciones */}
+                {nurse.certifications.length > 0 && (
+                  <div>
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Certificaciones</h3>
+                    <ul className="space-y-1">
+                      {nurse.certifications.map((cert, i) => (
+                        <li key={i} className="text-sm text-slate-700 flex items-center gap-2">
+                          <BadgeCheck className="h-3.5 w-3.5 text-emerald-500 flex-shrink-0" />
+                          {cert}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Tarifa */}
+                <div className="bg-indigo-50 rounded-xl p-3 flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-600">Tarifa por turno</span>
+                  <span className="text-lg font-bold text-indigo-700">US$ {nurse.shift_rate}</span>
+                </div>
+
+                {/* Cerrar */}
+                <button
+                  onClick={() => setSelectedNurseId(null)}
+                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl text-sm transition cursor-pointer"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
