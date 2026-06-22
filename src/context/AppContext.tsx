@@ -75,9 +75,8 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
   // Load or seed data from local storage (with safe parsing)
-  const [profiles, setProfiles] = useState<Profile[]>(() => safeParse('biencuidar_profiles', INITIAL_PROFILES));
-
-  const [nurses, setNurses] = useState<Nurse[]>(() => safeParse('biencuidar_nurses', INITIAL_NURSES));
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [nurses, setNurses] = useState<Nurse[]>([]);
 
   const [bookings, setBookings] = useState<Booking[]>(() => {
     const saved = safeParse<Booking[] | null>('biencuidar_bookings', null);
@@ -120,10 +119,59 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   const [activeTab, setActiveTab] = useState<string>('landing');
   const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
 
-  const [currentUser, setCurrentUser] = useState<Profile | null>(() => {
-    const saved = safeParse<Profile | null>('biencuidar_current_user', null);
-    return saved || null;
-  });
+  const [currentUser, setCurrentUser] = useState<Profile | null>(null);
+
+  // Load user from Supabase Auth on mount
+  useEffect(() => {
+    const loadUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profile) {
+          setCurrentUser(profile);
+        }
+      }
+    };
+    
+    loadUser();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (profile) {
+          setCurrentUser(profile);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Load profiles and nurses from Supabase Database
+  useEffect(() => {
+    const loadData = async () => {
+      const { data: profilesData } = await supabase.from('profiles').select('*');
+      const { data: nursesData } = await supabase.from('nurses').select('*');
+      
+      if (profilesData) setProfiles(profilesData);
+      if (nursesData) setNurses(nursesData);
+    };
+    
+    loadData();
+  }, []);
 
   const [currentNurse, setCurrentNurse] = useState<Nurse | null>(null);
 
@@ -242,26 +290,10 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []); // Run once on mount
 
-  // Save to Local Storage whenever states change
-  useEffect(() => {
-    localStorage.setItem('biencuidar_profiles', JSON.stringify(profiles));
-  }, [profiles]);
-
-  useEffect(() => {
-    localStorage.setItem('biencuidar_nurses', JSON.stringify(nurses));
-  }, [nurses]);
-
+  // Save to Local Storage whenever states change (only for data not in Supabase yet)
   useEffect(() => {
     localStorage.setItem('biencuidar_bookings', JSON.stringify(bookings));
   }, [bookings]);
-
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('biencuidar_current_user', JSON.stringify(currentUser));
-    } else {
-      localStorage.removeItem('biencuidar_current_user');
-    }
-  }, [currentUser]);
 
   // Action: Update profiles (also syncs currentNurse if user is a nurse)
   const updateProfile = (profileData: Partial<Profile>) => {

@@ -1,6 +1,7 @@
 import { useState, useEffect, type FC } from 'react';
 import { Stethoscope, User, Mail, Lock, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import type { Nurse } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface AuthFormProps {
   mode: 'login' | 'register';
@@ -9,7 +10,7 @@ interface AuthFormProps {
   onSuccess: () => void;
 }
 
-type AuthMode = 'login' | 'register' | 'forgot-password' | 'reset-password';
+type AuthMode = 'login' | 'register' | 'forgot-password';
 
 export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) => {
   
@@ -19,7 +20,6 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [resetCode, setResetCode] = useState('');
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,7 +32,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
     return value.length >= 6;
   };
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
     setError('');
     
     if (!fullName.trim()) {
@@ -55,62 +55,79 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
       return;
     }
 
-    // Check if email already exists in localStorage
-    const existingUser = localStorage.getItem(`biencuidar_user_${email}`);
-    if (existingUser) {
-      setError('Este email ya está registrado');
-      return;
-    }
-
     setLoading(true);
 
     try {
-      // Create new profile
-      const newProfile = {
-        id: `p-${Date.now()}`,
-        full_name: fullName,
-        phone: '',
-        email: email,
-        role: role === 'nurse' ? 'nurse' : 'user',
-        location_name: '',
-        created_at: new Date().toISOString()
-      };
+      // Register with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            role: role === 'nurse' ? 'nurse' : 'user'
+          }
+        }
+      });
 
-      // Store user data with password (in production: hash this!)
-      const userData = {
-        ...newProfile,
-        password: password
-      };
+      if (authError) {
+        setError(authError.message);
+        setLoading(false);
+        return;
+      }
 
-      localStorage.setItem(`biencuidar_user_${email}`, JSON.stringify(userData));
-      
+      if (!authData.user) {
+        setError('Error al crear cuenta');
+        setLoading(false);
+        return;
+      }
+
+      // Create profile in profiles table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          email: email,
+          full_name: fullName,
+          role: role === 'nurse' ? 'nurse' : 'user',
+          phone: '',
+          location_name: ''
+        });
+
+      if (profileError) {
+        setError('Error al crear perfil: ' + profileError.message);
+        setLoading(false);
+        return;
+      }
+
       // If nurse, create Nurse profile
       if (role === 'nurse') {
-        const nurses = JSON.parse(localStorage.getItem('biencuidar_nurses') || '[]');
-        const newNurse: Nurse = {
-          id: `n-${Date.now()}`,
-          user_id: newProfile.id,
-          specialization: [],
-          shift_rate: 15,
-          coverage_radius: 10,
-          available_shifts: ['morning'],
-          available_days: [1, 2, 3, 4, 5],
-          rating: 0,
-          review_count: 0,
-          lat: 13.6929,
-          lng: -89.2182,
-          bio: '',
-          experience_years: 0,
-          certifications: ['CSSP'],
-          cssp_registration: '',
-          cssp_level: 'Técnica'
-        };
-        nurses.push(newNurse);
-        localStorage.setItem('biencuidar_nurses', JSON.stringify(nurses));
+        const { error: nurseError } = await supabase
+          .from('nurses')
+          .insert({
+            user_id: authData.user.id,
+            specialization: [],
+            shift_rate: 15,
+            coverage_radius: 10,
+            available_shifts: ['morning'],
+            available_days: [1, 2, 3, 4, 5],
+            rating: 0,
+            review_count: 0,
+            lat: 13.6929,
+            lng: -89.2182,
+            bio: '',
+            experience_years: 0,
+            certifications: ['CSSP'],
+            cssp_registration: '',
+            cssp_level: 'Técnica'
+          });
+
+        if (nurseError) {
+          setError('Error al crear perfil de enfermera: ' + nurseError.message);
+          setLoading(false);
+          return;
+        }
       }
-      
-      // Set current user
-      localStorage.setItem('biencuidar_current_user', JSON.stringify(newProfile));
       
       setLoading(false);
       onSuccess();
@@ -120,7 +137,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
     }
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     setError('');
     
     if (!validateEmail(email)) {
@@ -136,42 +153,45 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
     setLoading(true);
 
     try {
-      // Check stored user data
-      const userData = localStorage.getItem(`biencuidar_user_${email}`);
-      if (!userData) {
-        setError('Email no registrado');
+      // Login with Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (authError) {
+        setError(authError.message);
         setLoading(false);
         return;
       }
 
-      const parsedUser = JSON.parse(userData);
-      if (parsedUser.password !== password) {
-        setError('Contraseña incorrecta');
+      if (!authData.user) {
+        setError('Error al iniciar sesión');
+        setLoading(false);
+        return;
+      }
+
+      // Get profile from profiles table
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        setError('Perfil no encontrado');
         setLoading(false);
         return;
       }
 
       // Check role matches
-      if ((role === 'nurse' && parsedUser.role !== 'nurse') || 
-          (role === 'family' && parsedUser.role === 'nurse')) {
+      if ((role === 'nurse' && profile.role !== 'nurse') || 
+          (role === 'family' && profile.role === 'nurse')) {
         setError('Esta cuenta no tiene el rol correcto');
         setLoading(false);
         return;
       }
 
-      // Login successful - set current user
-      const userProfile = {
-        id: parsedUser.id || `p-${Date.now()}`,
-        full_name: parsedUser.full_name,
-        phone: parsedUser.phone || '',
-        email: parsedUser.email,
-        role: parsedUser.role,
-        location_name: parsedUser.location_name || '',
-        created_at: parsedUser.created_at
-      };
-
-      localStorage.setItem('biencuidar_current_user', JSON.stringify(userProfile));
-      
       setLoading(false);
       onSuccess();
     } catch (err) {
@@ -180,7 +200,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
     }
   };
 
-  const handleForgotPassword = () => {
+  const handleForgotPassword = async () => {
     setError('');
     setMessage('');
     
@@ -192,90 +212,22 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
     setLoading(true);
 
     try {
-      // Check if email exists
-      const userData = localStorage.getItem(`biencuidar_user_${email}`);
-      if (!userData) {
-        setError('Este email no está registrado');
+      // Send password reset email via Supabase
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin
+      });
+
+      if (error) {
+        setError('Error al enviar email de recuperación: ' + error.message);
         setLoading(false);
         return;
       }
-
-      // Simulate sending reset code (in production: send email)
-      const code = Math.random().toString(36).substring(2, 8).toUpperCase();
-      localStorage.setItem(`biencuidar_reset_${email}`, JSON.stringify({ code, expiry: Date.now() + 3600000 })); // 1 hour expiry
       
-      setMessage(`Código de recuperación enviado a ${email}. Código: ${code} (demo)`);
-      setAuthMode('reset-password');
+      setMessage('Email de recuperación enviado. Revisa tu bandeja de entrada.');
       setLoading(false);
     } catch (err) {
       setLoading(false);
       setError('Error al procesar solicitud. Intenta nuevamente.');
-    }
-  };
-
-  const handleResetPassword = () => {
-    setError('');
-    setMessage('');
-    
-    if (!validateEmail(email)) {
-      setError('Ingresa un email válido');
-      return;
-    }
-
-    if (!resetCode || resetCode.length !== 6) {
-      setError('Ingresa el código de 6 dígitos');
-      return;
-    }
-
-    if (!validatePassword(password)) {
-      setError('La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError('Las contraseñas no coinciden');
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      // Verify reset code
-      const resetData = localStorage.getItem(`biencuidar_reset_${email}`);
-      if (!resetData) {
-        setError('Código inválido o expirado');
-        setLoading(false);
-        return;
-      }
-
-      const parsedReset = JSON.parse(resetData);
-      if (parsedReset.code !== resetCode.toUpperCase() || Date.now() > parsedReset.expiry) {
-        setError('Código inválido o expirado');
-        setLoading(false);
-        return;
-      }
-
-      // Update password
-      const userData = localStorage.getItem(`biencuidar_user_${email}`);
-      if (!userData) {
-        setError('Usuario no encontrado');
-        setLoading(false);
-        return;
-      }
-
-      const parsedUser = JSON.parse(userData);
-      parsedUser.password = password;
-      localStorage.setItem(`biencuidar_user_${email}`, JSON.stringify(parsedUser));
-      
-      // Clean up reset code
-      localStorage.removeItem(`biencuidar_reset_${email}`);
-      
-      setMessage('Contraseña actualizada exitosamente');
-      setAuthMode('login');
-      setLoading(false);
-    } catch (err) {
-      setLoading(false);
-      setError('Error al actualizar contraseña. Intenta nuevamente.');
     }
   };
 
@@ -286,8 +238,6 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
       handleLogin();
     } else if (authMode === 'forgot-password') {
       handleForgotPassword();
-    } else if (authMode === 'reset-password') {
-      handleResetPassword();
     }
   };
 
@@ -295,7 +245,6 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
     if (authMode === 'register') return 'Crear Cuenta';
     if (authMode === 'login') return 'Iniciar Sesión';
     if (authMode === 'forgot-password') return 'Recuperar Contraseña';
-    if (authMode === 'reset-password') return 'Nueva Contraseña';
     return '';
   };
 
@@ -374,7 +323,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
           {authMode !== 'forgot-password' && (
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-                {authMode === 'reset-password' ? 'Nueva Contraseña' : 'Contraseña'}
+                Contraseña
               </label>
               <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
                 <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
@@ -392,28 +341,10 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
             </div>
           )}
 
-          {authMode === 'reset-password' && (
+          {authMode === 'register' && (
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-                Código de Recuperación (6 dígitos)
-              </label>
-              <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
-                <input
-                  type="text"
-                  value={resetCode}
-                  onChange={(e) => setResetCode(e.target.value.toUpperCase())}
-                  placeholder="ABC123"
-                  maxLength={6}
-                  className="w-full bg-transparent pl-3 pr-3 py-2.5 outline-none font-mono font-medium text-slate-800 text-sm"
-                />
-              </div>
-            </div>
-          )}
-
-          {(authMode === 'register' || authMode === 'reset-password') && (
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-                {authMode === 'register' ? 'Confirmar Contraseña' : 'Confirmar Nueva Contraseña'}
+                Confirmar Contraseña
               </label>
               <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
                 <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
@@ -463,9 +394,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
                     Crear Cuenta
                   </>
                 ) : authMode === 'forgot-password' ? (
-                  'Enviar Código'
-                ) : authMode === 'reset-password' ? (
-                  'Actualizar Contraseña'
+                  'Enviar Email'
                 ) : (
                   'Iniciar Sesión'
                 )}
