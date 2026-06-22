@@ -812,7 +812,7 @@ export const BookingsManager: FC = () => {
                       <button onClick={() => setSelectedReceiptBooking(b)} className="text-[10px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer">
                         <FileText className="h-3 w-3" />Recibo
                       </button>
-                      {!isNurseView && (
+                      {!isNurseView && b.wants_invoice && (
                         <button className="text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg flex items-center gap-1 border border-indigo-100 cursor-pointer">
                           <FileText className="h-3 w-3" />Solicitar factura
                         </button>
