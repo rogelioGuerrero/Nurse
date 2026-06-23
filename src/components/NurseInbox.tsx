@@ -228,7 +228,7 @@ export const NurseInbox: FC = () => {
                     const responded = hasOffered(req.id, idx);
                     const dateConflict = isDateBooked(slot.date) && !responded;
                     const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.morning;
-                    const nurseRate = myNurse.shift_rate || 25;
+                    const nurseRate = offer ? Number(offer.offered_rate) : (myNurse.shift_rate || 25);
                     const wantsInvoicing = req.wants_invoice;
                     const payout = calculateNurseNet(nurseRate, wantsInvoicing);
 
