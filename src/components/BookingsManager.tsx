@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, useMemo, useRef, type FC } from 'react';
+import { useState, useMemo, type FC } from 'react';
 import { useApp, type ServiceLogType } from '../context/AppContext';
 import { Booking, BookingStatus } from '../types';
 import { groqChat } from '../lib/groq';
 import {
   Calendar, User, CheckCircle2,
   PlusCircle, FileText, AlertTriangle,
-  Printer, Phone, ChevronLeft, ChevronRight, MessageCircle,
+  Phone, ChevronLeft, ChevronRight, MessageCircle,
   MapPin, LogIn, LogOut, Star, DollarSign
 } from 'lucide-react';
 
@@ -55,19 +55,6 @@ export const BookingsManager: FC = () => {
     nurses.forEach(n => map.set(n.id, n));
     return map;
   }, [nurses]);
-
-  const [selectedReceiptBooking, setSelectedReceiptBooking] = useState<Booking | null>(null);
-  const receiptModalRef = useRef<HTMLDivElement>(null);
-
-  // Close receipt modal on Escape key and click-outside
-  useEffect(() => {
-    if (!selectedReceiptBooking) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelectedReceiptBooking(null);
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedReceiptBooking]);
 
   // Care logs now managed by AppContext
   // Forms for visit report
@@ -809,9 +796,6 @@ export const BookingsManager: FC = () => {
                   )}
                   {b.status === 'completed' && (
                     <>
-                      <button onClick={() => setSelectedReceiptBooking(b)} className="text-[10px] font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer">
-                        <FileText className="h-3 w-3" />Recibo
-                      </button>
                       {!isNurseView && b.wants_invoice && (
                         <button className="text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg flex items-center gap-1 border border-indigo-100 cursor-pointer">
                           <FileText className="h-3 w-3" />Solicitar factura
@@ -829,76 +813,6 @@ export const BookingsManager: FC = () => {
         </div>
       )}
 
-      {/* Recibo modal */}
-      {selectedReceiptBooking && (() => {
-        const b = selectedReceiptBooking;
-        const nurseRec = nurseMap.get(b.nurse_id);
-        const nurseProfile = nurseRec ? profileMap.get(nurseRec.user_id) : null;
-        const clientProfile = profileMap.get(b.user_id);
-        const emisorName = nurseProfile ? nurseProfile.full_name : 'BienCuidar';
-        const receptorName = clientProfile ? clientProfile.full_name : 'Familia';
-        const subtotal = b.total_price;
-        const retencion = subtotal * 0.1;
-        const liquido = subtotal * 0.9;
-
-        return (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) setSelectedReceiptBooking(null); }}>
-            <div ref={receiptModalRef} className="bg-white rounded-3xl max-w-sm w-full border border-slate-200 shadow-2xl p-5 space-y-4 relative overflow-hidden max-h-[90vh] overflow-y-auto">
-              <div className="flex justify-between items-start border-b border-slate-100 pb-3">
-                <div>
-                  <span className="text-[9px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">FSE</span>
-                  <h3 className="text-lg font-bold text-slate-800 mt-1">Recibo de Honorarios</h3>
-                </div>
-                <button onClick={() => setSelectedReceiptBooking(null)} className="text-slate-400 hover:text-slate-600 font-bold bg-slate-100 hover:bg-slate-200 w-7 h-7 rounded-full flex items-center justify-center cursor-pointer">✕</button>
-              </div>
-
-              <div className="space-y-3 text-xs text-slate-700">
-                <div className="grid grid-cols-2 gap-3 border-b border-slate-50 pb-3">
-                  <div>
-                    <span className="text-[9px] uppercase font-bold text-slate-400 block">Emisor</span>
-                    <span className="font-bold text-slate-900 block">{emisorName}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[9px] uppercase font-bold text-slate-400 block">Cliente</span>
-                    <span className="font-bold text-slate-900 block">{receptorName}</span>
-                    <span className="text-[10px] text-slate-500">{b.date}</span>
-                  </div>
-                </div>
-
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <span className="text-[9px] uppercase font-bold text-slate-400 block">Concepto</span>
-                  <p className="font-bold text-slate-800 text-[11px]">Servicio de enfermería - {b.patient_name}</p>
-                  <p className="text-slate-500 text-[10px]">{b.hours} horas ({b.start_time} a {b.end_time})</p>
-                </div>
-
-                <div className="border-t border-slate-100 pt-2 space-y-1.5">
-                  <div className="flex justify-between font-semibold">
-                    <span className="text-slate-500">Bruto:</span>
-                    <span className="text-slate-800">US$ {subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between font-semibold text-rose-600">
-                    <span>Retención ISR (10%):</span>
-                    <span>-US$ {retencion.toFixed(2)}</span>
-                  </div>
-                  <div className="border-t border-slate-200 pt-2 flex justify-between items-center font-black bg-indigo-50/50 -mx-2 px-2 py-1.5 rounded">
-                    <span className="text-indigo-800 text-xs">Neto:</span>
-                    <span className="text-base text-indigo-700">US$ {liquido.toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-
-              <p className="text-[9px] leading-relaxed text-slate-400 text-justify italic">Art. 156 C.T. - Retención automática del 10% ISR por servicios profesionales.</p>
-
-              <div className="flex gap-2 justify-end border-t border-slate-100 pt-3">
-                <button onClick={() => setSelectedReceiptBooking(null)} className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-2 rounded-xl text-[11px] cursor-pointer">Cerrar</button>
-                <button onClick={() => window.print()} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded-xl text-[11px] flex items-center gap-1 cursor-pointer">
-                  <Printer className="h-3.5 w-3.5" />Imprimir
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 };
