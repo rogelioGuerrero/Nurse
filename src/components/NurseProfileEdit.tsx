@@ -61,6 +61,7 @@ export const NurseProfileEdit: FC = () => {
   // Secciones colapsables
   const [showCalculator, setShowCalculator] = useState(false);
   const [showPaymentInfo, setShowPaymentInfo] = useState(false);
+  const [showBenefits, setShowBenefits] = useState(false);
 
   if (!currentNurse || !currentUser) return null;
 
@@ -634,6 +635,30 @@ export const NurseProfileEdit: FC = () => {
                     <strong>Ajusta tu tarifa:</strong> Si la familia pide factura, recibes 10% menos. Puedes ofertar más alto para compensar. Si no pide factura, puedes ofertar más bajo.
                   </p>
                 </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Beneficios de ingresos comprobables */}
+        <div className="bg-emerald-50/30 border border-emerald-100 rounded-2xl overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowBenefits(!showBenefits)}
+            className="w-full flex items-center justify-between p-4 cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5">
+              <ShieldCheck className="h-5 w-5 text-emerald-600 shrink-0" />
+              <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">Beneficios de tus ingresos comprobables</span>
+            </div>
+            {showBenefits ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+          </button>
+          {showBenefits && (
+            <div className="px-4 pb-4 space-y-2">
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                Al recibir tus pagos de forma segura dentro de nuestra plataforma, obtienes beneficios que el efectivo nunca te dará:
+              </p>
+              <div className="space-y-2">
                 <div className="flex items-start gap-1.5">
                   <span className="text-[10px]">🏦</span>
                   <p className="text-[10px] text-slate-600 leading-relaxed">
