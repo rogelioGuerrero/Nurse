@@ -62,7 +62,7 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
           </div>
           <div onClick={handleLogoClick} className="cursor-pointer select-none">
             <h1 className="text-2xl font-serif italic tracking-tight text-slate-900">BienCuidar</h1>
-            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mt-1">Cuidado del Adulto Mayor</p>
+            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mt-1">Cuidado de la salud</p>
           </div>
         </div>
 

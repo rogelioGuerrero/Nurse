@@ -32,19 +32,19 @@ const nurseSuggestions = [
 
 const familySuggestions = [
   {
-    title: 'Mi Abuelo no quiere Comer/Beber',
+    title: 'Mi familiar no quiere Comer/Beber',
     desc: 'Tácticas caseras de hidratación y deglución segura.',
-    prompt: 'Mi abuelo de 84 años está decaído y se niega a tomar agua o comer. ¿Qué métodos prácticos de hidratación oral segura y alimentos estimulantes de fácil deglución puedo ofrecerle en casa?'
+    prompt: 'Mi familiar está decaído y se niega a tomar agua o comer. ¿Qué métodos prácticos de hidratación oral segura y alimentos estimulantes de fácil deglución puedo ofrecerle en casa?'
   },
   {
     title: 'Prevención de Caídas en el Baño',
     desc: 'Acondicionamiento y traslados de apoyo para el aseo.',
-    prompt: 'Quiero adaptar el cuarto de baño para mi madre de 79 años con artrosis. ¿Cuáles son las medidas clave de seguridad física, barandiles y técnicas de apoyo para el traslado seguro de la ducha a la taza?'
+    prompt: 'Quiero adaptar el cuarto de baño para mi familiar con artrosis. ¿Cuáles son las medidas clave de seguridad física, barandiles y técnicas de apoyo para el traslado seguro de la ducha a la taza?'
   },
   {
     title: 'Estimulación Cognitiva Semanal',
     desc: 'Actividades mentales para retrasar deterioro cognitivo.',
-    prompt: '¿Qué actividades diarias de estimulación cognitiva puedo realizar con mi abuelito con pérdida de memoria leve para mantenerlo activo mentalmente sin que se frustre?'
+    prompt: '¿Qué actividades diarias de estimulación cognitiva puedo realizar con mi familiar con pérdida de memoria leve para mantenerlo activo mentalmente sin que se frustre?'
   }
 ];
 
@@ -71,7 +71,7 @@ export default function ClinicalAI() {
 
     const systemPrompt = isNurseView 
       ? 'Eres un consultor clínico geriatra y farmacólogo de El Salvador de altísima trayectoria. Proporcionas directrices de enfermería clínica, protocolos de prevención, dosificaciones, cuidados paliativos o de rehabilitación de alta precisión técnica, basándote en estándares de la OMS y el Consejo Superior de Salud Pública (CSSP). Sé formal, sumamente técnico, utiliza terminología de enfermería y destaca los riesgos clínicos.'
-      : 'Eres un enfermero familiar geriátrico sumamente empático y experto de El Salvador. Ayudas a familiares de adultos mayores con consejos prácticos para el cuidado diario en el hogar (nutrición, prevención de caídas, agitación cognitiva, higiene). Responde con calidez, lenguaje claro y no técnico, pero con rigor de seguridad médica. Siempre aconseja consultar con un profesional ante cualquier signo de alerta.';
+      : 'Eres un enfermero familiar sumamente empático y experto de El Salvador. Ayudas a familiares con consejos prácticos para el cuidado diario en el hogar (nutrición, prevención de caídas, agitación cognitiva, higiene). Responde con calidez, lenguaje claro y no técnico, pero con rigor de seguridad médica. Siempre aconseja consultar con un profesional ante cualquier signo de alerta.';
 
     try {
       const content = await groqChat(
@@ -114,7 +114,7 @@ export default function ClinicalAI() {
           <p className="text-sm text-slate-200 leading-relaxed max-w-3xl">
             {isNurseView
               ? 'Consulta científica rápida. Resuelve dudas de protocolos de enfermería, dosificaciones e interacciones médicas geriátricas al instante.'
-              : 'Asesoramiento experto para el cuidado de tus abuelitos en casa. Aprende de nutrición gerontológica, ejercicios cognitivos y seguridad física diaria.'}
+              : 'Asesoramiento experto para el cuidado de tu ser querido en casa. Aprende de nutrición, ejercicios cognitivos y seguridad física diaria.'}
           </p>
         </div>
       </div>

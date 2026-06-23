@@ -1,7 +1,7 @@
 {
-  "name": "BienCuidar - Cuidado del Adulto Mayor",
+  "name": "BienCuidar - Cuidado de la salud",
   "short_name": "BienCuidar",
-  "description": "Conecta familias con enfermeras profesionales para el cuidado del adulto mayor en El Salvador",
+  "description": "Conecta familias con enfermeras profesionales para el cuidado de tu ser querido en El Salvador",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#F5F5F0",

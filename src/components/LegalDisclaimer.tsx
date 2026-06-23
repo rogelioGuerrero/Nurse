@@ -61,7 +61,7 @@ export const LegalDisclaimer: FC<LegalDisclaimerProps> = ({ variant = 'compact' 
     <div className="flex items-start gap-1.5 px-1 bg-slate-100 p-2.5 rounded-xl border border-slate-200">
       <ShieldAlert className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
       <p className="text-[10px] text-slate-500 leading-relaxed">
-        <strong>Términos de Intermediación:</strong> BienCuidar es únicamente una plataforma tecnológica de contacto. No prestamos servicios médicos ni empleamos al personal de enfermería. El servicio y el cuidado clínico se contratan y acuerdan directamente entre la familia y la enfermera independiente. Recuerda verificar el carnet CSSP en el enlace oficial antes de contratar.
+        Plataforma de intermediación tecnológica. No prestamos servicios médicos ni empleamos al personal de enfermería. Verifica el carnet CSSP antes de contratar.
       </p>
     </div>
   );

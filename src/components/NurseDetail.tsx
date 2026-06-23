@@ -96,7 +96,7 @@ export const NurseDetail: FC = () => {
   const handleNextToConfirmation = () => {
     setValidationError('');
     if (!patientName.trim()) {
-      setValidationError('Se requiere el nombre del paciente adulto mayor.');
+      setValidationError('Se requiere el nombre del paciente.');
       return;
     }
     if (!patientCondition.trim()) {
@@ -205,7 +205,7 @@ export const NurseDetail: FC = () => {
                     <h2 className="text-3xl font-serif italic text-slate-900 tracking-tight">{profile.full_name}</h2>
                     <p className="text-sm text-indigo-600 font-bold flex items-center justify-center sm:justify-start gap-1">
                       <Stethoscope className="h-4 w-4" />
-                      Cuidador Geriátrico Registrado
+                      Cuidador Profesional Registrado
                     </p>
                   </div>
                   
@@ -549,14 +549,14 @@ export const NurseDetail: FC = () => {
               {bookingStep === 2 && (
                 <div className="space-y-4">
                   <div className="bg-indigo-50/20 p-4 border border-indigo-100 rounded-2xl mb-2">
-                    <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-widest block mb-1">FICHA CLÍNICA DIGITAL DEL ADULTO MAYOR</span>
+                    <span className="text-[10px] font-bold text-indigo-700 uppercase tracking-widest block mb-1">FICHA CLÍNICA DIGITAL DEL PACIENTE</span>
                     <p className="text-[11px] text-slate-500 font-medium">Esta ficha digital será enviada de forma inmediata al enfermero profesional y se anexará a su reporte.</p>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-500 mb-1">
-                        Nombre del Paciente Geriátrico <span className="text-rose-500">*</span>
+                        Nombre del Paciente <span className="text-rose-500">*</span>
                       </label>
                       <input
                         type="text"

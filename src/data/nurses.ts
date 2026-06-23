@@ -71,11 +71,11 @@ export const INITIAL_NURSES: Nurse[] = [
     review_count: 24,
     lat: 13.6929,
     lng: -89.2182,
-    bio: 'Enfermera licenciada con más de 8 años de experiencia especializada exclusivamente en el cuidado del adulto mayor con trastornos cognitivos como Alzheimer. Ofrezco terapia ocupacional básica, administración precisa de medicamentos y acompañamiento cognitivo.',
+    bio: 'Enfermera licenciada con más de 8 años de experiencia especializada en el cuidado de pacientes con trastornos cognitivos como Alzheimer. Ofrezco terapia ocupacional básica, administración precisa de medicamentos y acompañamiento cognitivo.',
     experience_years: 8,
     certifications: [
       'Licenciatura en Enfermería',
-      'Diplomado en Cuidado Integral del Adulto Mayor',
+      'Diplomado en Cuidado Integral del Paciente',
       'Certificación internacional de atención en Alzheimer y Demencias'
     ],
     cssp_registration: 'CSSP-ENF-2016-0142',
@@ -93,7 +93,7 @@ export const INITIAL_NURSES: Nurse[] = [
     review_count: 18,
     lat: 13.9919,
     lng: -89.5561,
-    bio: 'Especialista en curaciones de heridas posquirúrgicas, movilización de pacientes con movilidad reducida y rehabilitación física básica tras fracturas. Comprometido con la comodidad, seguridad y el trato empático y respetuoso del adulto mayor.',
+    bio: 'Especialista en curaciones de heridas posquirúrgicas, movilización de pacientes con movilidad reducida y rehabilitación física básica tras fracturas. Comprometido con la comodidad, seguridad y el trato empático y respetuoso del paciente.',
     experience_years: 6,
     certifications: [
       'Técnico Superior Universitario en Enfermería',
@@ -163,7 +163,7 @@ export const INITIAL_NURSES: Nurse[] = [
     experience_years: 15,
     certifications: [
       'Título Profesional en Medicina y Enfermería',
-      'Especialidad Certificada en Nutrición Clínica del Adulto Mayor',
+      'Especialidad Certificada en Nutrición Clínica',
       'Registro y Cédula del Consejo de Gerontología'
     ],
     cssp_registration: 'CSSP-ENF-2009-0078',

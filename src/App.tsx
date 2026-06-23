@@ -543,17 +543,18 @@ function MarketplaceApp() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 py-8 mt-12 shrink-0">
+      <footer className="bg-slate-900 border-t border-slate-800 text-slate-400 py-8 mt-12 shrink-0 pb-24">
         <div className="max-w-2xl mx-auto px-4 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-[11px] text-slate-500">
+          <div className="space-y-1">
             <div className="flex items-center gap-2.5">
               <div className="h-7 w-7 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
                 <Stethoscope className="h-3.5 w-3.5" />
               </div>
               <span className="text-white font-bold text-sm">BienCuidar</span>
-              <span className="text-slate-600">| Cuidado del Adulto Mayor en El Salvador</span>
+              <span className="text-slate-600">| Servicios de intermediación en el cuidado de la salud</span>
             </div>
-            <p>© 2026 BienCuidar · Hecho en El Salvador</p>
+            <p className="text-[11px] text-slate-500">© 2026 BienCuidar · Hecho en El Salvador</p>
+            <p className="text-[11px] text-slate-500">Operado y respaldo legal por AGTI, S.A. de C.V.</p>
           </div>
           <div className="border-t border-slate-800 pt-4">
             <LegalDisclaimer variant="compact" />
