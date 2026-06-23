@@ -794,9 +794,6 @@ export const BookingsManager: FC = () => {
                       )}
                     </>
                   )}
-                  {b.status === 'completed' && (
-                    <span className="text-[10px] text-emerald-600 font-bold">Completado</span>
-                  )}
                   {b.status === 'cancelled' && (
                     <span className="text-[10px] text-slate-400 italic">Cancelada</span>
                   )}
