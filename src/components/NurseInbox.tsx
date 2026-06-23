@@ -69,13 +69,10 @@ export const NurseInbox: FC = () => {
     [nurses, currentUser]
   );
 
-  // Filter requests that match this nurse's specialization (distance is informational, not a hard filter)
+  // Show all open requests to all nurses — nurse decides if they can handle it
   const incomingRequests = useMemo(() => {
     if (!myNurse) return [];
-    return careRequests.filter(req => {
-      if (req.status !== 'open') return false;
-      return myNurse.specialization.includes(req.specialization_needed);
-    });
+    return careRequests.filter(req => req.status === 'open');
   }, [careRequests, myNurse]);
 
   // Map family profiles for display
