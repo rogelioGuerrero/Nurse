@@ -1,6 +1,6 @@
 export interface StandardRate {
   specialization: string;
-  suggestedRate: number; // suggested nurse rate per 8-hour shift
+  suggestedRate: number; // suggested nurse rate per shift
 }
 
 export const PLATFORM_COMMISSION = 5; // fixed $5 per shift when invoicing
@@ -8,7 +8,7 @@ export const IVA_RATE = 0.13; // 13% IVA sobre comision de intermediacion (NO so
 export const RETENTION_RATE = 0.10; // 10% retencion de ISR (Impuesto sobre la Renta)
 export const STRIPE_RATE = 0.035; // ~3.5% Stripe card fee
 
-// Suggested rates by specialization - per 8-hour shift
+// Suggested rates by specialization - per shift
 export const STANDARD_RATES: StandardRate[] = [
   { specialization: 'Geriatría', suggestedRate: 25 },
   { specialization: 'Demencia y Alzheimer', suggestedRate: 28 },

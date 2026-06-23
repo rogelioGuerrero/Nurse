@@ -62,32 +62,12 @@ export const NurseDetail: FC = () => {
     );
   }
 
-  // Calculate dynamic hour counts
-  const calculateHours = (): number => {
-    if (!startTime || !endTime) return 0;
-    const [startH, startM] = startTime.split(':').map(Number);
-    const [endH, endM] = endTime.split(':').map(Number);
-    const startMinutes = startH * 60 + startM;
-    const endMinutes = endH * 60 + endM;
-    const diff = (endMinutes - startMinutes) / 60;
-    return diff > 0 ? parseFloat(diff.toFixed(1)) : 0;
-  };
-
-  const hours = 8; // Each shift is 8 hours
   const totalPrice = nurse.shift_rate;
 
   const handleNextToDetails = () => {
     setValidationError('');
     if (!date) {
       setValidationError('Por favor selecciona una fecha válida.');
-      return;
-    }
-    if (hours <= 0) {
-      setValidationError('La hora de fin debe ser posterior a la hora de inicio.');
-      return;
-    }
-    if (hours < 2) {
-      setValidationError('La reserva mínima debe ser de al menos 2 horas.');
       return;
     }
     setBookingStep(2);
@@ -126,7 +106,7 @@ export const NurseDetail: FC = () => {
         date,
         start_time: startTime,
         end_time: endTime,
-        hours,
+        hours: 8,
         total_price: totalPrice,
         patient_name: patientName,
         patient_condition: packedCondition,
@@ -360,7 +340,7 @@ export const NurseDetail: FC = () => {
                               {b.patient_name || 'Paciente'}
                             </div>
                             <div className="text-[10px] text-slate-400">
-                              {new Date(b.date + 'T00:00:00').toLocaleDateString('es-SV', { day: 'numeric', month: 'short', year: 'numeric' })} · {b.hours}h · {b.patient_condition || 'Cuidado general'}
+                              {new Date(b.date + 'T00:00:00').toLocaleDateString('es-SV', { day: 'numeric', month: 'short', year: 'numeric' })} · {b.patient_condition || 'Cuidado general'}
                             </div>
                           </div>
                           <span className="text-xs font-bold text-emerald-700">${b.total_price}</span>
@@ -414,10 +394,10 @@ export const NurseDetail: FC = () => {
                   <button 
                     type="button"
                     onClick={() => {
-                      if (date && hours >= 2) {
+                      if (date) {
                         setBookingStep(2);
                       } else {
-                        setValidationError('Por favor asigna fecha y horas válidas para avanzar de paso.');
+                        setValidationError('Por favor selecciona una fecha para avanzar.');
                       }
                     }}
                     className="flex flex-col items-center gap-1 focus:outline-none group"
@@ -434,7 +414,7 @@ export const NurseDetail: FC = () => {
                   <button 
                     type="button"
                     onClick={() => {
-                      if (date && hours >= 2 && patientName.trim() && patientCondition.trim()) {
+                      if (date && patientName.trim() && patientCondition.trim()) {
                         setBookingStep(3);
                       } else {
                         setValidationError('Completa los campos requeridos en los pasos 1 y 2 antes de avanzar.');
@@ -452,14 +432,14 @@ export const NurseDetail: FC = () => {
                 </div>
               </div>
 
-              {/* Step 1: Selection (Date and Hours) */}
+              {/* Step 1: Selection (Date and Turno) */}
               {bookingStep === 1 && (
                 <div className="space-y-4">
                   <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
                     <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Tarifa de Atención</span>
                     <div className="flex items-baseline gap-2">
                       <span className="text-2xl font-black text-slate-800">US$ {nurse.shift_rate}</span>
-                      <span className="text-xs font-semibold text-slate-500">/ turno (8h)</span>
+                      <span className="text-xs font-semibold text-slate-500">/ turno</span>
                     </div>
                     <p className="mt-1.5 text-[10px] text-slate-500 leading-normal">
                       <strong>Turnos disponibles:</strong> {nurse.available_shifts.map(s => s === 'morning' ? 'Mañana' : s === 'afternoon' ? 'Tarde' : 'Noche').join(', ')}
@@ -519,10 +499,10 @@ export const NurseDetail: FC = () => {
                     </div>
                   </div>
 
-                  {hours > 0 && (
+                  {date && (
                     <div className="bg-slate-50 rounded-xl p-3 border border-slate-200 text-xs text-slate-700 flex justify-between items-center font-medium">
-                      <span>Horas de Atención:</span>
-                      <span className="font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">{hours} horas</span>
+                      <span>Turno:</span>
+                      <span className="font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">{startTime} - {endTime}</span>
                     </div>
                   )}
 
@@ -713,7 +693,7 @@ export const NurseDetail: FC = () => {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-400">Horario:</span>
-                        <span className="font-semibold text-slate-900">{startTime} - {endTime} ({hours} hrs)</span>
+                        <span className="font-semibold text-slate-900">{startTime} - {endTime}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-slate-400">Paciente:</span>
@@ -737,12 +717,8 @@ export const NurseDetail: FC = () => {
 
                     <div className="border-t border-slate-200 pt-3 space-y-1.5">
                       <div className="flex justify-between text-slate-500 font-medium">
-                        <span>Costo por turno:</span>
+                        <span>Tarifa por turno:</span>
                         <span>US$ {nurse.shift_rate}</span>
-                      </div>
-                      <div className="flex justify-between text-slate-500 font-medium">
-                        <span>Total de horas contratadas:</span>
-                        <span>{hours} horas</span>
                       </div>
                       <div className="border-t border-slate-200/60 pt-2 flex justify-between items-center font-black text-slate-900 bg-indigo-50/50 -mx-4 px-4 py-2">
                         <span className="text-indigo-800">Total a Pagar:</span>

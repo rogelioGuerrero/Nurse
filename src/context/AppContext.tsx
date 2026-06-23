@@ -511,8 +511,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     if (request) {
       const slot = request.slots[offer.slot_index];
       const shift = SHIFTS[slot.shift];
-      const hours = 8; // cada turno son 8 horas
-      const nurseRate = Number(offer.offered_rate) * hours;
+      const nurseRate = Number(offer.offered_rate);
       const managementFee = request.wants_invoice ? 5 * 1.13 : 0; // US$5 + 13% IVA
       const totalPrice = nurseRate + managementFee;
       
@@ -521,7 +520,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         date: slot.date,
         start_time: shift.start,
         end_time: shift.end,
-        hours,
+        hours: 8,
         total_price: totalPrice,
         patient_name: request.patient_name,
         patient_condition: request.patient_condition,

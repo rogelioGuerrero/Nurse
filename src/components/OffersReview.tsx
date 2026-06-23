@@ -64,7 +64,6 @@ export const OffersReview: FC = () => {
         const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
         const slot = request.slots[offer.slot_index];
         const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.morning;
-        const hours = 8;
         const totalNet = calculateNurseNet(offer.offered_rate, true);
 
         return (
