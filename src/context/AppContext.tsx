@@ -520,7 +520,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         date: slot.date,
         start_time: shift.start,
         end_time: shift.end,
-        hours: 8,
+        hours: shift.hours,
         total_price: totalPrice,
         patient_name: request.patient_name,
         patient_condition: request.patient_condition,

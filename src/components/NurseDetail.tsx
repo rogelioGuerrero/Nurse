@@ -64,6 +64,15 @@ export const NurseDetail: FC = () => {
 
   const totalPrice = nurse.shift_rate;
 
+  const calculateShiftHours = (): number => {
+    if (!startTime || !endTime) return 0;
+    const [startH, startM] = startTime.split(':').map(Number);
+    const [endH, endM] = endTime.split(':').map(Number);
+    let diff = (endH * 60 + endM - startH * 60 - startM) / 60;
+    if (diff <= 0) diff += 24;
+    return parseFloat(diff.toFixed(1));
+  };
+
   const handleNextToDetails = () => {
     setValidationError('');
     if (!date) {
@@ -106,7 +115,7 @@ export const NurseDetail: FC = () => {
         date,
         start_time: startTime,
         end_time: endTime,
-        hours: 8,
+        hours: calculateShiftHours(),
         total_price: totalPrice,
         patient_name: patientName,
         patient_condition: packedCondition,
