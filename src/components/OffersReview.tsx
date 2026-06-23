@@ -220,7 +220,7 @@ export const OffersReview: FC = () => {
 
               <div className="text-sm text-slate-600 space-y-2">
                 <p>
-                  Estás a punto de confirmar el servicio con la enfermera <strong>{nurseProfile?.full_name}</strong> para el cuidado de <strong>{request.patient_name || 'tu familiar'}</strong>.
+                  Estás a punto de confirmar el servicio con la enfermera <strong>{nurseProfile?.full_name}</strong>{request.patient_condition ? <> para el cuidado de <strong>{request.patient_condition}</strong></> : null}.
                 </p>
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs space-y-1">
                   <div className="flex justify-between">
