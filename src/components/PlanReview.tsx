@@ -250,7 +250,7 @@ export const PlanReview: FC = () => {
             </div>
             <div>
               <h3 className="font-bold text-slate-800 text-sm">Plan en preparación</h3>
-              <p className="text-xs text-slate-500">Aún estamos confirmando algunas fechas. Lo que ya está confirmado aparece abajo.</p>
+              <p className="text-xs text-slate-500">Estamos coordinando y ajustando según disponibilidad del personal para atender tu solicitud.</p>
             </div>
           </div>
         )}

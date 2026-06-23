@@ -20,7 +20,7 @@ export const PLATFORM_SETTINGS: PlatformSettings = {
   requestExpirationHours: 24,
   pendingBookingExpirationHours: 24,
   bankName: 'BAC Credomatic',
-  bankAccountHolder: 'BienCuidar SV',
+  bankAccountHolder: 'AGTI, S.A. de C.V.',
   bankAccountNumber: '123456789',
   bankAccountType: 'Cuenta Corriente',
 };
