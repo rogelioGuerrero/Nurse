@@ -199,9 +199,8 @@ export const NurseInbox: FC = () => {
                   <div className="bg-slate-50 rounded-xl p-3 space-y-1.5">
                     <div className="flex items-center gap-2 text-xs">
                       <Heart className="h-3.5 w-3.5 text-rose-400 flex-shrink-0" />
-                      <span className="font-bold text-slate-700">{req.patient_name}</span>
+                      <span className="font-bold text-slate-700">{req.patient_condition}</span>
                     </div>
-                    <p className="text-xs text-slate-600 leading-relaxed pl-5">{req.patient_condition}</p>
                     {req.notes && (
                       <p className="text-xs text-slate-500 italic pl-5">Nota: {req.notes}</p>
                     )}

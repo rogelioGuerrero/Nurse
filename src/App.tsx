@@ -15,7 +15,7 @@ import {
   Stethoscope, Calendar, 
   Star, Sparkles,
   Heart, Users, ChevronRight, GraduationCap, Network, MapPinned, MessageCircle,
-  Menu, X, Search, Inbox, ClipboardList, ShieldCheck, User
+  Search, Inbox, ClipboardList, ShieldCheck, User, LogOut
 } from 'lucide-react';
 
 const LoadingSpinner = () => (
@@ -58,7 +58,6 @@ function MarketplaceApp() {
   const [selectedSpecialization, setSelectedSpecialization] = useState<string>('');
   const [maxRate, setMaxRate] = useState<number>(40);
   const [sortBy, setSortBy] = useState<string>('distance');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Auth states
   const [authMode, setAuthMode] = useState<'landing' | 'login' | 'register'>('landing');
@@ -163,208 +162,30 @@ function MarketplaceApp() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col selection:bg-indigo-100" id="main-layout-root">
 
-      {/* Main Premium Navbar - hidden on landing and admin */}
+      {/* Compact Header - logo + avatar only */}
       {activeTab !== 'landing' && currentUser?.role !== 'admin' && (
       <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40" id="main-header">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          
-          {/* Brand/Product Logo + Mobile toggle */}
-          <div className="flex items-center justify-between gap-3 cursor-pointer select-none">
-            <div className="flex items-center gap-3" onClick={() => { setSelectedNurseId(null); setActiveTab(currentUser?.role === 'nurse' ? 'nurse-inbox' : 'care-request'); setMobileMenuOpen(false); }}>
-              <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center transform hover:scale-105 transition-all duration-200 border border-indigo-700 shadow-sm">
-                <div className="w-4.5 h-4.5 border border-white rounded-full flex items-center justify-center">
-                  <Stethoscope className="h-2.5 w-2.5 text-white" />
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xl font-bold font-serif italic tracking-tight text-slate-900">BienCuidar</span>
-                </div>
-                <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Cuidado del Adulto Mayor</p>
+        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => { setSelectedNurseId(null); setActiveTab(currentUser?.role === 'nurse' ? 'nurse-inbox' : 'care-request'); }}>
+            <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center transform hover:scale-105 transition-all duration-200 border border-indigo-700 shadow-sm">
+              <div className="w-4.5 h-4.5 border border-white rounded-full flex items-center justify-center">
+                <Stethoscope className="h-2.5 w-2.5 text-white" />
               </div>
             </div>
-
-            {/* User indicator */}
-            {currentUser && (
-              <div className="flex items-center gap-2 bg-slate-100 rounded-full pl-1 pr-3 py-1">
-                <div className="w-7 h-7 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                  {currentUser.full_name?.charAt(0).toUpperCase() || 'U'}
-                </div>
-                <span className="text-xs font-medium text-slate-700 hidden sm:block">
-                  {currentUser.full_name?.split(' ')[0] || 'Usuario'}
-                </span>
-              </div>
-            )}
-            
-            {/* Mobile menu toggle button */}
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="sm:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition cursor-pointer"
-              id="btn-mobile-menu-toggle"
-              aria-label="Toggle menu"
-            >
-              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
+            <div>
+              <span className="text-xl font-bold font-serif italic tracking-tight text-slate-900">BienCuidar</span>
+            </div>
           </div>
-
-          {/* Navigation Control Buttons */}
-          <nav className={`flex flex-wrap items-center gap-1 sm:gap-2 text-xs ${mobileMenuOpen ? 'flex' : 'hidden sm:flex'}`}>
-            
-            {/* Familiar: buscar + solicitudes + plan + apoyo clinico */}
-            {currentUser?.role !== 'nurse' && (
-              <>
-                <button
-                  onClick={() => { setSelectedNurseId(null); setActiveTab('care-request'); setMobileMenuOpen(false); }}
-                  className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                    activeTab === 'care-request'
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                  id="tab-btn-care-request"
-                >
-                  <Search className="h-4 w-4" />
-                  <span>Buscar Enfermeras</span>
-                </button>
-
-                <button
-                  onClick={() => { setSelectedNurseId(null); setActiveTab('bookings'); setMobileMenuOpen(false); }}
-                  className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                    activeTab === 'bookings'
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                  id="tab-btn-bookings"
-                >
-                  <ClipboardList className="h-4 w-4" />
-                  <span>Mis Solicitudes</span>
-                </button>
-
-                <button
-                  onClick={() => { setSelectedNurseId(null); setActiveTab('offers-review'); setMobileMenuOpen(false); }}
-                  className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer relative ${
-                    activeTab === 'offers-review'
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                  id="tab-btn-offers-review"
-                >
-                  <Inbox className="h-4 w-4" />
-                  <span>Ofertas Recibidas</span>
-                  {pendingOffersCount > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                      {pendingOffersCount}
-                    </span>
-                  )}
-                </button>
-
-                <button
-                  onClick={() => { setSelectedNurseId(null); setActiveTab('plan-review'); setMobileMenuOpen(false); }}
-                  className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                    activeTab === 'plan-review'
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                  id="tab-btn-plan-review"
-                >
-                  <Calendar className="h-4 w-4" />
-                  <span>Plan de Cuidado</span>
-                </button>
-
-                <button
-                  onClick={() => { setActiveTab('clinical-ai'); setMobileMenuOpen(false); }}
-                  className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                    activeTab === 'clinical-ai'
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                  id="tab-btn-clinical-ai"
-                >
-                  <Sparkles className="h-4 w-4 text-amber-500" />
-                  <span>Apoyo Clínico</span>
-                </button>
-
-                <button
-                  onClick={() => { setActiveTab('family-profile-edit'); setMobileMenuOpen(false); }}
-                  className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                    activeTab === 'family-profile-edit'
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                  id="tab-btn-family-profile"
-                >
-                  <User className="h-4 w-4" />
-                  <span>Mi Perfil</span>
-                </button>
-              </>
-            )}
-
-            {/* Enfermera: solicitudes + perfil + servicios + apoyo clinico */}
-            {currentUser?.role === 'nurse' && (
-              <>
-                <button
-                  onClick={() => { setActiveTab('nurse-inbox'); setMobileMenuOpen(false); }}
-                  className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                    activeTab === 'nurse-inbox'
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                  id="tab-btn-nurse-inbox"
-                >
-                  <Inbox className="h-4 w-4" />
-                  <span>Solicitudes</span>
-                </button>
-
-                <button
-                  onClick={() => { setActiveTab('nurse-profile-edit'); setMobileMenuOpen(false); }}
-                  className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                    activeTab === 'nurse-profile-edit'
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                  id="tab-btn-nurse-edit"
-                >
-                  <Network className="h-4 w-4" />
-                  <span>Mi Perfil</span>
-                </button>
-
-                <button
-                  onClick={() => { setActiveTab('bookings'); setMobileMenuOpen(false); }}
-                  className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                    activeTab === 'bookings'
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                  id="tab-btn-bookings"
-                >
-                  <ClipboardList className="h-4 w-4" />
-                  <span>Mis Servicios</span>
-                </button>
-
-                <button
-                  onClick={() => { setActiveTab('clinical-ai'); setMobileMenuOpen(false); }}
-                  className={`px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer ${
-                    activeTab === 'clinical-ai'
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-100'
-                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                  id="tab-btn-clinical-ai"
-                >
-                  <Sparkles className="h-4 w-4 text-amber-500" />
-                  <span>Apoyo Clínico</span>
-                </button>
-              </>
-            )}
-
-            {/* Logout button for all non-admin users */}
-            <button
-              onClick={async () => { await supabase.auth.signOut(); }}
-              className="px-3.5 py-2.5 rounded-xl font-bold transition flex items-center gap-1.5 cursor-pointer text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-            >
-              <span>Salir</span>
-            </button>
-
-          </nav>
-
+          {currentUser && (
+            <div className="flex items-center gap-2 bg-slate-100 rounded-full pl-1 pr-3 py-1">
+              <div className="w-7 h-7 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                {currentUser.full_name?.charAt(0).toUpperCase() || 'U'}
+              </div>
+              <span className="text-xs font-medium text-slate-700">
+                {currentUser.full_name?.split(' ')[0] || 'Usuario'}
+              </span>
+            </div>
+          )}
         </div>
       </header>
       )}
@@ -379,7 +200,7 @@ function MarketplaceApp() {
             </span>
             <div className="flex items-center gap-1.5">
               <button
-                onClick={() => { setActiveTab('admin-panel'); setMobileMenuOpen(false); }}
+                onClick={() => { setActiveTab('admin-panel'); }}
                 className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
                   activeTab === 'admin-panel'
                     ? 'bg-white text-indigo-900'
@@ -389,7 +210,7 @@ function MarketplaceApp() {
                 Notificaciones
               </button>
               <button
-                onClick={() => { setActiveTab('cssp-review'); setMobileMenuOpen(false); }}
+                onClick={() => { setActiveTab('cssp-review'); }}
                 className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
                   activeTab === 'cssp-review'
                     ? 'bg-white text-indigo-900'
@@ -410,7 +231,7 @@ function MarketplaceApp() {
       )}
 
       {/* Main Content Pane */}
-      <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-4" id="main-content-layout">
+      <main className="flex-1 max-w-2xl w-full mx-auto px-4 py-4 pb-24" id="main-content-layout">
         
         {/* Landing page when no user */}
         {activeTab === 'landing' && (
@@ -739,6 +560,123 @@ function MarketplaceApp() {
           </div>
         </div>
       </footer>
+
+      {/* Bottom Navigation Bar - mobile-first, always visible */}
+      {activeTab !== 'landing' && currentUser?.role !== 'admin' && (
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 safe-area-pb" id="bottom-nav">
+          <div className="max-w-2xl mx-auto flex items-center justify-around px-2 py-1.5">
+            {currentUser?.role !== 'nurse' ? (
+              <>
+                <button
+                  onClick={() => { setSelectedNurseId(null); setActiveTab('care-request'); }}
+                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
+                    activeTab === 'care-request' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <Search className="h-5 w-5" />
+                  <span className="text-[9px] font-bold">Buscar</span>
+                </button>
+                <button
+                  onClick={() => { setSelectedNurseId(null); setActiveTab('bookings'); }}
+                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
+                    activeTab === 'bookings' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <ClipboardList className="h-5 w-5" />
+                  <span className="text-[9px] font-bold">Solicitudes</span>
+                </button>
+                <button
+                  onClick={() => { setSelectedNurseId(null); setActiveTab('offers-review'); }}
+                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer relative ${
+                    activeTab === 'offers-review' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <Inbox className="h-5 w-5" />
+                  <span className="text-[9px] font-bold">Ofertas</span>
+                  {pendingOffersCount > 0 && (
+                    <span className="absolute -top-0.5 right-0 bg-red-500 text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                      {pendingOffersCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => { setSelectedNurseId(null); setActiveTab('plan-review'); }}
+                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
+                    activeTab === 'plan-review' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <Calendar className="h-5 w-5" />
+                  <span className="text-[9px] font-bold">Plan</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('clinical-ai'); }}
+                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
+                    activeTab === 'clinical-ai' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <Sparkles className="h-5 w-5 text-amber-500" />
+                  <span className="text-[9px] font-bold">Apoyo</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('family-profile-edit'); }}
+                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
+                    activeTab === 'family-profile-edit' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <User className="h-5 w-5" />
+                  <span className="text-[9px] font-bold">Perfil</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => { setActiveTab('nurse-inbox'); }}
+                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
+                    activeTab === 'nurse-inbox' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <Inbox className="h-5 w-5" />
+                  <span className="text-[9px] font-bold">Solicitudes</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('bookings'); }}
+                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
+                    activeTab === 'bookings' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <ClipboardList className="h-5 w-5" />
+                  <span className="text-[9px] font-bold">Servicios</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('clinical-ai'); }}
+                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
+                    activeTab === 'clinical-ai' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <Sparkles className="h-5 w-5 text-amber-500" />
+                  <span className="text-[9px] font-bold">Apoyo</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('nurse-profile-edit'); }}
+                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
+                    activeTab === 'nurse-profile-edit' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <Network className="h-5 w-5" />
+                  <span className="text-[9px] font-bold">Perfil</span>
+                </button>
+                <button
+                  onClick={async () => { await supabase.auth.signOut(); }}
+                  className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer text-slate-400 hover:text-rose-600"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span className="text-[9px] font-bold">Salir</span>
+                </button>
+              </>
+            )}
+          </div>
+        </nav>
+      )}
 
     </div>
   );
