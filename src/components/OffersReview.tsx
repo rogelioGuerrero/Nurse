@@ -220,16 +220,12 @@ export const OffersReview: FC = () => {
 
               <div className="text-sm text-slate-600 space-y-2">
                 <p>
-                  Estás a punto de confirmar el servicio con la enfermera <strong>{nurseProfile?.full_name}</strong> para el cuidado de <strong>{request.patient_name}</strong>.
+                  Estás a punto de confirmar el servicio con la enfermera <strong>{nurseProfile?.full_name}</strong> para el cuidado de <strong>{request.patient_name || 'tu familiar'}</strong>.
                 </p>
                 <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-xs space-y-1">
                   <div className="flex justify-between">
                     <span>Tarifa ofrecida por turno:</span>
                     <span className="font-bold text-slate-800">US$ {offer.offered_rate}</span>
-                  </div>
-                  <div className="flex justify-between text-slate-500">
-                    <span>Intermediación BienCuidar:</span>
-                    <span>Gratis (fase arranque)</span>
                   </div>
                 </div>
               </div>
@@ -238,21 +234,6 @@ export const OffersReview: FC = () => {
               <div className="space-y-3 pt-2">
                 <LegalDisclaimer variant="checkout-confirm" />
                 <LegalDisclaimer variant={request.wants_invoice ? 'invoice-payment' : 'direct-payment'} />
-              </div>
-
-              {/* Invoice info based on request preference */}
-              <div className={`rounded-xl p-3 flex items-start gap-2.5 ${request.wants_invoice ? 'bg-indigo-50 border border-indigo-100' : 'bg-emerald-50 border border-emerald-100'}`}>
-                <FileText className={`h-4 w-4 shrink-0 mt-0.5 ${request.wants_invoice ? 'text-indigo-600' : 'text-emerald-600'}`} />
-                <div className="space-y-1">
-                  <p className={`text-xs font-bold ${request.wants_invoice ? 'text-indigo-800' : 'text-emerald-800'}`}>
-                    {request.wants_invoice ? 'Con factura electrónica' : 'Pago directo sin factura'}
-                  </p>
-                  <p className={`text-[10px] leading-relaxed ${request.wants_invoice ? 'text-indigo-600' : 'text-emerald-600'}`}>
-                    {request.wants_invoice
-                      ? 'El pago se realiza por transferencia a BienCuidar. Te emitiremos comprobante legal (Factura o Crédito Fiscal) por el total del servicio, válido para deducir Impuesto sobre la Renta o reembolso de seguro médico. El total incluye el pago de la enfermera y nuestra tarifa de gestión fiscal y administrativa de US$5 (más IVA).'
-                      : 'Paga directamente a la enfermera (efectivo, transferencia o como acuerden). BienCuidar no emite factura ni tiene responsabilidad fiscal.'}
-                  </p>
-                </div>
               </div>
 
               {/* Checkbox de aceptación */}
