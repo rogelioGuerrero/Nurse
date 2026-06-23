@@ -586,7 +586,7 @@ export const CareRequestForm: FC = () => {
             </div>
             {wantsInvoice ? (
               <p className="text-[10px] text-indigo-600 leading-relaxed">
-                Factura de Consumidor Final emitida a tu nombre. Pago del servicio por transferencia a cuenta bancaria asociada a BienCuidar. Tarifa de gestión fiscal y administrativa US$ 5 más IVA.
+                Factura de Consumidor Final emitida a tu nombre. Pago del servicio por transferencia bancaria a BienCuidar. Se incluirá tarifa de gestión fiscal y administrativa US$ 5 más IVA.
               </p>
             ) : (
               <p className="text-[10px] text-slate-500 leading-relaxed">
