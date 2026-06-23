@@ -625,7 +625,7 @@ export const NurseProfileEdit: FC = () => {
                 <div className="flex items-start gap-1.5">
                   <span className="text-[10px]">📋</span>
                   <p className="text-[10px] text-slate-600 leading-relaxed">
-                    <strong>Con factura:</strong> La familia transfiere a BienCuidar, quien retiene el 10% ISR y te transfiere el neto. Se emite Factura a la familia y FSEE a ti como comprobante de ingreso ante Hacienda, cooperativas o trámites de visa.
+                    <strong>Con factura:</strong> La familia transfiere a BienCuidar, quien retiene el 10% ISR y te transfiere el saldo neto. Se emite Factura a la familia y FSEE a ti como comprobante de ingreso ante el Ministerio de Hacienda; ese 10% retenido te sirve como pago anticipado de tu impuesto anual, lo que te facilita aplicar a devoluciones de dinero al final del año.
                   </p>
                 </div>
                 <div className="flex items-start gap-1.5">
@@ -637,7 +637,7 @@ export const NurseProfileEdit: FC = () => {
                 <div className="flex items-start gap-1.5">
                   <span className="text-[10px]">🏦</span>
                   <p className="text-[10px] text-slate-600 leading-relaxed">
-                    <strong>Respaldo para microcréditos:</strong> Tu historial de servicios facturados sirve como comprobante verificable ante cooperativas y entidades financieras.
+                    <strong>Acceso a créditos y financiamiento:</strong> Tu historial de servicios y las FSEE acumuladas en la plataforma generan un registro financiero formal. Esto te sirve como comprobante de ingresos en entidades financieras, comerciales, cajas de crédito y cooperativas para solicitar préstamos, microcréditos o tarjetas.
                   </p>
                 </div>
               </div>
