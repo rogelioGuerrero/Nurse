@@ -249,7 +249,7 @@ export const OffersReview: FC = () => {
                   </p>
                   <p className={`text-[10px] leading-relaxed ${request.wants_invoice ? 'text-indigo-600' : 'text-emerald-600'}`}>
                     {request.wants_invoice
-                      ? 'Con Factura: El pago del servicio se realiza por transferencia bancaria a BienCuidar. Se emitirá una Factura de Consumidor Final (o Crédito Fiscal si necesitas deducir Impuesto sobre la Renta) totalmente válida para el reembolso de tu seguro médico. El servicio incluirá una tarifa de gestión fiscal y administrativa de US$ 5 más IVA.'
+                      ? 'El pago se realiza por transferencia a BienCuidar. Te emitiremos un solo comprobante legal (Factura o Crédito Fiscal) por el total del servicio, válido para deducir Impuesto sobre la Renta o reembolso de seguro médico. El total incluye el pago de la enfermera (exento de IVA) y nuestra tarifa de gestión de US$ 5 (más IVA).'
                       : 'Paga directamente a la enfermera (efectivo, transferencia o como acuerden). BienCuidar no emite factura ni tiene responsabilidad fiscal.'}
                   </p>
                 </div>
