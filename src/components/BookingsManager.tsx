@@ -37,11 +37,15 @@ export const BookingsManager: FC = () => {
 
   const isNurseView = currentUser?.role === 'nurse';
 
-  // Check-in/out state
+  // Llegada/Salida state
   const [checkInBookingId, setCheckInBookingId] = useState<string | null>(null);
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [reportedAddress, setReportedAddress] = useState('');
+
+  // No podré asistir state
+  const [cancelBookingId, setCancelBookingId] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
 
   // O(1) lookup maps to avoid repeated find() calls inside loops
   const profileMap = useMemo(() => {
@@ -100,7 +104,7 @@ export const BookingsManager: FC = () => {
           setCheckInBookingId(null);
           setReportedAddress('');
         } catch {
-          setGpsError('Error al registrar check-in');
+          setGpsError('Error al registrar llegada');
         }
         setGpsLoading(false);
       },
@@ -130,7 +134,7 @@ export const BookingsManager: FC = () => {
           await checkOutBooking(bookingId, latitude, longitude);
           setCheckInBookingId(null);
         } catch {
-          setGpsError('Error al registrar check-out');
+          setGpsError('Error al registrar salida');
         }
         setGpsLoading(false);
       },
@@ -672,17 +676,17 @@ export const BookingsManager: FC = () => {
                 {b.status === 'confirmed' && !b.check_in_at && (
                   <div className="px-3 py-2 bg-slate-50 border-t border-slate-100 text-[9px] text-slate-400 leading-relaxed">
                     {isNurseView
-                      ? 'Si la familia cancela después de tu check-in, recibes el 50% del turno por movilización.'
-                      : 'Puedes cancelar sin costo antes del check-in. Si cancelas después, se cobra el 50% por movilización de la enfermera.'
+                      ? 'Si la familia cancela con menos de 12 horas de anticipación o después de tu llegada, recibes el 50% del turno por movilización.'
+                      : 'Cancela sin costo hasta 12 horas antes de la hora pactada. Con menos de 12 horas, se cobra el 50% por movilización de la enfermera.'
                     }
                   </div>
                 )}
 
-                {/* Check-in/out status banner */}
+                {/* Llegada/Salida status banner */}
                 {b.status === 'confirmed' && b.check_in_at && (
                   <div className="px-3 py-2 bg-emerald-50 border-t border-emerald-100 flex items-center gap-2 text-[10px] text-emerald-700">
                     <LogIn className="h-3.5 w-3.5" />
-                    <span className="font-bold">Check-in:</span>
+                    <span className="font-bold">Llegada:</span>
                     <span>{new Date(b.check_in_at).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' })}</span>
                     {b.address_mismatch && (
                       <span className="text-amber-600 font-bold flex items-center gap-0.5">
@@ -693,14 +697,14 @@ export const BookingsManager: FC = () => {
                       <>
                         <span className="text-slate-300">·</span>
                         <LogOut className="h-3.5 w-3.5" />
-                        <span className="font-bold">Check-out:</span>
+                        <span className="font-bold">Salida:</span>
                         <span>{new Date(b.check_out_at).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' })}</span>
                       </>
                     )}
                   </div>
                 )}
 
-                {/* Check-in address report (nurse only, before check-in) */}
+                {/* Llegada address report (nurse only, before arrival) */}
                 {b.status === 'confirmed' && isNurseView && !b.check_in_at && checkInBookingId === b.id && (
                   <div className="px-3 py-3 bg-amber-50 border-t border-amber-100 space-y-2">
                     <p className="text-[10px] font-bold text-amber-800 flex items-center gap-1">
@@ -736,6 +740,46 @@ export const BookingsManager: FC = () => {
                   </div>
                 )}
 
+                {/* No podré asistir modal (nurse only, before arrival) */}
+                {b.status === 'confirmed' && isNurseView && !b.check_in_at && cancelBookingId === b.id && (
+                  <div className="px-3 py-3 bg-rose-50 border-t border-rose-100 space-y-2">
+                    <p className="text-[10px] font-bold text-rose-800 flex items-center gap-1">
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                      ¿No podrás asistir?
+                    </p>
+                    <p className="text-[10px] text-slate-500">La familia será notificada de inmediato. Cuéntanos el motivo para que tengan contexto.</p>
+                    <select
+                      value={cancelReason}
+                      onChange={e => setCancelReason(e.target.value)}
+                      className="w-full text-[11px] border border-rose-200 rounded-lg p-2 bg-white"
+                    >
+                      <option value="">Selecciona un motivo...</option>
+                      <option value="Emergencia familiar">Emergencia familiar</option>
+                      <option value="Enfermedad">Enfermedad</option>
+                      <option value="Problema de transporte">Problema de transporte</option>
+                      <option value="Conflicto de horario">Conflicto de horario</option>
+                      <option value="Otro">Otro</option>
+                    </select>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setCancelBookingId(null); setCancelReason(''); }}
+                        className="text-[10px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg cursor-pointer"
+                      >Cerrar</button>
+                      <button
+                        onClick={() => {
+                          updateBookingStatus(b.id, 'cancelled').catch(console.error);
+                          setCancelBookingId(null);
+                          setCancelReason('');
+                        }}
+                        disabled={!cancelReason}
+                        className="text-[10px] font-bold text-white bg-rose-600 hover:bg-rose-500 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      >
+                        <AlertTriangle className="h-3 w-3" />Confirmar y notificar a la familia
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                 {/* Action buttons */}
                 <div className="flex items-center justify-end gap-2 p-3 border-t border-slate-100/60">
                   {b.status === 'pending' && (
@@ -754,13 +798,21 @@ export const BookingsManager: FC = () => {
                     <>
                       {isNurseView ? (
                         <>
-                          {!b.check_in_at && checkInBookingId !== b.id && (
-                            <button
-                              onClick={() => setCheckInBookingId(b.id)}
-                              className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer"
-                            >
-                              <LogIn className="h-3.5 w-3.5" />Check-in
-                            </button>
+                          {!b.check_in_at && checkInBookingId !== b.id && cancelBookingId !== b.id && (
+                            <>
+                              <button
+                                onClick={() => setCheckInBookingId(b.id)}
+                                className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer"
+                              >
+                                <LogIn className="h-3.5 w-3.5" />Registrar llegada
+                              </button>
+                              <button
+                                onClick={() => setCancelBookingId(b.id)}
+                                className="text-[10px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer"
+                              >
+                                <AlertTriangle className="h-3.5 w-3.5" />No podré asistir
+                              </button>
+                            </>
                           )}
                           {b.check_in_at && !b.check_out_at && (
                             <button
@@ -771,7 +823,7 @@ export const BookingsManager: FC = () => {
                               {gpsLoading ? (
                                 <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>GPS...</>
                               ) : (
-                                <><LogOut className="h-3.5 w-3.5" />Check-out</>
+                                <><LogOut className="h-3.5 w-3.5" />Registrar salida</>
                               )}
                             </button>
                           )}

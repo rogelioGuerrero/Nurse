@@ -512,7 +512,9 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       const slot = request.slots[offer.slot_index];
       const shift = SHIFTS[slot.shift];
       const hours = 8; // cada turno son 8 horas
-      const totalPrice = offer.offered_rate * hours;
+      const nurseRate = Number(offer.offered_rate) * hours;
+      const managementFee = request.wants_invoice ? 5 * 1.13 : 0; // US$5 + 13% IVA
+      const totalPrice = nurseRate + managementFee;
       
       await createBooking({
         nurse_id: offer.nurse_id,

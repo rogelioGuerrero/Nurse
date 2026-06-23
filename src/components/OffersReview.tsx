@@ -237,7 +237,7 @@ export const OffersReview: FC = () => {
               {/* Disclaimers */}
               <div className="space-y-3 pt-2">
                 <LegalDisclaimer variant="checkout-confirm" />
-                <LegalDisclaimer variant="direct-payment" />
+                <LegalDisclaimer variant={request.wants_invoice ? 'invoice-payment' : 'direct-payment'} />
               </div>
 
               {/* Invoice info based on request preference */}

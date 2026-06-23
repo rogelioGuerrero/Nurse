@@ -2,7 +2,7 @@ import { type FC } from 'react';
 import { ShieldAlert } from 'lucide-react';
 
 interface LegalDisclaimerProps {
-  variant?: 'compact' | 'full' | 'direct-payment' | 'checkout-confirm';
+  variant?: 'compact' | 'full' | 'direct-payment' | 'invoice-payment' | 'checkout-confirm';
 }
 
 export const LegalDisclaimer: FC<LegalDisclaimerProps> = ({ variant = 'compact' }) => {
@@ -29,7 +29,18 @@ export const LegalDisclaimer: FC<LegalDisclaimerProps> = ({ variant = 'compact' 
       <div className="bg-amber-50/60 border border-amber-200/40 rounded-xl p-3 flex items-start gap-2">
         <ShieldAlert className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
         <p className="text-[10px] text-amber-800 leading-relaxed font-medium">
-          <strong>Aviso de Pago Directo:</strong> BienCuidar no intermedia el flujo de dinero ni realiza retenciones fiscales en la modalidad de pago directo. La enfermera es responsable de reportar sus ingresos y el cliente de verificar las credenciales.
+          <strong>Aviso de Pago Directo:</strong> BienCuidar no intermedia el flujo de dinero. La familia paga directamente a la enfermera (efectivo, transferencia o como acuerden). La enfermera es responsable de reportar sus ingresos ante Hacienda.
+        </p>
+      </div>
+    );
+  }
+
+  if (variant === 'invoice-payment') {
+    return (
+      <div className="bg-indigo-50/60 border border-indigo-200/40 rounded-xl p-3 flex items-start gap-2">
+        <ShieldAlert className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+        <p className="text-[10px] text-indigo-800 leading-relaxed font-medium">
+          <strong>Aviso de Pago con Factura:</strong> El pago se realiza por transferencia a BienCuidar. Emitimos comprobante legal (Factura o Crédito Fiscal) válido ante el Ministerio de Hacienda. El total incluye el pago de la enfermera y nuestra tarifa de gestión de US$5 más IVA.
         </p>
       </div>
     );

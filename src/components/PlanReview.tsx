@@ -51,8 +51,8 @@ export const PlanReview: FC = () => {
     const nurse = acceptedOffer ? nurses.find(n => n.id === acceptedOffer.nurse_id) : null;
     const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
     const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.morning;
-    const nurseRate = nurse?.shift_rate || 25;
-    const wantsInvoicing = true; // FSE automatico para todas las enfermeras en BienCuidar
+    const nurseRate = acceptedOffer ? Number(acceptedOffer.offered_rate) : (nurse?.shift_rate || 25);
+    const wantsInvoicing = myRequest.wants_invoice;
     const price = calculateFamilyPrice(nurseRate, wantsInvoicing);
     return { slot, nurse, nurseProfile, shiftInfo, price, nurseRate, hasNurse: !!nurse };
   });
@@ -382,11 +382,11 @@ export const PlanReview: FC = () => {
                 <p className="text-[10px] font-bold text-slate-600 uppercase">Política de cancelación</p>
                 <div className="flex items-start gap-1.5 text-[10px] text-slate-500">
                   <span className="text-emerald-500 font-bold">✓</span>
-                  <span>Cancela sin costo <strong>antes</strong> de que la enfermera llegue.</span>
+                  <span>Cancela sin costo hasta <strong>12 horas antes</strong> de la hora pactada.</span>
                 </div>
                 <div className="flex items-start gap-1.5 text-[10px] text-slate-500">
                   <span className="text-amber-500 font-bold">50%</span>
-                  <span>Si cancelas <strong>después del check-in</strong>, se cobra el 50% del turno por gastos de movilización de la enfermera.</span>
+                  <span>Si cancelas con <strong>menos de 12 horas</strong> de anticipación, se cobra el 50% del turno por gastos de movilización de la enfermera.</span>
                 </div>
                 <div className="flex items-start gap-1.5 text-[10px] text-slate-500">
                   <span className="text-rose-500 font-bold">0%</span>
