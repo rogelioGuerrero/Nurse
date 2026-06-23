@@ -590,7 +590,7 @@ export const CareRequestForm: FC = () => {
               </p>
             ) : (
               <p className="text-[10px] text-slate-500 leading-relaxed">
-                Pago directo a la enfermera sin comprobante fiscal. Más económico, sin costos administrativos.
+                Pago directo a la enfermera. BienCuidar no emite factura ni tiene responsabilidad fiscal.
               </p>
             )}
           </div>
