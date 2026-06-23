@@ -7,11 +7,12 @@ import { useState, useMemo, type FC } from 'react';
 import { useApp, type ServiceLogType } from '../context/AppContext';
 import { Booking, BookingStatus } from '../types';
 import { groqChat } from '../lib/groq';
+import { PLATFORM_SETTINGS } from '../data/platformSettings';
 import {
   Calendar, User, CheckCircle2,
   PlusCircle, FileText, AlertTriangle,
   Phone, ChevronLeft, ChevronRight, MessageCircle,
-  MapPin, LogIn, LogOut, Star, DollarSign
+  MapPin, LogIn, LogOut, Star, DollarSign, X, Building2
 } from 'lucide-react';
 
 const DAY_SHORT = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
@@ -82,6 +83,9 @@ export const BookingsManager: FC = () => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
+
+  // Payment modal
+  const [paymentBookingId, setPaymentBookingId] = useState<string | null>(null);
 
   const handleCheckIn = async (bookingId: string) => {
     setGpsLoading(true);
@@ -296,21 +300,6 @@ export const BookingsManager: FC = () => {
           <span className="text-sm font-black text-indigo-700">{filteredBookings.length}</span>
         </div>
       </div>
-
-      {/* SOS Emergency banner */}
-      {filteredBookings.some(b => b.status === 'confirmed') && (
-        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 flex items-start gap-2.5">
-          <AlertTriangle className="h-5 w-5 text-rose-500 flex-shrink-0 mt-0.5" />
-          <div className="text-[10px] text-rose-900 space-y-1">
-            <p className="font-bold uppercase tracking-wider">Emergencias SOS El Salvador</p>
-            <div className="flex flex-wrap gap-1.5">
-              <a href="tel:132" className="bg-rose-100 hover:bg-rose-200 text-rose-800 px-2 py-1 rounded-lg font-bold flex items-center gap-1"><Phone className="h-2.5 w-2.5" />SEM 132</a>
-              <a href="tel:911" className="bg-rose-100 hover:bg-rose-200 text-rose-800 px-2 py-1 rounded-lg font-bold flex items-center gap-1"><Phone className="h-2.5 w-2.5" />PNC 911</a>
-              <a href="tel:913" className="bg-rose-100 hover:bg-rose-200 text-rose-800 px-2 py-1 rounded-lg font-bold flex items-center gap-1"><Phone className="h-2.5 w-2.5" />Bomberos 913</a>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Calendario mensual */}
       {filteredBookings.length > 0 && (
@@ -665,7 +654,12 @@ export const BookingsManager: FC = () => {
                     {b.payment_status === 'paid' ? (
                       <span className="font-bold">Pago confirmado</span>
                     ) : b.wants_invoice ? (
-                      <span className="font-bold">{isNurseView ? 'Pago por transferencia a BienCuidar (con factura)' : 'Transfiere a la cuenta de BienCuidar'}</span>
+                      <button
+                        onClick={() => setPaymentBookingId(b.id)}
+                        className="font-bold text-indigo-600 hover:underline cursor-pointer"
+                      >
+                        {isNurseView ? 'Pago por transferencia a BienCuidar (con factura)' : 'Ver datos para transferir a BienCuidar'}
+                      </button>
                     ) : (
                       <span className="font-bold">{isNurseView ? 'Pendiente de pago — coordina con la familia' : 'Paga directamente a la enfermera'}</span>
                     )}
@@ -855,6 +849,62 @@ export const BookingsManager: FC = () => {
           })}
         </div>
       )}
+
+      {/* Payment modal - datos bancarios */}
+      {paymentBookingId && (() => {
+        const booking = filteredBookings.find(b => b.id === paymentBookingId);
+        if (!booking) return null;
+        return (
+          <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setPaymentBookingId(null)}>
+            <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                  <Building2 className="h-5 w-5 text-indigo-600" />
+                  Transferencia a BienCuidar
+                </h3>
+                <button onClick={() => setPaymentBookingId(null)} className="text-slate-400 hover:text-slate-600">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Banco:</span>
+                  <span className="font-bold text-slate-800">{PLATFORM_SETTINGS.bankName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Titular:</span>
+                  <span className="font-bold text-slate-800">{PLATFORM_SETTINGS.bankAccountHolder}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Cuenta:</span>
+                  <span className="font-bold text-slate-800">{PLATFORM_SETTINGS.bankAccountNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Tipo:</span>
+                  <span className="font-bold text-slate-800">{PLATFORM_SETTINGS.bankAccountType}</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 rounded-xl p-3 text-center">
+                <p className="text-[10px] text-slate-500 mb-1">Total a transferir</p>
+                <p className="text-2xl font-black text-indigo-700">US$ {booking.total_price.toFixed(2)}</p>
+              </div>
+
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                Una vez realizada la transferencia, el equipo de BienCuidar confirmará el pago. La factura electrónica será emitida automáticamente.
+              </p>
+
+              <button
+                onClick={() => setPaymentBookingId(null)}
+                className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-sm transition cursor-pointer"
+              >
+                Entendido
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
     </div>
   );
