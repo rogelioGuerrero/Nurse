@@ -586,7 +586,7 @@ export const CareRequestForm: FC = () => {
             </div>
             {wantsInvoice ? (
               <p className="text-[10px] text-indigo-600 leading-relaxed">
-                El pago se realiza por transferencia a BienCuidar. Te emitiremos un solo comprobante legal (Factura o Crédito Fiscal) por el total del servicio, válido para deducir Impuesto sobre la Renta o reembolso de seguro médico. El total incluye el pago de la enfermera (exento de IVA) y nuestra tarifa de gestión de US$ 5 (más IVA).
+                El pago se realiza por transferencia a BienCuidar. Te emitiremos comprobante legal (Factura o Crédito Fiscal) por el total del servicio, válido para deducir Impuesto sobre la Renta o reembolso de seguro médico. El total incluye el pago de la enfermera y nuestra tarifa de gestión fiscal y administrativa de US$5 (más IVA).
               </p>
             ) : (
               <p className="text-[10px] text-slate-500 leading-relaxed">
