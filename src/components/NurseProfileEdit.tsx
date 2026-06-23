@@ -640,6 +640,30 @@ export const NurseProfileEdit: FC = () => {
                     <strong>Acceso a créditos y financiamiento:</strong> Tu historial de servicios y las FSEE acumuladas en la plataforma generan un registro financiero formal. Esto te sirve como comprobante de ingresos en entidades financieras, comerciales, cajas de crédito y cooperativas para solicitar préstamos, microcréditos o tarjetas.
                   </p>
                 </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="text-[10px]">🏠</span>
+                  <p className="text-[10px] text-slate-600 leading-relaxed">
+                    <strong>Casa propia:</strong> Tus comprobantes digitales te sirven para aplicar a los créditos de vivienda para independientes del Fondo Social para la Vivienda (FSV).
+                  </p>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="text-[10px]">🏥</span>
+                  <p className="text-[10px] text-slate-600 leading-relaxed">
+                    <strong>Seguro y pensión:</strong> Podrás comprobar tus ingresos para inscribirte al ISSS y cotizar en la AFP para tu futuro.
+                  </p>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="text-[10px]">💳</span>
+                  <p className="text-[10px] text-slate-600 leading-relaxed">
+                    <strong>Banca sin límites:</strong> Con tus facturas justificas legalmente el origen de tus fondos. Olvídate de cuentas bancarias bloqueadas por límites de lavado de dinero.
+                  </p>
+                </div>
+                <div className="flex items-start gap-1.5">
+                  <span className="text-[10px]">📜</span>
+                  <p className="text-[10px] text-slate-600 leading-relaxed">
+                    <strong>Tu currículum de oro:</strong> Te emitimos constancias de tus horas trabajadas y calificaciones, sirviendo como currículum verificado para aplicar a hospitales o clínicas privadas.
+                  </p>
+                </div>
               </div>
             </div>
           )}
