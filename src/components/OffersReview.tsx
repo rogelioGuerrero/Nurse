@@ -100,6 +100,12 @@ export const OffersReview: FC = () => {
                   US$ {offer.offered_rate}
                 </div>
                 <div className="text-[10px] text-slate-400">por turno</div>
+                {request.wants_invoice && (
+                  <div className="text-[10px] text-slate-500 mt-0.5 leading-tight">
+                    + US$ 5.65 gestión fiscal<br/>
+                    <span className="font-bold text-slate-700">Total: US$ {(offer.offered_rate + 5.65).toFixed(2)}</span>
+                  </div>
+                )}
               </div>
             </div>
 
