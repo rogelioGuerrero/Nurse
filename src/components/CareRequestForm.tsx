@@ -586,7 +586,7 @@ export const CareRequestForm: FC = () => {
             </div>
             {wantsInvoice ? (
               <p className="text-[10px] text-indigo-600 leading-relaxed">
-                Factura de Consumidor Final emitida a tu nombre. Pago del servicio por transferencia bancaria a BienCuidar. Se incluirá tarifa de gestión fiscal y administrativa US$ 5 más IVA.
+                Con Factura: El pago del servicio se realiza por transferencia bancaria a BienCuidar. Se emitirá una Factura de Consumidor Final (o Crédito Fiscal si necesitas deducir Impuesto sobre la Renta) totalmente válida para el reembolso de tu seguro médico. El servicio incluirá una tarifa de gestión fiscal y administrativa de US$ 5 más IVA.
               </p>
             ) : (
               <p className="text-[10px] text-slate-500 leading-relaxed">
