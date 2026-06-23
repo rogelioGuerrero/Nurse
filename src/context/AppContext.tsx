@@ -305,7 +305,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     const now = new Date().toISOString();
     const newRequest: CareRequest = {
       ...data,
-      id: `cr-${Date.now()}`,
+      id: crypto.randomUUID(),
       user_id: currentUser.id,
       status: 'open',
       response_deadline: getResponseDeadline(now),
@@ -337,7 +337,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   const createCareOffer = useCallback((data: Omit<CareOffer, 'id' | 'created_at' | 'status'> & { status?: CareOffer['status'] }): CareOffer => {
     const newOffer: CareOffer = {
       ...data,
-      id: `co-${Date.now()}`,
+      id: crypto.randomUUID(),
       status: data.status || 'pending',
       created_at: new Date().toISOString()
     };
@@ -449,7 +449,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     
     const newBooking: Booking = {
       ...bookingData,
-      id: `b-${Date.now()}`,
+      id: crypto.randomUUID(),
       user_id: currentUser.id,
       status: 'confirmed',
       created_at: new Date().toISOString()
@@ -543,7 +543,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   const submitReview = async (bookingId: string, nurseId: string, rating: number, comment?: string) => {
     if (!currentUser) return;
     const newReview: NurseReview = {
-      id: `rev-${Date.now()}`,
+      id: crypto.randomUUID(),
       booking_id: bookingId,
       nurse_id: nurseId,
       user_id: currentUser.id,
@@ -682,7 +682,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         // Skip Sundays for variety
         if (date.getDay() === 0) continue;
         seed.push({
-          id: `av-seed-${nurse.id}-${dateStr}`,
+          id: crypto.randomUUID(),
           nurse_id: nurse.id,
           date: dateStr,
           start_time: '06:00',
@@ -726,7 +726,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   const addAvailability = async (availabilityData: Omit<Availability, 'id' | 'created_at' | 'updated_at'>): Promise<Availability> => {
     const newAvailability: Availability = {
       ...availabilityData,
-      id: `av-${Date.now()}`,
+      id: crypto.randomUUID(),
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
     };
