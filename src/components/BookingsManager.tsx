@@ -795,13 +795,7 @@ export const BookingsManager: FC = () => {
                     </>
                   )}
                   {b.status === 'completed' && (
-                    <>
-                      {!isNurseView && b.wants_invoice && (
-                        <button className="text-[10px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg flex items-center gap-1 border border-indigo-100 cursor-pointer">
-                          <FileText className="h-3 w-3" />Solicitar factura
-                        </button>
-                      )}
-                    </>
+                    <span className="text-[10px] text-emerald-600 font-bold">Completado</span>
                   )}
                   {b.status === 'cancelled' && (
                     <span className="text-[10px] text-slate-400 italic">Cancelada</span>
