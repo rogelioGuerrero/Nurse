@@ -148,7 +148,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       nursesData = nursesResult;
       if (nursesData) setNurses(nursesData);
 
-      // Profiles: only admin needs all; users get their own via RLS
+      // Profiles: admin needs all; nurses need profiles of families they have bookings with (loaded after bookings below)
       if (isAdmin) {
         const { data: profilesData } = await supabase.from('profiles').select('*');
         if (profilesData) setProfiles(profilesData);
@@ -172,6 +172,17 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       bookingsData = bookingsResult;
       if (bookingsData) {
         setBookings(bookingsData.map((b: any) => ({ ...b, wants_invoice: b.wants_invoice ?? false })));
+      }
+
+      // Nurse: load profiles of families they have bookings with
+      if (isNurse) {
+        const nurseRow = nursesData?.find(n => n.user_id === currentUser.id);
+        const myBookings = bookingsResult?.filter((b: any) => b.nurse_id === nurseRow?.id) || [];
+        const familyIds = [...new Set(myBookings.map((b: any) => b.user_id))];
+        if (familyIds.length > 0) {
+          const { data: familyProfiles } = await supabase.from('profiles').select('*').in('id', familyIds);
+          if (familyProfiles) setProfiles(familyProfiles);
+        }
       }
 
       // Care requests: family sees own + open; nurse sees open + those with their offers; admin sees all
