@@ -121,42 +121,32 @@ export const BookingsManager: FC = () => {
     );
   };
 
-  const handleCheckOut = async (bookingId: string, skipGps = false) => {
-    if (skipGps) {
-      try {
-        await checkOutBooking(bookingId, 0, 0);
-        setCheckInBookingId(null);
-        setGpsError(null);
-      } catch {
-        setGpsError('Error al registrar salida');
-      }
-      return;
-    }
-
+  const handleCheckOut = async (bookingId: string) => {
     setGpsLoading(true);
-    setGpsError(null);
     setCheckInBookingId(bookingId);
 
-    if (!navigator.geolocation) {
-      setGpsError('Tu dispositivo no soporta geolocalización');
+    const registerDeparture = async (lat = 0, lng = 0) => {
+      try {
+        await checkOutBooking(bookingId, lat, lng);
+      } catch {
+        console.warn('Check-out failed');
+      }
+      setCheckInBookingId(null);
       setGpsLoading(false);
+    };
+
+    if (!navigator.geolocation) {
+      await registerDeparture();
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        try {
-          await checkOutBooking(bookingId, latitude, longitude);
-          setCheckInBookingId(null);
-        } catch {
-          setGpsError('Error al registrar salida');
-        }
-        setGpsLoading(false);
+        await registerDeparture(latitude, longitude);
       },
-      (err) => {
-        setGpsError(`No se pudo obtener tu ubicación: ${err.message}`);
-        setGpsLoading(false);
+      () => {
+        registerDeparture();
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -174,9 +164,16 @@ export const BookingsManager: FC = () => {
 
   const handleOpenLogForm = (bookingId: string) => {
     const log = careLogs[bookingId];
+    const booking = bookings.find(b => b.id === bookingId);
     setEditingBookingId(bookingId);
-    setFormArrivalTime(log?.arrivalTime || '07:00');
-    setFormDepartureTime(log?.departureTime || '15:00');
+    const arrivalFromCheckIn = booking?.check_in_at
+      ? new Date(booking.check_in_at).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', hour12: false })
+      : null;
+    const departureFromCheckOut = booking?.check_out_at
+      ? new Date(booking.check_out_at).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', hour12: false })
+      : null;
+    setFormArrivalTime(log?.arrivalTime || arrivalFromCheckIn || booking?.start_time || '07:00');
+    setFormDepartureTime(log?.departureTime || departureFromCheckOut || booking?.end_time || '15:00');
     setFormConditionArrival(log?.patientConditionOnArrival || 'Regular');
     setFormConditionDeparture(log?.patientConditionOnDeparture || 'Igual');
     setFormActivities(log?.activities || []);
@@ -508,15 +505,15 @@ export const BookingsManager: FC = () => {
                     {editingBookingId === b.id ? (
                       /* FORMULARIO REPORTE */
                       <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-3 text-xs">
-                        {/* Horas */}
+                        {/* Horas (auto from check-in/check-out) */}
                         <div className="grid grid-cols-2 gap-2">
                           <div>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hora de llegada</label>
-                            <input type="time" value={formArrivalTime} onChange={e => setFormArrivalTime(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold" />
+                            <div className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-semibold text-slate-600 text-sm">{formArrivalTime}</div>
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hora de salida</label>
-                            <input type="time" value={formDepartureTime} onChange={e => setFormDepartureTime(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold" />
+                            <div className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-semibold text-slate-600 text-sm">{formDepartureTime}</div>
                           </div>
                         </div>
 
@@ -854,14 +851,12 @@ export const BookingsManager: FC = () => {
                           )}
                           {b.check_in_at && !b.check_out_at && (
                             <button
-                              onClick={() => handleCheckOut(b.id, !!gpsError)}
+                              onClick={() => handleCheckOut(b.id)}
                               disabled={gpsLoading}
                               className="text-[10px] font-bold text-white bg-rose-600 hover:bg-rose-500 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer disabled:opacity-60"
                             >
                               {gpsLoading ? (
-                                <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>GPS...</>
-                              ) : gpsError ? (
-                                <><LogOut className="h-3.5 w-3.5" />Registrar salida sin GPS</>
+                                <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>Registrando salida...</>
                               ) : (
                                 <><LogOut className="h-3.5 w-3.5" />Registrar salida</>
                               )}
