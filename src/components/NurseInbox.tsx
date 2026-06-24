@@ -62,6 +62,7 @@ export const NurseInbox: FC = () => {
   // Modal de ajuste de tarifa
   const [acceptModal, setAcceptModal] = useState<{ request: CareRequest; slotIndex: number } | null>(null);
   const [offerRate, setOfferRate] = useState<number>(0);
+  const [activeTab, setActiveTab] = useState<'available' | 'my-offers'>('available');
 
   // Find the current nurse's record
   const myNurse = useMemo(
@@ -69,11 +70,31 @@ export const NurseInbox: FC = () => {
     [nurses, currentUser]
   );
 
-  // Show all open requests to all nurses — nurse decides if they can handle it
-  const incomingRequests = useMemo(() => {
+  // Requests where this nurse hasn't offered on any slot — sorted by most recent
+  const availableRequests = useMemo(() => {
     if (!myNurse) return [];
-    return careRequests.filter(req => req.status === 'open');
-  }, [careRequests, myNurse]);
+    return careRequests
+      .filter(req => req.status === 'open')
+      .filter(req => !careOffers.some(o => o.request_id === req.id && o.nurse_id === myNurse.id))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [careRequests, careOffers, myNurse]);
+
+  // This nurse's offers — excluding accepted (go to Servicios) and declined/rejected older than 48h
+  const myOffersList = useMemo(() => {
+    if (!myNurse) return [];
+    const now = Date.now();
+    return careOffers
+      .filter(o => o.nurse_id === myNurse.id)
+      .filter(o => {
+        if (o.status === 'accepted') return false;
+        if (o.status === 'declined' || o.status === 'rejected') {
+          const ageHours = (now - new Date(o.created_at).getTime()) / (1000 * 60 * 60);
+          if (ageHours > 48) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [careOffers, myNurse]);
 
   // Map family profiles for display
   const profileMap = useMemo(
@@ -147,11 +168,32 @@ export const NurseInbox: FC = () => {
         </div>
         <div>
           <h1 className="text-xl font-bold text-slate-900">Familias que te necesitan</h1>
-          <p className="text-xs text-slate-500">Revisa los pedidos de cuidado y confirma los turnos que puedes cubrir</p>
+          <p className="text-xs text-slate-500">Revisa las solicitudes disponibles y gestiona tus ofertas</p>
         </div>
       </div>
 
-      {incomingRequests.length === 0 ? (
+      {/* Tabs */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setActiveTab('available')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+            activeTab === 'available' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          Solicitudes{availableRequests.length > 0 && ` (${availableRequests.length})`}
+        </button>
+        <button
+          onClick={() => setActiveTab('my-offers')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+            activeTab === 'my-offers' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          Mis ofertas{myOffersList.length > 0 && ` (${myOffersList.length})`}
+        </button>
+      </div>
+
+      {activeTab === 'available' && (
+      availableRequests.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center">
           <Inbox className="h-10 w-10 text-slate-300 mx-auto mb-3" />
           <p className="font-semibold text-slate-700">Todo tranquilo por ahora.</p>
@@ -159,7 +201,7 @@ export const NurseInbox: FC = () => {
         </div>
       ) : (
         <div className="space-y-4">
-          {incomingRequests.map(req => {
+          {availableRequests.map(req => {
             const familyProfile = profileMap.get(req.user_id);
             return (
               <div key={req.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
@@ -316,24 +358,24 @@ export const NurseInbox: FC = () => {
             );
           })}
         </div>
+      )
       )}
 
-      {/* ── Mis ofertas (historial de ofertas enviadas) ── */}
-      {myNurse && (() => {
-        const myOffers = careOffers
-          .filter(o => o.nurse_id === myNurse.id)
-          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-          .slice(0, 10);
+      {activeTab === 'my-offers' && (() => {
+        if (myOffersList.length === 0) {
+          return (
+            <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center">
+              <Send className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+              <p className="font-semibold text-slate-700">No has enviado ofertas aún.</p>
+              <p className="text-xs text-slate-400 mt-1">Cuando ofertes a una familia, podrás seguir el estado aquí.</p>
+            </div>
+          );
+        }
 
-        if (myOffers.length === 0) return null;
-
-        const getOfferStatusInfo = (offer: typeof myOffers[0]) => {
+        const getOfferStatusInfo = (offer: typeof myOffersList[0]) => {
           const req = careRequests.find(r => r.id === offer.request_id);
           if (!req) return { label: 'Solicitud no disponible', color: 'text-slate-400', bg: 'bg-slate-100' };
 
-          if (offer.status === 'accepted') {
-            return { label: 'Confirmado', color: 'text-emerald-600', bg: 'bg-emerald-100' };
-          }
           if (offer.status === 'rejected') {
             return { label: 'Retiraste tu oferta', color: 'text-slate-400', bg: 'bg-slate-100' };
           }
@@ -342,55 +384,54 @@ export const NurseInbox: FC = () => {
           }
           if (offer.status === 'declined') {
             if (offer.reject_reason === 'auto') {
-              // Check if nurse has accepted offer for same date
-              const slot = req.slots[offer.slot_index];
-              const hasAcceptedSameDate = careOffers.some(o => 
-                o.nurse_id === myNurse.id && 
-                o.status === 'accepted' && 
+              const hasAcceptedSameDate = careOffers.some(o =>
+                o.nurse_id === myNurse?.id &&
+                o.status === 'accepted' &&
                 o.id !== offer.id
               );
               if (hasAcceptedSameDate) {
                 return { label: 'Auto-retirada: ya tienes servicio esa fecha', color: 'text-amber-600', bg: 'bg-amber-100' };
               }
-              // Request expired
-              const hadOffers = careOffers.some(o => o.request_id === req.id && o.status !== 'rejected');
               if (req.status === 'expired') {
-                return { 
-                  label: hadOffers ? 'La familia no decidió a tiempo' : 'Ninguna enfermera respondió a tiempo', 
-                  color: 'text-rose-500', 
-                  bg: 'bg-rose-100' 
+                const hadOffers = careOffers.some(o => o.request_id === req.id && o.status !== 'rejected');
+                return {
+                  label: hadOffers ? 'La familia no decidió a tiempo' : 'Ninguna enfermera respondió a tiempo',
+                  color: 'text-rose-500',
+                  bg: 'bg-rose-100'
                 };
               }
               if (req.status === 'closed') {
                 return { label: 'La familia canceló la solicitud', color: 'text-slate-400', bg: 'bg-slate-100' };
               }
             }
-            return { label: 'La familia eligió otra enfermera', color: 'text-slate-400', bg: 'bg-slate-100' };
+            return { label: 'La familia eligió otra opción', color: 'text-slate-400', bg: 'bg-slate-100' };
           }
           return { label: '—', color: 'text-slate-400', bg: 'bg-slate-100' };
         };
 
         return (
-          <div className="space-y-3 pt-4">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
-              <Send className="h-3.5 w-3.5" />
-              <span>Mis ofertas recientes</span>
-            </div>
-            {myOffers.map(offer => {
+          <div className="space-y-3">
+            {myOffersList.map(offer => {
               const req = careRequests.find(r => r.id === offer.request_id);
               const slot = req?.slots[offer.slot_index];
               const shiftInfo = slot ? (SHIFTS[slot.shift as ShiftType] || SHIFTS.morning) : null;
               const info = getOfferStatusInfo(offer);
+              const familyProfile = req ? profileMap.get(req.user_id) : null;
               return (
-                <div key={offer.id} className="bg-white border border-slate-200 rounded-2xl p-3 space-y-1.5">
+                <div key={offer.id} className="bg-white border border-slate-200 rounded-2xl p-3 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
+                      {req && (
+                        <p className="text-xs font-bold text-slate-700 truncate">
+                          {familyProfile?.full_name || 'Familia'} · {req.patient_condition}
+                        </p>
+                      )}
                       {slot && shiftInfo && (
-                        <p className="text-xs font-bold text-slate-700">
+                        <p className="text-[11px] text-slate-500 mt-0.5">
                           {formatDate(slot.date)} · {shiftInfo.label}
                         </p>
                       )}
-                      <p className="text-[10px] text-slate-500">
+                      <p className="text-[10px] text-slate-400 mt-0.5">
                         Ofertaste: US$ {Number(offer.offered_rate).toFixed(2)}
                       </p>
                     </div>
@@ -398,6 +439,15 @@ export const NurseInbox: FC = () => {
                       {info.label}
                     </span>
                   </div>
+                  {offer.status === 'pending' && req?.status === 'open' && (
+                    <button
+                      onClick={() => withdrawCareOffer(offer.id)}
+                      className="text-[10px] font-bold text-slate-400 hover:text-rose-600 transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <XCircle className="h-3 w-3" />
+                      Retirar oferta
+                    </button>
+                  )}
                 </div>
               );
             })}
