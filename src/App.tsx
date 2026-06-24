@@ -627,6 +627,13 @@ function MarketplaceApp() {
                   <User className="h-5 w-5" />
                   <span className="text-[9px] font-bold">Perfil</span>
                 </button>
+                <button
+                  onClick={async () => { await supabase.auth.signOut(); }}
+                  className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer text-slate-400 hover:text-rose-600"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span className="text-[9px] font-bold">Salir</span>
+                </button>
               </>
             ) : (
               <>
