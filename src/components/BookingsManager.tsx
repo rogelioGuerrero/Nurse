@@ -505,15 +505,15 @@ export const BookingsManager: FC = () => {
                     {editingBookingId === b.id ? (
                       /* FORMULARIO REPORTE */
                       <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-3 text-xs">
-                        {/* Horas (auto from check-in/check-out) */}
+                        {/* Horas (pre-filled from check-in/check-out, editable) */}
                         <div className="grid grid-cols-2 gap-2">
                           <div>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hora de llegada</label>
-                            <div className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-semibold text-slate-600 text-sm">{formArrivalTime}</div>
+                            <input type="time" value={formArrivalTime} onChange={e => setFormArrivalTime(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold text-sm" />
                           </div>
                           <div>
                             <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Hora de salida</label>
-                            <div className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 font-semibold text-slate-600 text-sm">{formDepartureTime}</div>
+                            <input type="time" value={formDepartureTime} onChange={e => setFormDepartureTime(e.target.value)} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold text-sm" />
                           </div>
                         </div>
 
