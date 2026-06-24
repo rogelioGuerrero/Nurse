@@ -9,6 +9,7 @@ import { INITIAL_PROFILES, INITIAL_NURSES } from '../data/nurses';
 import { supabase } from '../lib/supabase';
 import { getResponseDeadline } from '../data/platformSettings';
 import { requestNotificationPermission, notifyNewOffer, notifyOfferAccepted, notifyCheckIn, notifyCheckOut, notifyPaymentConfirmed } from '../lib/notifications';
+import { calculateFamilyPrice } from '../data/standardRates';
 
 // Safe localStorage parser - prevents crash on corrupted data
 function safeParse<T>(key: string, fallback: T): T {
@@ -47,7 +48,7 @@ interface AppContextType {
   switchUser: (profile: Profile) => void;
   currentNurse: Nurse | null;
   updateProfile: (profileData: Partial<Profile>) => void;
-  updateNurseProfile: (nurseData: Partial<Nurse>) => void;
+  updateNurseProfile: (nurseData: Partial<Nurse>) => Promise<void>;
   createBooking: (bookingData: Omit<Booking, 'id' | 'user_id' | 'created_at' | 'status'>) => Promise<Booking>;
   updateBookingStatus: (bookingId: string, status: BookingStatus) => Promise<void>;
   checkInBooking: (bookingId: string, lat: number, lng: number, address: string, mismatch: boolean) => Promise<void>;
@@ -302,7 +303,12 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'nurse_reviews' }, (payload) => {
         const rv = payload.new as any;
-        setNurseReviews(prev => prev.find(x => x.id === rv.id) ? prev : [...prev, rv]);
+        // Only add if review is for a booking the user can see
+        const bookingIds = (bookingsData || []).map(b => b.id);
+        const isRelevant = currentUser.role === 'admin' || bookingIds.includes(rv.booking_id);
+        if (isRelevant) {
+          setNurseReviews(prev => prev.find(x => x.id === rv.id) ? prev : [...prev, rv]);
+        }
       })
       .subscribe();
 
@@ -411,7 +417,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       patient_name: newRequest.patient_name,
       patient_condition: newRequest.patient_condition,
       specialization_needed: newRequest.specialization_needed,
-      slots: newRequest.slots,
+      slots: JSON.stringify(newRequest.slots),
       location_name: newRequest.location_name,
       lat: newRequest.lat,
       lng: newRequest.lng,
@@ -606,10 +612,31 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Action: Update nurse rates, bios, specializations
-  const updateNurseProfile = (nurseData: Partial<Nurse>) => {
+  const updateNurseProfile = async (nurseData: Partial<Nurse>) => {
     if (!currentNurse) return;
     const updated = { ...currentNurse, ...nurseData };
+    setCurrentNurse(updated);
     setNurses(prev => prev.map(n => n.id === updated.id ? updated : n));
+    try {
+      const { error } = await supabase
+        .from('nurses')
+        .update({
+          bio: updated.bio,
+          shift_rate: updated.shift_rate,
+          specialization: updated.specialization,
+          available_shifts: updated.available_shifts,
+          available_days: updated.available_days,
+          coverage_radius: updated.coverage_radius,
+          lat: updated.lat,
+          lng: updated.lng,
+          certifications: updated.certifications,
+          experience_years: updated.experience_years,
+        })
+        .eq('id', updated.id);
+      if (error) console.warn('Failed to sync nurse profile to Supabase:', error.message);
+    } catch (err) {
+      console.warn('Nurse profile sync error:', err);
+    }
   };
 
   // Action: Create high fidelity booking (with localStorage fallback for demo mode)
@@ -692,8 +719,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       const slot = request.slots[offer.slot_index];
       const shift = SHIFTS[slot.shift];
       const nurseRate = Number(offer.offered_rate);
-      const managementFee = request.wants_invoice ? 5 * 1.13 : 0; // US$5 + 13% IVA
-      const totalPrice = nurseRate + managementFee;
+      const totalPrice = calculateFamilyPrice(nurseRate, request.wants_invoice);
       
       await createBooking({
         nurse_id: offer.nurse_id,
