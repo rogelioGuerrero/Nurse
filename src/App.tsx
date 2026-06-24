@@ -15,7 +15,7 @@ import {
   Stethoscope, Calendar, 
   Star, Sparkles,
   Heart, Users, ChevronRight, GraduationCap, Network, MapPinned, MessageCircle,
-  Search, Inbox, ClipboardList, ShieldCheck, User, LogOut, BookOpen
+  Search, Inbox, ClipboardList, ShieldCheck, User, LogOut
 } from 'lucide-react';
 
 const LoadingSpinner = () => (
@@ -34,7 +34,6 @@ const PlanReview = lazy(() => import('./components/PlanReview').then(m => ({ def
 const OffersReview = lazy(() => import('./components/OffersReview').then(m => ({ default: m.OffersReview })));
 const CSSPReviewPanel = lazy(() => import('./components/CSSPReviewPanel').then(m => ({ default: m.CSSPReviewPanel })));
 const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
-const Bitacora = lazy(() => import('./components/Bitacora').then(m => ({ default: m.Bitacora })));
 const FamilyProfileEdit = lazy(() => import('./components/FamilyProfileEdit').then(m => ({ default: m.FamilyProfileEdit })));
 import { LandingPage } from './components/LandingPage';
 import { AuthForm } from './components/AuthForm';
@@ -541,14 +540,6 @@ function MarketplaceApp() {
           </ErrorBoundary>
         )}
 
-        {activeTab === 'bitacora' && (
-          <ErrorBoundary>
-            <Suspense fallback={<LoadingSpinner />}>
-              <Bitacora />
-            </Suspense>
-          </ErrorBoundary>
-        )}
-
       </main>
 
       {/* Footer */}
@@ -619,15 +610,6 @@ function MarketplaceApp() {
                   <span className="text-[9px] font-bold">Plan</span>
                 </button>
                 <button
-                  onClick={() => { setSelectedNurseId(null); setActiveTab('bitacora'); }}
-                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
-                    activeTab === 'bitacora' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  <BookOpen className="h-5 w-5" />
-                  <span className="text-[9px] font-bold">Bitácora</span>
-                </button>
-                <button
                   onClick={() => { setActiveTab('clinical-ai'); }}
                   className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
                     activeTab === 'clinical-ai' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
@@ -665,15 +647,6 @@ function MarketplaceApp() {
                 >
                   <ClipboardList className="h-5 w-5" />
                   <span className="text-[9px] font-bold">Servicios</span>
-                </button>
-                <button
-                  onClick={() => { setActiveTab('bitacora'); }}
-                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
-                    activeTab === 'bitacora' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  <BookOpen className="h-5 w-5" />
-                  <span className="text-[9px] font-bold">Bitácora</span>
                 </button>
                 <button
                   onClick={() => { setActiveTab('clinical-ai'); }}

@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, type FC, type FormEvent } from 'react';
+import { useState, useMemo, type FC, type FormEvent } from 'react';
 import { useApp } from '../context/AppContext';
-import { Save, Edit3, CheckCircle2, Calculator, Sun, Moon, Sunset, ShieldCheck, FileText, Crosshair, Loader2, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
+import { Save, Edit3, CheckCircle2, Calculator, Sun, Moon, Sunset, ShieldCheck, FileText, Crosshair, Loader2, MapPin, ChevronDown, ChevronUp, BookOpen, DollarSign, Star, User, XCircle } from 'lucide-react';
 import { SHIFTS, type ShiftType, type WeekDay } from '../types';
 import { RETENTION_RATE, calculateNurseNet } from '../data/standardRates';
 import { CSSPVerificationBadge } from './CSSPVerificationBadge';
@@ -34,7 +34,7 @@ const SHIFT_ICONS: Record<ShiftType, typeof Sun> = {
 };
 
 export const NurseProfileEdit: FC = () => {
-  const { currentNurse, currentUser, updateNurseProfile, updateProfile } = useApp();
+  const { currentNurse, currentUser, updateNurseProfile, updateProfile, bookings, careLogs, nurseReviews, nurses, profiles } = useApp();
 
   const [shiftRate, setShiftRate] = useState<number>(currentNurse?.shift_rate || 25);
   const [selectedShifts, setSelectedShifts] = useState<ShiftType[]>(currentNurse?.available_shifts || ['morning']);
@@ -62,6 +62,30 @@ export const NurseProfileEdit: FC = () => {
   const [showCalculator, setShowCalculator] = useState(false);
   const [showPaymentInfo, setShowPaymentInfo] = useState(false);
   const [showBenefits, setShowBenefits] = useState(false);
+  const [showBitacora, setShowBitacora] = useState(false);
+
+  // Bitácora data
+  const profileMap = useMemo(() => new Map(profiles.map(p => [p.id, p])), [profiles]);
+
+  const myBookings = useMemo(() => {
+    if (!currentNurse) return [];
+    return bookings
+      .filter(b => b.nurse_id === currentNurse.id)
+      .sort((a, b) => new Date(b.date + 'T00:00:00').getTime() - new Date(a.date + 'T00:00:00').getTime());
+  }, [bookings, currentNurse]);
+
+  const bitacoraStats = useMemo(() => {
+    const completed = myBookings.filter(b => b.status === 'completed');
+    const totalHours = completed.reduce((sum, b) => sum + b.hours, 0);
+    const totalEarnings = completed.reduce((sum, b) => {
+      const nurseRate = b.wants_invoice ? b.total_price - 5 * 1.13 : b.total_price;
+      return sum + nurseRate;
+    }, 0);
+    const reportsCount = completed.filter(b => careLogs[b.id]).length;
+    const myReviews = nurseReviews.filter(r => currentNurse && r.nurse_id === currentNurse.id);
+    const avgRating = myReviews.length > 0 ? myReviews.reduce((sum, r) => sum + r.rating, 0) / myReviews.length : 0;
+    return { total: myBookings.length, completed: completed.length, totalHours, totalEarnings, reportsCount, avgRating };
+  }, [myBookings, careLogs, nurseReviews, currentNurse]);
 
   if (!currentNurse || !currentUser) return null;
 
@@ -694,6 +718,140 @@ export const NurseProfileEdit: FC = () => {
           )}
         </div>
 
+      </div>
+
+      {/* Bitácora colapsable */}
+      <div className="mt-6 bg-white border border-slate-200 rounded-2xl overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setShowBitacora(!showBitacora)}
+          className="w-full flex items-center justify-between p-4 cursor-pointer"
+        >
+          <div className="flex items-center gap-2.5">
+            <BookOpen className="h-5 w-5 text-indigo-600 shrink-0" />
+            <div className="text-left">
+              <span className="text-sm font-bold text-slate-800 block">Mi Bitácora</span>
+              <span className="text-[10px] text-slate-500">Historial de servicios prestados</span>
+            </div>
+          </div>
+          {showBitacora ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+        </button>
+
+        {showBitacora && (
+          <div className="px-4 pb-4 space-y-3">
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-slate-50 rounded-xl p-2.5 text-center">
+                <p className="text-[9px] text-slate-500 font-semibold uppercase">Servicios</p>
+                <p className="text-lg font-black text-slate-800">{bitacoraStats.total}</p>
+              </div>
+              <div className="bg-slate-50 rounded-xl p-2.5 text-center">
+                <p className="text-[9px] text-slate-500 font-semibold uppercase">Horas</p>
+                <p className="text-lg font-black text-slate-800">{bitacoraStats.totalHours}</p>
+              </div>
+              <div className="bg-slate-50 rounded-xl p-2.5 text-center">
+                <p className="text-[9px] text-slate-500 font-semibold uppercase">Ingresos</p>
+                <p className="text-lg font-black text-emerald-600">${bitacoraStats.totalEarnings.toFixed(0)}</p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 flex-wrap">
+              <div className="bg-indigo-50 border border-indigo-100 rounded-lg px-2.5 py-1 flex items-center gap-1.5">
+                <CheckCircle2 className="h-3 w-3 text-indigo-600" />
+                <span className="text-[10px] font-bold text-indigo-700">{bitacoraStats.completed} completados</span>
+              </div>
+              <div className="bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-1 flex items-center gap-1.5">
+                <FileText className="h-3 w-3 text-amber-600" />
+                <span className="text-[10px] font-bold text-amber-700">{bitacoraStats.reportsCount} reportes</span>
+              </div>
+              {bitacoraStats.avgRating > 0 && (
+                <div className="bg-emerald-50 border border-emerald-100 rounded-lg px-2.5 py-1 flex items-center gap-1.5">
+                  <Star className="h-3 w-3 text-emerald-600 fill-emerald-500" />
+                  <span className="text-[10px] font-bold text-emerald-700">{bitacoraStats.avgRating.toFixed(1)} promedio</span>
+                </div>
+              )}
+            </div>
+
+            {/* Empty state */}
+            {myBookings.length === 0 && (
+              <div className="text-center py-6">
+                <BookOpen className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs font-semibold text-slate-600">No hay registros en tu bitácora</p>
+                <p className="text-[10px] text-slate-400 mt-1">Cuando completes servicios, aparecerán aquí.</p>
+              </div>
+            )}
+
+            {/* History list */}
+            {myBookings.map((b) => {
+              const log = careLogs[b.id];
+              const review = nurseReviews.find(r => r.booking_id === b.id);
+              const familyProfile = profileMap.get(b.user_id);
+              const nurseRate = b.wants_invoice ? b.total_price - 5 * 1.13 : b.total_price;
+
+              return (
+                <div key={b.id} className={`bg-slate-50/70 border rounded-xl overflow-hidden ${b.status === 'cancelled' ? 'border-slate-200 opacity-75' : 'border-slate-200'}`}>
+                  <div className="px-3 py-2 flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-white flex flex-col items-center justify-center border border-slate-200">
+                        <span className="text-xs font-black text-slate-700">{new Date(b.date + 'T00:00:00').getDate()}</span>
+                        <span className="text-[7px] font-bold text-slate-500 uppercase">{['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][new Date(b.date + 'T00:00:00').getMonth()]}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <h4 className="font-bold text-slate-800 text-xs truncate">{familyProfile?.full_name || 'Familia'}</h4>
+                        <div className="flex items-center gap-1 text-[9px] text-slate-500">
+                          <span>{b.start_time}-{b.end_time}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                      <div className="flex items-center gap-1">
+                        {b.status === 'completed' ? <CheckCircle2 className="h-3 w-3 text-emerald-600" /> : b.status === 'cancelled' ? <XCircle className="h-3 w-3 text-rose-500" /> : <FileText className="h-3 w-3 text-indigo-500" />}
+                        <span className="text-[9px] font-bold text-slate-600">{b.status === 'completed' ? 'Completado' : b.status === 'cancelled' ? 'Cancelado' : 'Confirmado'}</span>
+                      </div>
+                      <span className="text-[10px] font-black text-emerald-600">${nurseRate.toFixed(0)}</span>
+                    </div>
+                  </div>
+
+                  <div className="px-3 py-1.5 bg-white/50 border-t border-slate-100 text-[10px]">
+                    <div className="flex items-center gap-1 text-slate-600">
+                      <User className="h-2.5 w-2.5 text-indigo-400" />
+                      <span className="font-bold">{b.patient_name}</span>
+                      <span className="text-slate-300">·</span>
+                      <span className="text-slate-500 truncate">{b.patient_condition}</span>
+                    </div>
+                  </div>
+
+                  {b.status === 'completed' && log && (
+                    <div className="px-3 py-2 border-t border-slate-100">
+                      <div className="flex items-center gap-1 mb-1">
+                        <FileText className="h-3 w-3 text-amber-600" />
+                        <span className="text-[9px] font-bold text-slate-600 uppercase">Reporte</span>
+                      </div>
+                      <p className="text-[10px] text-slate-600 leading-relaxed line-clamp-3">{log.narrativeReport || `Llegada a las ${log.arrivalTime}, paciente en estado ${log.patientConditionOnArrival.toLowerCase()}.`}</p>
+                    </div>
+                  )}
+
+                  {(b.status === 'completed' || b.status === 'confirmed') && (
+                    <div className="px-3 py-1.5 border-t border-slate-100 flex items-center justify-between text-[9px]">
+                      <div className="flex items-center gap-1">
+                        <DollarSign className="h-3 w-3 text-slate-400" />
+                        <span className={`font-bold ${b.payment_status === 'paid' ? 'text-emerald-600' : 'text-slate-500'}`}>
+                          {b.wants_invoice ? (b.payment_status === 'paid' ? 'Pagado' : 'Pendiente') : 'Pago directo'}
+                        </span>
+                      </div>
+                      {review && (
+                        <div className="flex items-center gap-0.5">
+                          <Star className="h-2.5 w-2.5 text-amber-400 fill-amber-400" />
+                          <span className="font-bold text-amber-700">{review.rating.toFixed(1)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
