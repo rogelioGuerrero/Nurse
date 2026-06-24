@@ -81,10 +81,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [nurses, setNurses] = useState<Nurse[]>(() => safeParse('biencuidar_nurses', INITIAL_NURSES));
 
-  const [bookings, setBookings] = useState<Booking[]>(() => {
-    const saved = safeParse<Booking[] | null>('biencuidar_bookings', null);
-    return saved || [];
-  });
+  const [bookings, setBookings] = useState<Booking[]>([]);
 
   const [activeTab, setActiveTab] = useState<string>('landing');
   const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
@@ -392,8 +389,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   const closeCareRequest = useCallback((requestId: string) => {
     setCareRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'closed' as CareRequestStatus } : r));
     setCareOffers(prev => prev.map(o => o.request_id === requestId && o.status === 'pending' ? { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' } : o));
-    supabase.from('care_requests').update({ status: 'closed' }).eq('id', requestId).then();
-    supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('request_id', requestId).eq('status', 'pending').then();
+    supabase.from('care_requests').update({ status: 'closed' }).eq('id', requestId).then(({ error }) => { if (error) console.warn('closeCareRequest sync error:', error.message); });
+    supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('request_id', requestId).eq('status', 'pending').then(({ error }) => { if (error) console.warn('closeCareRequest offers sync error:', error.message); });
   }, []);
 
   const republisheCareRequest = useCallback((requestId: string) => {
@@ -461,7 +458,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
 
   const withdrawCareOffer = useCallback((offerId: string) => {
     setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'rejected' as CareOfferStatus } : o));
-    supabase.from('care_offers').update({ status: 'rejected' }).eq('id', offerId).then();
+    supabase.from('care_offers').update({ status: 'rejected' }).eq('id', offerId).then(({ error }) => { if (error) console.warn('withdrawCareOffer sync error:', error.message); });
   }, []);
 
   // Synchronize dynamic nurse profile if active user role is 'nurse'
@@ -509,8 +506,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
             : o
         ));
         expiredIds.forEach(id => {
-          supabase.from('care_requests').update({ status: 'expired' }).eq('id', id).then();
-          supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('request_id', id).eq('status', 'pending').then();
+          supabase.from('care_requests').update({ status: 'expired' }).eq('id', id).then(({ error }) => { if (error) console.warn('expire request sync error:', error.message); });
+          supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('request_id', id).eq('status', 'pending').then(({ error }) => { if (error) console.warn('expire offers sync error:', error.message); });
         });
       }
     };
@@ -573,15 +570,12 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           : o
       ));
       toWithdrawIds.forEach(id => {
-        supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('id', id).then();
+        supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('id', id).then(({ error }) => { if (error) console.warn('withdraw expired offers sync error:', error.message); });
       });
     }
   }, [careOffers, careRequests]);
 
-  // Save to Local Storage whenever states change (only for data not in Supabase yet)
-  useEffect(() => {
-    localStorage.setItem('biencuidar_bookings', JSON.stringify(bookings));
-  }, [bookings]);
+  // Bookings are now sourced from Supabase + realtime; no localStorage fallback needed
 
   // Action: Update profiles (also syncs currentNurse if user is a nurse)
   const updateProfile = async (profileData: Partial<Profile>) => {
@@ -671,10 +665,9 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         created_at: data.created_at
       }, ...prev]);
       return { ...newBooking, id: data.id, created_at: data.created_at };
-    } catch {
-      // Fallback to localStorage for demo mode
-      setBookings(prev => [newBooking, ...prev]);
-      return newBooking;
+    } catch (err) {
+      // No silent fallback — inform the user that the booking failed
+      throw new Error('No se pudo crear la reserva. Verifica tu conexión e intenta nuevamente.');
     }
   };
 
@@ -686,12 +679,12 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'accepted' } : { ...o, status: o.status === 'pending' ? 'declined' : o.status, reject_reason: o.status === 'pending' ? 'auto' : o.reject_reason }));
     
     // Sync offers to Supabase
-    supabase.from('care_offers').update({ status: 'accepted' }).eq('id', offerId).then();
-    supabase.from('care_offers').update({ status: 'rejected' }).eq('request_id', offer.request_id).neq('id', offerId).eq('status', 'pending').then();
+    supabase.from('care_offers').update({ status: 'accepted' }).eq('id', offerId).then(({ error }) => { if (error) console.warn('accept offer sync error:', error.message); });
+    supabase.from('care_offers').update({ status: 'rejected' }).eq('request_id', offer.request_id).neq('id', offerId).eq('status', 'pending').then(({ error }) => { if (error) console.warn('reject other offers sync error:', error.message); });
 
     // Marcar request como matched
     setCareRequests(reqs => reqs.map(r => r.id === offer.request_id ? { ...r, status: 'matched' } : r));
-    supabase.from('care_requests').update({ status: 'matched' }).eq('id', offer.request_id).then();
+    supabase.from('care_requests').update({ status: 'matched' }).eq('id', offer.request_id).then(({ error }) => { if (error) console.warn('match request sync error:', error.message); });
 
     // Crear booking automaticamente usando offered_rate
     const request = careRequests.find(r => r.id === offer.request_id);

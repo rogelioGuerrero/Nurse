@@ -13,8 +13,17 @@ createRoot(document.getElementById('root')!).render(
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
-      .then((reg) => console.log('Service Worker registrado con éxito:', reg.scope))
+      .then((reg) => {
+        console.log('Service Worker registrado con éxito:', reg.scope);
+        // Check for updates every 60 minutes
+        setInterval(() => reg.update().catch(() => {}), 60 * 60 * 1000);
+      })
       .catch((err) => console.error('Error al registrar Service Worker:', err));
+
+    // Auto-reload when a new SW takes control
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload();
+    });
   });
 }
 

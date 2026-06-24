@@ -1,4 +1,5 @@
-const CACHE_NAME = 'biencuidar-v1';
+const SW_VERSION = 'biencuidar-v2-20260624';
+const CACHE_NAME = `biencuidar-cache-${SW_VERSION}`;
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -16,10 +17,24 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+      Promise.all(
+        keys
+          .filter((k) => !k.startsWith(SW_VERSION) && k.startsWith('biencuidar-'))
+          .map((k) => caches.delete(k))
+      )
     )
   );
+  // Notify all clients that a new SW is active
+  self.clients.matchAll().then((clients) => {
+    clients.forEach((client) => client.postMessage({ type: 'SW_UPDATED' }));
+  });
   self.clients.claim();
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 self.addEventListener('fetch', (event) => {
