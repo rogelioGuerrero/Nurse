@@ -4,7 +4,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, useCallback, type FC, type ReactNode } from 'react';
-import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareOffer, ShiftType, SHIFTS, NurseReview } from '../types';
+import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareRequestStatus, CareOffer, CareOfferStatus, ShiftType, SHIFTS, NurseReview } from '../types';
 import { INITIAL_PROFILES, INITIAL_NURSES } from '../data/nurses';
 import { supabase } from '../lib/supabase';
 import { getResponseDeadline } from '../data/platformSettings';
@@ -354,6 +354,91 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       ));
     }
   }, []); // Run once on mount
+
+  // Auto-expire care requests past their response_deadline (12h)
+  useEffect(() => {
+    const now = Date.now();
+    const expiredRequests = careRequests.filter(r => 
+      r.status === 'open' && 
+      new Date(r.response_deadline).getTime() <= now
+    );
+    if (expiredRequests.length > 0) {
+      // Mark requests as expired
+      const expiredIds = expiredRequests.map(r => r.id);
+      setCareRequests(prev => prev.map(r => 
+        expiredIds.includes(r.id) ? { ...r, status: 'expired' as CareRequestStatus } : r
+      ));
+      // Decline all pending offers on those requests
+      setCareOffers(prev => prev.map(o => 
+        expiredIds.includes(o.request_id) && o.status === 'pending'
+          ? { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' }
+          : o
+      ));
+      // Sync to Supabase
+      expiredIds.forEach(id => {
+        supabase.from('care_requests').update({ status: 'expired' }).eq('id', id).then();
+        supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('request_id', id).eq('status', 'pending').then();
+      });
+    }
+  }, [careRequests]); // Check whenever careRequests change
+
+  // Auto-withdraw nurse's pending offers when one of their offers is accepted (they now have a booking)
+  useEffect(() => {
+    // Find nurses that have at least one accepted offer (meaning they got a booking)
+    const acceptedNurseIds = new Set(
+      careOffers.filter(o => o.status === 'accepted').map(o => o.nurse_id)
+    );
+    if (acceptedNurseIds.size === 0) return;
+
+    // Find pending offers from those nurses that should be auto-withdrawn
+    // (same date as the accepted offer - they can't cover two shifts on the same day)
+    const offersToWithdraw = careOffers.filter(o => 
+      o.status === 'pending' && acceptedNurseIds.has(o.nurse_id)
+    );
+
+    if (offersToWithdraw.length === 0) return;
+
+    // Check if the nurse's accepted offer is for the same date as the pending offer
+    const acceptedOffersByNurse = new Map<string, CareOffer[]>();
+    careOffers.forEach(o => {
+      if (o.status === 'accepted') {
+        const list = acceptedOffersByNurse.get(o.nurse_id) || [];
+        list.push(o);
+        acceptedOffersByNurse.set(o.nurse_id, list);
+      }
+    });
+
+    const toWithdrawIds: string[] = [];
+    offersToWithdraw.forEach(o => {
+      const accepted = acceptedOffersByNurse.get(o.nurse_id) || [];
+      const request = careRequests.find(r => r.id === o.request_id);
+      if (!request) return;
+      const offerSlot = request.slots[o.slot_index];
+      if (!offerSlot) return;
+
+      // Withdraw if any accepted offer is for the same date
+      const shouldWithdraw = accepted.some(ao => {
+        const acceptedReq = careRequests.find(r => r.id === ao.request_id);
+        if (!acceptedReq) return false;
+        const acceptedSlot = acceptedReq.slots[ao.slot_index];
+        if (!acceptedSlot) return false;
+        return acceptedSlot.date === offerSlot.date;
+      });
+
+      if (shouldWithdraw) toWithdrawIds.push(o.id);
+    });
+
+    if (toWithdrawIds.length > 0) {
+      setCareOffers(prev => prev.map(o => 
+        toWithdrawIds.includes(o.id)
+          ? { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' }
+          : o
+      ));
+      toWithdrawIds.forEach(id => {
+        supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('id', id).then();
+      });
+    }
+  }, [careOffers, careRequests]);
 
   // Save to Local Storage whenever states change (only for data not in Supabase yet)
   useEffect(() => {

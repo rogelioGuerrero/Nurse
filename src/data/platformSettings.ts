@@ -16,7 +16,7 @@ export interface PlatformSettings {
 }
 
 export const PLATFORM_SETTINGS: PlatformSettings = {
-  responseWindowHours: 6,
+  responseWindowHours: 12,
   requestExpirationHours: 24,
   pendingBookingExpirationHours: 24,
   bankName: 'BAC Credomatic',
