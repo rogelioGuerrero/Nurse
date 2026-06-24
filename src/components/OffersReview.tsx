@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { calculateNurseNet, calculateFamilyPrice } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
-import { CheckCircle2, XCircle, Star, MapPin, User, Calendar, Clock as ClockIcon, Dumbbell, Users, Heart, MessageCircle, X, BadgeCheck, GraduationCap, Briefcase, ShieldAlert, FileText, Send, Phone, Receipt, Mail, ChevronLeft } from 'lucide-react';
+import { CheckCircle2, XCircle, Star, MapPin, User, Calendar, Clock as ClockIcon, Dumbbell, Users, Heart, MessageCircle, X, BadgeCheck, GraduationCap, Briefcase, ShieldAlert, FileText, Send, Phone, Receipt, Mail, ChevronLeft, Crosshair, Loader2 } from 'lucide-react';
 import { CSSPVerificationBadge } from './CSSPVerificationBadge';
 import { LegalDisclaimer } from './LegalDisclaimer';
 import { ServiceContract } from './ServiceContract';
@@ -17,7 +17,7 @@ function formatDate(dateStr: string): string {
 }
 
 export const OffersReview: FC = () => {
-  const { careRequests, careOffers, nurses, profiles, currentUser, acceptCareOffer, updatePatientName } = useApp();
+  const { careRequests, careOffers, nurses, profiles, currentUser, acceptCareOffer, updatePatientName, updateRequestLocation } = useApp();
 
   const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
   const [confirmingOfferId, setConfirmingOfferId] = useState<string | null>(null);
@@ -31,6 +31,9 @@ export const OffersReview: FC = () => {
   const [emergencyContact, setEmergencyContact] = useState('');
   const [showContract, setShowContract] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [updatedLocationName, setUpdatedLocationName] = useState('');
 
   const profileMap = useMemo(() => new Map(profiles.map(p => [p.id, p])), [profiles]);
 
@@ -510,6 +513,72 @@ export const OffersReview: FC = () => {
                     />
                   </div>
                 </div>
+
+                {myRequest && !myRequest.lat && !myRequest.lng && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="h-4 w-4 text-amber-600" />
+                      <p className="text-xs font-bold text-amber-800">Ubicación sin coordenadas</p>
+                    </div>
+                    <p className="text-[11px] text-amber-700">
+                      La enfermera necesita coordenadas exactas para llegar. Toca el botón para capturar tu ubicación actual.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={updatedLocationName || myRequest.location_name || ''}
+                        onChange={e => setUpdatedLocationName(e.target.value)}
+                        placeholder="Dirección (ej: Col. Escalón, pasaje 3, casa #15)"
+                        className="flex-1 px-3 py-2.5 border border-amber-200 rounded-lg text-sm bg-white focus:outline-none focus:border-amber-400"
+                      />
+                      <button
+                        onClick={() => {
+                          if (!navigator.geolocation) return;
+                          setLocating(true);
+                          navigator.geolocation.getCurrentPosition(
+                            async (pos) => {
+                              const { latitude, longitude } = pos.coords;
+                              setGpsCoords({ lat: latitude, lng: longitude });
+                              try {
+                                const res = await fetch(
+                                  `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=16&addressdetails=1`,
+                                  { headers: { 'Accept-Language': 'es' } }
+                                );
+                                const data = await res.json();
+                                const addr = data.address || {};
+                                const parts = [
+                                  addr.road || addr.neighbourhood,
+                                  addr.suburb || addr.city_district,
+                                  addr.city || addr.town || addr.village || addr.municipality,
+                                ].filter(Boolean);
+                                const name = parts.join(', ') || data.display_name?.split(',').slice(0, 3).join(',');
+                                setUpdatedLocationName(name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+                              } catch {
+                                setUpdatedLocationName(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+                              } finally {
+                                setLocating(false);
+                              }
+                            },
+                            () => setLocating(false),
+                            { enableHighAccuracy: true, timeout: 10000 }
+                          );
+                        }}
+                        disabled={locating}
+                        className="flex-shrink-0 px-3 py-2.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                        title="Usar mi ubicación"
+                      >
+                        {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
+                        <span className="text-xs font-bold">GPS</span>
+                      </button>
+                    </div>
+                    {gpsCoords && (
+                      <p className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Coordenadas capturadas: {gpsCoords.lat.toFixed(4)}, {gpsCoords.lng.toFixed(4)}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -517,10 +586,13 @@ export const OffersReview: FC = () => {
               onClick={async () => {
                 if (myRequest) {
                   await updatePatientName(myRequest.id, patientName, patientAge, emergencyContact);
+                  if (gpsCoords && updatedLocationName) {
+                    await updateRequestLocation(myRequest.id, gpsCoords.lat, gpsCoords.lng, updatedLocationName);
+                  }
                 }
                 setPlanPhase('confirmed');
               }}
-              disabled={patientName.trim().length < 3 || emergencyContact.trim().length < 8}
+              disabled={patientName.trim().length < 3 || emergencyContact.trim().length < 8 || (!!myRequest && !myRequest.lat && !myRequest.lng && !gpsCoords)}
               className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-200 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer mt-4"
             >
               <Send className="h-5 w-5" />

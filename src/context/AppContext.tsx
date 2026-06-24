@@ -68,6 +68,7 @@ interface AppContextType {
   submitReview: (bookingId: string, nurseId: string, rating: number, comment?: string) => Promise<void>;
   confirmPayment: (bookingId: string) => Promise<void>;
   updatePatientName: (requestId: string, patientName: string, patientAge?: string, emergencyContact?: string) => Promise<void>;
+  updateRequestLocation: (requestId: string, lat: number, lng: number, locationName: string) => Promise<void>;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   selectedNurseId: string | null;
@@ -887,6 +888,36 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Action: Update request location with GPS coordinates
+  const updateRequestLocation = async (requestId: string, lat: number, lng: number, locationName: string) => {
+    const prevRequests = careRequests;
+    const prevBookings = bookings;
+
+    setCareRequests(prev => prev.map(r => r.id === requestId ? { ...r, lat, lng, location_name: locationName } : r));
+    setBookings(prev => prev.map(b => {
+      const req = careRequests.find(r => r.id === requestId);
+      if (req && (b.patient_name === 'Por confirmar' || b.patient_name === req.patient_name)) {
+        return { ...b, lat, lng, location_name: locationName };
+      }
+      return b;
+    }));
+
+    try {
+      await supabase.from('care_requests').update({ lat, lng, location_name: locationName }).eq('id', requestId);
+      const request = careRequests.find(r => r.id === requestId);
+      const relatedBookings = bookings.filter(b =>
+        request && (b.patient_name === 'Por confirmar' || b.patient_name === request.patient_name)
+      );
+      for (const b of relatedBookings) {
+        await supabase.from('bookings').update({ lat, lng, location_name: locationName }).eq('id', b.id);
+      }
+    } catch (err) {
+      setCareRequests(prevRequests);
+      setBookings(prevBookings);
+      console.warn('Location update failed, rolled back:', err);
+    }
+  };
+
   // Action: Update state of booking (optimistic update with rollback)
   const updateBookingStatus = async (bookingId: string, status: BookingStatus) => {
     const prevBookings = bookings;
@@ -1080,6 +1111,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       submitReview,
       confirmPayment,
       updatePatientName,
+      updateRequestLocation,
       activeTab,
       setActiveTab,
       selectedNurseId,
