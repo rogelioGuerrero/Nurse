@@ -10,6 +10,16 @@ const MAX_MESSAGE_LENGTH = 4000;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 10;
 
+const ALLOWED_ORIGIN = `${Deno.env.get("SUPABASE_URL") || ""}`;
+
+function corsHeaders() {
+  return {
+    "Access-Control-Allow-Origin": ALLOWED_ORIGIN || "https://zqgtkrqfyhcvgagjhbnv.supabase.co",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "authorization, content-type, x-client-info, apikey",
+  };
+}
+
 interface GroqMessage {
   role: "system" | "user";
   content: string;
@@ -122,14 +132,7 @@ async function callGroq(
 Deno.serve(async (req: Request) => {
   // CORS
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers":
-          "authorization, content-type, x-client-info, apikey",
-      },
-    });
+    return new Response(null, { headers: corsHeaders() });
   }
 
   if (req.method !== "POST") {
@@ -151,7 +154,7 @@ Deno.serve(async (req: Request) => {
         status: 429,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          ...corsHeaders(),
           "Retry-After": "60",
         },
       },
@@ -205,7 +208,7 @@ Deno.serve(async (req: Request) => {
         status: 200,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          ...corsHeaders(),
         },
       },
     );
@@ -217,7 +220,7 @@ Deno.serve(async (req: Request) => {
         status: 500,
         headers: {
           "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": "*",
+          ...corsHeaders(),
         },
       },
     );

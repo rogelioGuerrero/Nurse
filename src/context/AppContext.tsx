@@ -580,7 +580,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [careOffers, careRequests]);
 
-  // Bookings are now sourced from Supabase + realtime; no localStorage fallback needed
+  // Bookings are sourced from Supabase + realtime
 
   // Action: Update profiles (also syncs currentNurse if user is a nurse)
   const updateProfile = async (profileData: Partial<Profile>) => {
@@ -604,9 +604,9 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     } catch (err) {
       console.warn('Profile sync error:', err);
     }
-    // Immediately sync currentNurse if the updated user is a nurse
+    // Sync currentNurse if the updated user is a nurse (nurses array may need refresh)
     if (updated.role === 'nurse') {
-      setCurrentNurse(prev => prev ? { ...prev } : prev);
+      setNurses(prev => prev.map(n => n.user_id === updated.id ? { ...n } : n));
     }
   };
 
@@ -638,7 +638,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Action: Create high fidelity booking (with localStorage fallback for demo mode)
+  // Action: Create booking (Supabase only, no localStorage fallback)
   const createBooking = async (bookingData: Omit<Booking, 'id' | 'user_id' | 'created_at' | 'status'>) => {
     if (!currentUser) throw new Error('Debes iniciar sesión para agendar.');
     
