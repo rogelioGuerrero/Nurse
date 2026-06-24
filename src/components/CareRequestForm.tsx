@@ -214,6 +214,16 @@ export const CareRequestForm: FC = () => {
     setGpsCoords(null);
   };
 
+  /* ── Hooks must run before any conditional return ── */
+  const myRequests = useMemo(() => {
+    if (!currentUser) return [];
+    return careRequests
+      .filter(r => r.user_id === currentUser.id)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [careRequests, currentUser]);
+
+  const activeRequests = myRequests.filter(r => r.status === 'open');
+
   /* ── Published state ── */
   if (published) {
     return (
@@ -249,14 +259,6 @@ export const CareRequestForm: FC = () => {
   }
 
   /* ── Stepper form ── */
-  const myRequests = useMemo(() => {
-    if (!currentUser) return [];
-    return careRequests
-      .filter(r => r.user_id === currentUser.id)
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [careRequests, currentUser]);
-
-  const activeRequests = myRequests.filter(r => r.status === 'open');
   const expiredRequests = myRequests.filter(r => r.status === 'expired' || r.status === 'closed');
 
   return (
