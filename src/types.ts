@@ -87,6 +87,7 @@ export interface Booking {
   // Location
   lat?: number;
   lng?: number;
+  location_name?: string;
   // Check-in / Check-out GPS
   check_in_at?: string;
   check_in_lat?: number;

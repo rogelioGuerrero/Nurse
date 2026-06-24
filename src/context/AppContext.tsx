@@ -680,7 +680,10 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           notes: bookingData.notes,
           patient_name: bookingData.patient_name,
           patient_condition: bookingData.patient_condition,
-          wants_invoice: bookingData.wants_invoice ?? false
+          wants_invoice: bookingData.wants_invoice ?? false,
+          location_name: bookingData.location_name || null,
+          lat: bookingData.lat || null,
+          lng: bookingData.lng || null
         })
         .select()
         .single();
@@ -735,6 +738,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         notes: request.notes,
         lat: request.lat,
         lng: request.lng,
+        location_name: request.location_name,
         wants_invoice: request.wants_invoice,
       });
 

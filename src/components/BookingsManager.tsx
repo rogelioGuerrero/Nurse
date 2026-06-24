@@ -87,6 +87,9 @@ export const BookingsManager: FC = () => {
   // Payment modal
   const [paymentBookingId, setPaymentBookingId] = useState<string | null>(null);
 
+  // Service tabs: upcoming vs completed
+  const [activeServiceTab, setActiveServiceTab] = useState<'upcoming' | 'completed'>('upcoming');
+
   const handleCheckIn = async (bookingId: string, skipGps = false) => {
     if (skipGps) {
       const address = reportedAddress.trim() || 'Sin GPS - confirmación manual';
@@ -301,7 +304,10 @@ export const BookingsManager: FC = () => {
   const nextMonth = () => setCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
 
   // Ordenar bookings por fecha
-  const sortedBookings = [...filteredBookings].sort((a, b) => a.date.localeCompare(b.date));
+  const allSortedBookings = [...filteredBookings].sort((a, b) => a.date.localeCompare(b.date));
+  const upcomingBookings = allSortedBookings.filter(b => b.status === 'confirmed' || b.status === 'pending');
+  const completedBookings = allSortedBookings.filter(b => b.status === 'completed' || b.status === 'cancelled');
+  const visibleBookings = activeServiceTab === 'upcoming' ? upcomingBookings : completedBookings;
 
   return (
     <div className="max-w-md mx-auto px-4 py-6 space-y-5" id="bookings-manager-root">
@@ -385,16 +391,40 @@ export const BookingsManager: FC = () => {
         </div>
       )}
 
+      {/* Tabs: Próximos / Realizados */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setActiveServiceTab('upcoming')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+            activeServiceTab === 'upcoming' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          Próximos{upcomingBookings.length > 0 && ` (${upcomingBookings.length})`}
+        </button>
+        <button
+          onClick={() => setActiveServiceTab('completed')}
+          className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+            activeServiceTab === 'completed' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          Realizados{completedBookings.length > 0 && ` (${completedBookings.length})`}
+        </button>
+      </div>
+
       {/* Lista de servicios */}
-      {sortedBookings.length === 0 ? (
+      {visibleBookings.length === 0 ? (
         <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center text-slate-500">
           <Calendar className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-          <p className="font-semibold text-slate-700">No hay servicios registrados.</p>
-          <p className="text-xs text-slate-400 mt-1">Las visitas que aceptes aparecerán aquí.</p>
+          <p className="font-semibold text-slate-700">
+            {activeServiceTab === 'upcoming' ? 'No tienes servicios próximos.' : 'No tienes servicios realizados.'}
+          </p>
+          <p className="text-xs text-slate-400 mt-1">
+            {activeServiceTab === 'upcoming' ? 'Las visitas confirmadas aparecerán aquí.' : 'Los servicios completados aparecerán aquí.'}
+          </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {sortedBookings.map((b) => {
+          {visibleBookings.map((b) => {
             const clientProfile = profileMap.get(b.user_id);
             const nurseRec = nurseMap.get(b.nurse_id);
             const nurseProfile = nurseRec ? profileMap.get(nurseRec.user_id) : null;
@@ -439,7 +469,13 @@ export const BookingsManager: FC = () => {
                     <span className="font-bold">{b.patient_name}</span>
                   </div>
                   <p className="text-slate-500 mt-0.5 pl-4 truncate">{b.patient_condition}</p>
-                  {isNurseView && b.lat && b.lng && (
+                  {isNurseView && b.location_name && (
+                    <p className="text-slate-400 mt-0.5 pl-4 truncate flex items-center gap-1">
+                      <MapPin className="h-3 w-3 text-slate-400" />
+                      {b.location_name}
+                    </p>
+                  )}
+                  {isNurseView && (b.lat && b.lng ? (
                     <a
                       href={`https://www.google.com/maps/dir/?api=1&destination=${b.lat},${b.lng}`}
                       target="_blank"
@@ -449,7 +485,17 @@ export const BookingsManager: FC = () => {
                       <MapPin className="h-3 w-3" />
                       Cómo llegar (Google Maps)
                     </a>
-                  )}
+                  ) : b.location_name ? (
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(b.location_name)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 cursor-pointer"
+                    >
+                      <MapPin className="h-3 w-3" />
+                      Cómo llegar (Google Maps)
+                    </a>
+                  ) : null)}
                 </div>
 
                 {/* Reporte de visita */}
