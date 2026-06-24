@@ -1,5 +1,23 @@
 export const USER_COORDS = { lat: 13.6929, lng: -89.2182 };
 
+export function setUserCoords(lat: number, lng: number): void {
+  USER_COORDS.lat = lat;
+  USER_COORDS.lng = lng;
+}
+
+export function requestUserLocation(): void {
+  if (!('geolocation' in navigator)) return;
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      setUserCoords(pos.coords.latitude, pos.coords.longitude);
+    },
+    () => {
+      // User denied or error — keep default San Salvador
+    },
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 }
+  );
+}
+
 export const getDistanceKm = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
   const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;

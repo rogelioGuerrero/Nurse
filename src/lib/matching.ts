@@ -29,6 +29,8 @@ export function buildVisitPlan(
   const slots: VisitPlanSlot[] = [];
   const assignedNurseIds = new Set<string>();
   const familyPrice = 25; // fallback, real price calculated per-nurse in PlanReview
+  const originLat = request.lat ?? USER_COORDS.lat;
+  const originLng = request.lng ?? USER_COORDS.lng;
 
   for (const slot of request.slots) {
     const shiftInfo = SHIFTS[slot.shift as ShiftType];
@@ -38,11 +40,11 @@ export function buildVisitPlan(
       .filter(n => n.specialization.includes(request.specialization_needed))
       .filter(n => n.available_shifts.includes(slot.shift as ShiftType))
       .filter(n => {
-        const distance = getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, n.lat, n.lng);
+        const distance = getDistanceKm(originLat, originLng, n.lat, n.lng);
         return distance <= n.coverage_radius;
       })
       .map(n => {
-        const distance = getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, n.lat, n.lng);
+        const distance = getDistanceKm(originLat, originLng, n.lat, n.lng);
         const assignmentBonus = assignedNurseIds.has(n.id) ? 0.15 : 0;
         const distanceScore = 1 - (distance / n.coverage_radius);
         const ratingScore = n.rating / 5;
@@ -99,6 +101,8 @@ export function buildFinalPlanFromOffers(
   const slots: VisitPlanSlot[] = [];
   const assignedNurseIds = new Set<string>();
   const familyPrice = 25; // fallback, real price calculated per-nurse in PlanReview
+  const originLat = request.lat ?? USER_COORDS.lat;
+  const originLng = request.lng ?? USER_COORDS.lng;
 
   for (let i = 0; i < request.slots.length; i++) {
     const slot = request.slots[i];
@@ -127,7 +131,7 @@ export function buildFinalPlanFromOffers(
       .map(o => {
         const nurse = nurseMap.get(o.nurse_id);
         if (!nurse) return null;
-        const distance = getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, nurse.lat, nurse.lng);
+        const distance = getDistanceKm(originLat, originLng, nurse.lat, nurse.lng);
         const distanceScore = 1 - (distance / nurse.coverage_radius);
         const ratingScore = nurse.rating / 5;
         const assignmentBonus = assignedNurseIds.has(nurse.id) ? 0.15 : 0;

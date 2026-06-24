@@ -10,7 +10,7 @@ import { MapComponent } from './components/MapComponent';
 import { SearchFilters } from './components/SearchFilters';
 import { ToastProvider } from './components/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import { getDistanceKm, USER_COORDS } from './lib/distance';
+import { getDistanceKm, USER_COORDS, requestUserLocation } from './lib/distance';
 import { 
   Stethoscope, 
   Star, Sparkles,
@@ -70,6 +70,8 @@ function MarketplaceApp() {
       setIsAdminAccess(true);
       setAuthMode('login');
     }
+    // Request real geolocation on mount
+    requestUserLocation();
   }, []);
 
   // Calcular ofertas pendientes para badge
