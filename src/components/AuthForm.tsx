@@ -29,6 +29,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
   const [showTerms, setShowTerms] = useState(false);
   const [csspRegistration, setCsspRegistration] = useState('');
   const [csspLevel, setCsspLevel] = useState<'Licenciada' | 'Tecnóloga' | 'Técnica' | 'Auxiliar'>('Técnica');
+  const [dui, setDui] = useState('');
 
   const validateEmail = (value: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -70,6 +71,15 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
       const csspCheck = validateCSSPRegistration(csspRegistration);
       if (!csspCheck.valid) {
         setError(csspCheck.message);
+        return;
+      }
+      const duiTrimmed = dui.trim();
+      if (!duiTrimmed) {
+        setError('El número de DUI es obligatorio');
+        return;
+      }
+      if (!/^\d{8}-\d$/.test(duiTrimmed)) {
+        setError('El DUI debe tener el formato 12345678-9');
         return;
       }
     }
@@ -139,6 +149,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
             certifications: ['CSSP'],
             cssp_registration: csspRegistration,
             cssp_level: csspLevel,
+            dui: dui.trim(),
             cssp_verification_status: 'unverified',
             cssp_verified: false
           });
@@ -420,6 +431,26 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
                     <option value="Auxiliar">Auxiliar</option>
                   </select>
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                  Número de DUI *
+                </label>
+                <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                  <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
+                    <BadgeCheck className="h-4 w-4" />
+                  </div>
+                  <input
+                    type="text"
+                    value={dui}
+                    onChange={(e) => setDui(e.target.value)}
+                    placeholder="12345678-9"
+                    maxLength={10}
+                    className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400">Para verificación de antecedentes por el administrador.</p>
               </div>
             </>
           )}

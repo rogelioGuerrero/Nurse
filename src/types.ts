@@ -52,6 +52,7 @@ export interface Nurse {
   // Verificaciones: CSSP obligatorio, demas opcionales
   cssp_registration: string; // Número de registro CSSP (OBLIGATORIO por ley)
   cssp_level: 'Licenciada' | 'Tecnóloga' | 'Técnica' | 'Auxiliar';
+  dui: string; // Número de DUI para verificación manual de antecedentes
   cssp_verification_status?: CSSPVerificationStatus; // estado de verificación automatizada + manual
   cssp_verified?: boolean; // true solo cuando está verificada (auto o manual)
   cssp_verification_date?: string; // ISO date de última verificación

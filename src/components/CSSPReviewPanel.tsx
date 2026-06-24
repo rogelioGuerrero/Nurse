@@ -144,21 +144,35 @@ export const CSSPReviewPanel: FC = () => {
                       CSSP: <span className="font-mono font-bold">{nurse.cssp_registration || 'No registrado'}</span>
                       {' · '}Nivel: {nurse.cssp_level}
                     </p>
+                    <p className="text-xs text-slate-500">
+                      DUI: <span className="font-mono font-bold">{nurse.dui || 'No registrado'}</span>
+                    </p>
                     {nurse.cssp_verification_date && (
                       <p className="text-[10px] text-slate-400">
                         Última verificación: {new Date(nurse.cssp_verification_date).toLocaleDateString('es-SV')}
                       </p>
                     )}
                   </div>
-                  <a
-                    href="https://cssp.gob.sv/profesionales/faces/consulta/buscar.xhtml"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[10px] text-indigo-600 font-bold hover:underline flex items-center gap-1 shrink-0"
-                  >
-                    <ExternalLink className="h-3 w-3" />
-                    Verificar
-                  </a>
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <a
+                      href="https://cssp.gob.sv/profesionales/faces/consulta/buscar.xhtml"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-indigo-600 font-bold hover:underline flex items-center gap-1"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Verificar CSSP
+                    </a>
+                    <a
+                      href="https://www.simple.sv"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[10px] text-indigo-600 font-bold hover:underline flex items-center gap-1"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Verificar DUI
+                    </a>
+                  </div>
                 </div>
 
                 {/* Notas existentes */}

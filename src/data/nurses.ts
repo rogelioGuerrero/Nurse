@@ -79,7 +79,8 @@ export const INITIAL_NURSES: Nurse[] = [
       'Certificación internacional de atención en Alzheimer y Demencias'
     ],
     cssp_registration: 'CSSP-ENF-2016-0142',
-    cssp_level: 'Licenciada'
+    cssp_level: 'Licenciada',
+    dui: '00000000-0'
   },
   {
     id: '00000000-0000-0000-0000-000000000012',
@@ -101,7 +102,8 @@ export const INITIAL_NURSES: Nurse[] = [
       'Especialista en Cuidados Críticos y Terapia de Infusión'
     ],
     cssp_registration: 'CSSP-ENF-2018-0387',
-    cssp_level: 'Técnica'
+    cssp_level: 'Técnica',
+    dui: '00000000-1'
   },
   {
     id: '00000000-0000-0000-0000-000000000013',
@@ -123,7 +125,8 @@ export const INITIAL_NURSES: Nurse[] = [
       'Curso Superior Universitario de Farmacología en Terapia Paliativa'
     ],
     cssp_registration: 'CSSP-ENF-2012-0094',
-    cssp_level: 'Licenciada'
+    cssp_level: 'Licenciada',
+    dui: '00000000-2'
   },
   {
     id: '00000000-0000-0000-0000-000000000014',
@@ -145,7 +148,8 @@ export const INITIAL_NURSES: Nurse[] = [
       'Taller Avanzado en RCP y Primeros Auxilios'
     ],
     cssp_registration: 'CSSP-ENF-2019-0521',
-    cssp_level: 'Tecnóloga'
+    cssp_level: 'Tecnóloga',
+    dui: '00000000-3'
   },
   {
     id: '00000000-0000-0000-0000-000000000015',
@@ -167,6 +171,7 @@ export const INITIAL_NURSES: Nurse[] = [
       'Registro y Cédula del Consejo de Gerontología'
     ],
     cssp_registration: 'CSSP-ENF-2009-0078',
-    cssp_level: 'Licenciada'
+    cssp_level: 'Licenciada',
+    dui: '00000000-4'
   }
 ];
