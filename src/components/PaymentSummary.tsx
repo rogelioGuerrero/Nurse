@@ -162,9 +162,9 @@ export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyN
             <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-start gap-2.5">
               <FileText className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs font-bold text-indigo-800">¿Necesitas factura?</p>
+                <p className="text-xs font-bold text-indigo-800">En tu próxima solicitud puedes solicitar factura</p>
                 <p className="text-[10px] text-indigo-600 leading-relaxed mt-0.5">
-                  Si después necesitas factura, puedes solicitarla. Tarifa de gestión fiscal y administrativa US$ 5 más IVA.
+                  Y obtener beneficios fiscales, reembolsos por cancelación y pago gestionado por la plataforma. Solo agrega US$ 5 más IVA por turno.
                 </p>
               </div>
             </div>
