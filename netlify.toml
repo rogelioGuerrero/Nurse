@@ -2,11 +2,6 @@
   command = "npm run build"
   publish = "dist"
 
-# TODO: Remove these hardcoded env vars after confirming Netlify UI variables work
-[build.environment]
-  VITE_SUPABASE_URL = "https://zqgtkrqfyhcvgagjhbnv.supabase.co"
-  VITE_SUPABASE_ANON_KEY = "sb_publishable_eY-iBKIqUVxMf_OAEa0CKg_DTxfCzpp"
-
 [[redirects]]
   from = "/*"
   to = "/index.html"
