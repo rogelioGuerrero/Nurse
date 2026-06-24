@@ -64,6 +64,7 @@ interface AppContextType {
   nurseReviews: NurseReview[];
   submitReview: (bookingId: string, nurseId: string, rating: number, comment?: string) => Promise<void>;
   confirmPayment: (bookingId: string) => Promise<void>;
+  updatePatientName: (requestId: string, patientName: string, patientAge?: string, emergencyContact?: string) => Promise<void>;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   selectedNurseId: string | null;
@@ -555,6 +556,36 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Action: Update patient name on request and related bookings
+  const updatePatientName = async (requestId: string, patientName: string, patientAge?: string, emergencyContact?: string) => {
+    const prevRequests = careRequests;
+    const prevBookings = bookings;
+
+    setCareRequests(prev => prev.map(r => r.id === requestId ? { ...r, patient_name: patientName } : r));
+    setBookings(prev => prev.map(b => {
+      const req = careRequests.find(r => r.id === requestId);
+      if (req && b.patient_name === 'Por confirmar') {
+        return { ...b, patient_name: patientName };
+      }
+      return b;
+    }));
+
+    try {
+      await supabase.from('care_requests').update({ patient_name: patientName }).eq('id', requestId);
+      const relatedBookings = bookings.filter(b => {
+        const req = careRequests.find(r => r.id === requestId);
+        return req && b.patient_name === 'Por confirmar';
+      });
+      for (const b of relatedBookings) {
+        await supabase.from('bookings').update({ patient_name: patientName }).eq('id', b.id);
+      }
+    } catch {
+      setCareRequests(prevRequests);
+      setBookings(prevBookings);
+      console.warn('Patient name update failed, rolled back.');
+    }
+  };
+
   // Action: Update state of booking (optimistic update with rollback)
   const updateBookingStatus = async (bookingId: string, status: BookingStatus) => {
     const prevBookings = bookings;
@@ -747,6 +778,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       nurseReviews,
       submitReview,
       confirmPayment,
+      updatePatientName,
       activeTab,
       setActiveTab,
       selectedNurseId,

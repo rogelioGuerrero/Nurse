@@ -11,7 +11,7 @@ const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Vierne
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 export const PlanReview: FC = () => {
-  const { careRequests, careOffers, nurses, profiles, currentUser } = useApp();
+  const { careRequests, careOffers, nurses, profiles, currentUser, updatePatientName } = useApp();
 
   const [accepted, setAccepted] = useState(false);
   const [rejected, setRejected] = useState(false);
@@ -217,7 +217,12 @@ export const PlanReview: FC = () => {
         </div>
 
         <button
-          onClick={() => setSubmitted(true)}
+          onClick={async () => {
+            if (myRequest) {
+              await updatePatientName(myRequest.id, patientName, patientAge, emergencyContact);
+            }
+            setSubmitted(true);
+          }}
           disabled={patientName.trim().length < 3 || emergencyContact.trim().length < 8}
           className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-200 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer mt-4"
         >

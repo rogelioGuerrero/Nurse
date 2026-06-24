@@ -423,7 +423,11 @@ export const BookingsManager: FC = () => {
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">
                       {getStatusBadge(b.status)}
-                      <span className="text-xs font-black text-indigo-600">US$ {b.total_price}</span>
+                      <span className="text-xs font-black text-indigo-600">
+                        US$ {isNurseView
+                          ? (b.wants_invoice ? (b.total_price - 5 * 1.13).toFixed(2) : b.total_price.toFixed(2))
+                          : b.total_price.toFixed(2)}
+                      </span>
                     </div>
                   </div>
                 </div>
