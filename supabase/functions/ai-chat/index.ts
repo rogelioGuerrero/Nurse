@@ -1,3 +1,4 @@
+// @ts-nocheck — This file runs in Deno (Supabase Edge Functions), not in the browser/Node context
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
