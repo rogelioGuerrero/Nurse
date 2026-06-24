@@ -699,7 +699,7 @@ export const BookingsManager: FC = () => {
                 )}
 
                 {/* Cancellation policy note */}
-                {b.status === 'confirmed' && !b.check_in_at && (
+                {b.status === 'confirmed' && !b.check_in_at && b.wants_invoice && (
                   <div className="px-3 py-2 bg-slate-50 border-t border-slate-100 text-[9px] text-slate-400 leading-relaxed">
                     {isNurseView
                       ? 'Si la familia cancela con menos de 12 horas de anticipación o después de tu llegada, recibes el 50% del turno por costo de oportunidad.'

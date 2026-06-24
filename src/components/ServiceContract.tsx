@@ -134,9 +134,17 @@ export const ServiceContract: FC<ServiceContractProps> = ({
               <>El pago se realiza directamente entre la familia y la enfermera, en efectivo, transferencia o como acuerden entre ambas partes. BienCuidar no intermedia ni retiene el pago. La enfermera es responsable de reportar sus ingresos ante las autoridades fiscales correspondientes.</>
             )}</p>
 
+            {wantsInvoice ? (
             <p><strong>Cuarta - Cancelación:</strong> La familia puede cancelar sin costo hasta
             24 horas antes del servicio. Cancelaciones con menos anticipación podrán generar un
-            cargo equivalente al 50% del turno.</p>
+            cargo equivalente al 50% del turno. Este cargo es exigible únicamente cuando el pago
+            se realiza a través de la plataforma con factura.</p>
+            ) : (
+            <p><strong>Cuarta - Cancelación:</strong> Al optar por pago directo sin factura,
+            la política de cancelación con cargo no aplica. La cancelación se coordina directamente
+            entre la familia y la enfermera. Esta es una de las ventajas de facturar a través de
+            la plataforma.</p>
+            )}
 
             <p><strong>Quinta - Relación entre Partes:</strong> No existe relación laboral entre
             la familia y la enfermera ni entre BienCuidar y la enfermera. La enfermera actúa como

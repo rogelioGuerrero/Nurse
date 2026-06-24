@@ -765,7 +765,7 @@ export const NurseDetail: FC = () => {
               <LegalDisclaimer variant="full" />
 
               <p className="text-[10px] text-slate-400 text-center leading-normal">
-                No realizamos cargos a tu tarjeta hasta que el cuidador confirme su visita. Cancela sin costo hasta 12 horas antes del servicio.
+                No realizamos cargos a tu tarjeta hasta que el cuidador confirme su visita. La política de cancelación aplica solo con factura.
               </p>
             </div>
           </div>

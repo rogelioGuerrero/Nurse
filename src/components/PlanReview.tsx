@@ -390,7 +390,7 @@ export const PlanReview: FC = () => {
               </div>
             )}
 
-            {allCovered && (
+            {allCovered && myRequest.wants_invoice && (
               <div className="bg-white rounded-xl p-3 border border-slate-200 mt-2 space-y-1.5">
                 <p className="text-[10px] font-bold text-slate-600 uppercase">Política de cancelación</p>
                 <div className="flex items-start gap-1.5 text-[10px] text-slate-500">
@@ -405,6 +405,18 @@ export const PlanReview: FC = () => {
                   <span className="text-rose-500 font-bold">0%</span>
                   <span>Si la enfermera <strong>no llega</strong>, no pagas nada. Reembolso total.</span>
                 </div>
+              </div>
+            )}
+
+            {allCovered && !myRequest.wants_invoice && (
+              <div className="bg-white rounded-xl p-3 border border-slate-200 mt-2">
+                <p className="text-[10px] font-bold text-slate-600 uppercase mb-1.5">Pago directo sin factura</p>
+                <p className="text-[10px] text-slate-500 leading-relaxed">
+                  Al optar por pago directo, la política de cancelación con cargo no aplica.
+                  La cancelación se coordina directamente con la enfermera.
+                  <strong className="text-indigo-600"> Factura a través de la plataforma</strong> para
+                  proteger tu reserva con política de cancelación.
+                </p>
               </div>
             )}
           </div>

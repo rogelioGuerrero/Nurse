@@ -738,6 +738,33 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         wants_invoice: request.wants_invoice,
       });
 
+      // Auto-withdraw nurse's other pending offers for the same date (server-side)
+      // This prevents double-booking when the nurse isn't online
+      const sameDateOffers = careOffers.filter(o =>
+        o.nurse_id === offer.nurse_id &&
+        o.status === 'pending' &&
+        o.id !== offer.id
+      );
+      const toWithdraw = sameDateOffers.filter(o => {
+        const req = careRequests.find(r => r.id === o.request_id);
+        if (!req) return false;
+        const otherSlot = req.slots[o.slot_index];
+        if (!otherSlot) return false;
+        return otherSlot.date === slot.date;
+      });
+      if (toWithdraw.length > 0) {
+        const withdrawIds = toWithdraw.map(o => o.id);
+        setCareOffers(prev => prev.map(o =>
+          withdrawIds.includes(o.id)
+            ? { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' }
+            : o
+        ));
+        supabase.from('care_offers')
+          .update({ status: 'rejected', reject_reason: 'auto' })
+          .in('id', withdrawIds)
+          .then(({ error }) => { if (error) console.warn('auto-withdraw same-date offers sync error:', error.message); });
+      }
+
       // Notify nurse (if they're not the current user)
       const nurse = nurses.find(n => n.id === offer.nurse_id);
       if (nurse && currentUser?.id !== nurse.user_id) {
