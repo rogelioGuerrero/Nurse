@@ -5,5 +5,16 @@ import {defineConfig} from 'vite';
 export default defineConfig(() => {
   return {
     plugins: [react(), tailwindcss()],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom'],
+            'supabase-vendor': ['@supabase/supabase-js'],
+            'icons': ['lucide-react'],
+          },
+        },
+      },
+    },
   };
 });

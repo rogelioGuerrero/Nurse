@@ -28,7 +28,6 @@ export function buildVisitPlan(
 ): VisitPlan {
   const slots: VisitPlanSlot[] = [];
   const assignedNurseIds = new Set<string>();
-  const familyPrice = 25; // fallback, real price calculated per-nurse in PlanReview
   const originLat = request.lat ?? USER_COORDS.lat;
   const originLng = request.lng ?? USER_COORDS.lng;
 
@@ -61,7 +60,7 @@ export function buildVisitPlan(
         nurse: best.nurse,
         distance: best.distance,
         shiftHours,
-        price: familyPrice
+        price: calculateFamilyPrice(best.nurse.shift_rate, request.wants_invoice)
       });
     } else {
       slots.push({
@@ -100,7 +99,6 @@ export function buildFinalPlanFromOffers(
   const nurseMap = new Map(nurses.map(n => [n.id, n]));
   const slots: VisitPlanSlot[] = [];
   const assignedNurseIds = new Set<string>();
-  const familyPrice = 25; // fallback, real price calculated per-nurse in PlanReview
   const originLat = request.lat ?? USER_COORDS.lat;
   const originLng = request.lng ?? USER_COORDS.lng;
 
@@ -148,7 +146,7 @@ export function buildFinalPlanFromOffers(
         nurse: best.nurse,
         distance: best.distance,
         shiftHours,
-        price: familyPrice
+        price: calculateFamilyPrice(best.nurse.shift_rate, request.wants_invoice)
       });
     } else {
       slots.push({
