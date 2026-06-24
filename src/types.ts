@@ -76,6 +76,8 @@ export interface Booking {
   notes?: string;
   patient_name: string;
   patient_condition: string;
+  patient_age?: string;
+  emergency_contact?: string;
   patient_data?: {
     diagnosis: string;
     autonomy: string;

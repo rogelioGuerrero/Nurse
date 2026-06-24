@@ -469,11 +469,23 @@ export const BookingsManager: FC = () => {
                     <span className="font-bold">{b.patient_name}</span>
                   </div>
                   <p className="text-slate-500 mt-0.5 pl-4 truncate">{b.patient_condition}</p>
+                  {isNurseView && b.patient_age && (
+                    <p className="text-slate-400 mt-0.5 pl-4 text-[10px]">{b.patient_age} años</p>
+                  )}
                   {isNurseView && b.location_name && (
                     <p className="text-slate-400 mt-0.5 pl-4 truncate flex items-center gap-1">
                       <MapPin className="h-3 w-3 text-slate-400" />
                       {b.location_name}
                     </p>
+                  )}
+                  {isNurseView && b.emergency_contact && (
+                    <a
+                      href={`tel:${b.emergency_contact}`}
+                      className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-700 cursor-pointer"
+                    >
+                      <Phone className="h-3 w-3" />
+                      {b.emergency_contact}
+                    </a>
                   )}
                   {isNurseView && (b.lat && b.lng ? (
                     <a
@@ -718,7 +730,7 @@ export const BookingsManager: FC = () => {
                 })()}
 
                 {/* Payment status badge */}
-                {b.status === 'confirmed' && (
+                {(b.status === 'confirmed' || b.status === 'completed') && (
                   <div className={`px-3 py-2 border-t flex items-center gap-2 text-[10px] ${
                     b.payment_status === 'paid'
                       ? 'bg-emerald-50 border-emerald-100 text-emerald-700'

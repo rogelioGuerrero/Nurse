@@ -847,8 +847,13 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     } : r));
     setBookings(prev => prev.map(b => {
       const req = careRequests.find(r => r.id === requestId);
-      if (req && b.patient_name === 'Por confirmar') {
-        return { ...b, patient_name: patientName };
+      if (req && (b.patient_name === 'Por confirmar' || b.patient_name === req.patient_name)) {
+        return {
+          ...b,
+          patient_name: patientName,
+          patient_age: patientAge || b.patient_age,
+          emergency_contact: emergencyContact || b.emergency_contact,
+        };
       }
       return b;
     }));
@@ -864,12 +869,16 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         updateData.patient_data = JSON.stringify(patientData);
       }
       await supabase.from('care_requests').update(updateData).eq('id', requestId);
-      const relatedBookings = bookings.filter(b => {
-        const req = careRequests.find(r => r.id === requestId);
-        return req && b.patient_name === 'Por confirmar';
-      });
+      const request = careRequests.find(r => r.id === requestId);
+      const relatedBookings = bookings.filter(b =>
+        request && (b.patient_name === 'Por confirmar' || b.patient_name === request.patient_name)
+      );
       for (const b of relatedBookings) {
-        await supabase.from('bookings').update({ patient_name: patientName }).eq('id', b.id);
+        await supabase.from('bookings').update({
+          patient_name: patientName,
+          patient_age: patientAge || null,
+          emergency_contact: emergencyContact || null,
+        }).eq('id', b.id);
       }
     } catch (err) {
       setCareRequests(prevRequests);
@@ -929,17 +938,19 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   const checkOutBooking = async (bookingId: string, lat: number, lng: number) => {
     const prevBookings = bookings;
     const now = new Date().toISOString();
-    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, check_out_at: now, check_out_lat: lat, check_out_lng: lng, status: 'completed' } : b));
+    const booking = bookings.find(b => b.id === bookingId);
+    // Without invoice: payment is direct, mark as paid on check-out
+    const paymentUpdate = booking && !booking.wants_invoice ? { payment_status: 'paid' as const } : {};
+    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, check_out_at: now, check_out_lat: lat, check_out_lng: lng, status: 'completed', ...paymentUpdate } : b));
 
     try {
       const { error } = await supabase
         .from('bookings')
-        .update({ check_out_at: now, check_out_lat: lat, check_out_lng: lng, status: 'completed' })
+        .update({ check_out_at: now, check_out_lat: lat, check_out_lng: lng, status: 'completed', ...paymentUpdate })
         .eq('id', bookingId);
 
       if (error) throw error;
       // Notify family
-      const booking = bookings.find(b => b.id === bookingId);
       if (booking) {
         const nurse = nurses.find(n => n.id === booking.nurse_id);
         const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
