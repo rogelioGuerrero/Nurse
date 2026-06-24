@@ -79,44 +79,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
 
   const [bookings, setBookings] = useState<Booking[]>(() => {
     const saved = safeParse<Booking[] | null>('biencuidar_bookings', null);
-    if (saved) return saved;
-    // Seed default bookings for demo
-    return [
-      {
-        id: 'b-demo-1',
-        user_id: '00000000-0000-0000-0000-000000000001',
-        nurse_id: '00000000-0000-0000-0000-000000000011',
-        date: new Date(Date.now() + 86400000 * 2).toISOString().split('T')[0],
-        start_time: '09:00',
-        end_time: '14:00',
-        hours: 5,
-        status: 'confirmed',
-        total_price: 60,
-        patient_name: 'Don Alberto Gómez (Padre)',
-        patient_condition: 'Etapa inicial de Alzheimer, requiere cuidados e hidratación.',
-        notes: 'Le agrada conversar de historia y caminar un poco en el jardín.',
-        created_at: new Date().toISOString(),
-        payment_status: 'pending'
-      },
-      {
-        id: 'b-demo-2',
-        user_id: '00000000-0000-0000-0000-000000000001',
-        nurse_id: '00000000-0000-0000-0000-000000000013',
-        date: new Date(Date.now() - 86400000 * 3).toISOString().split('T')[0],
-        start_time: '08:00',
-        end_time: '16:00',
-        hours: 8,
-        status: 'completed',
-        total_price: 112,
-        patient_name: 'Doña Teresa Ramos (Abuela)',
-        patient_condition: 'Postoperatorio de fractura de cadera.',
-        notes: 'Muy importante recordar la movilización cada 2 horas.',
-        created_at: new Date(Date.now() - 86400000 * 5).toISOString(),
-        payment_status: 'paid',
-        check_in_at: new Date(Date.now() - 86400000 * 3).toISOString(),
-        check_out_at: new Date(Date.now() - 86400000 * 3 + 28800000).toISOString()
-      }
-    ];
+    return saved || [];
   });
 
   const [activeTab, setActiveTab] = useState<string>('landing');

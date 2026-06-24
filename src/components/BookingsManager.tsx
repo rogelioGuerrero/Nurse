@@ -87,7 +87,20 @@ export const BookingsManager: FC = () => {
   // Payment modal
   const [paymentBookingId, setPaymentBookingId] = useState<string | null>(null);
 
-  const handleCheckIn = async (bookingId: string) => {
+  const handleCheckIn = async (bookingId: string, skipGps = false) => {
+    if (skipGps) {
+      const address = reportedAddress.trim() || 'Sin GPS - confirmación manual';
+      try {
+        await checkInBooking(bookingId, 0, 0, address, false);
+        setCheckInBookingId(null);
+        setReportedAddress('');
+        setGpsError(null);
+      } catch {
+        setGpsError('Error al registrar llegada');
+      }
+      return;
+    }
+
     setGpsLoading(true);
     setGpsError(null);
     setCheckInBookingId(bookingId);
@@ -120,7 +133,18 @@ export const BookingsManager: FC = () => {
     );
   };
 
-  const handleCheckOut = async (bookingId: string) => {
+  const handleCheckOut = async (bookingId: string, skipGps = false) => {
+    if (skipGps) {
+      try {
+        await checkOutBooking(bookingId, 0, 0);
+        setCheckInBookingId(null);
+        setGpsError(null);
+      } catch {
+        setGpsError('Error al registrar salida');
+      }
+      return;
+    }
+
     setGpsLoading(true);
     setGpsError(null);
     setCheckInBookingId(bookingId);
@@ -654,12 +678,16 @@ export const BookingsManager: FC = () => {
                     {b.payment_status === 'paid' ? (
                       <span className="font-bold">Pago confirmado</span>
                     ) : b.wants_invoice ? (
-                      <button
-                        onClick={() => setPaymentBookingId(b.id)}
-                        className="font-bold text-indigo-600 hover:underline cursor-pointer"
-                      >
-                        {isNurseView ? 'Pago por transferencia a BienCuidar (con factura)' : 'Ver datos para transferir a BienCuidar'}
-                      </button>
+                      isNurseView ? (
+                        <span className="font-bold">Pago pendiente — la familia debe transferir a BienCuidar</span>
+                      ) : (
+                        <button
+                          onClick={() => setPaymentBookingId(b.id)}
+                          className="font-bold text-indigo-600 hover:underline cursor-pointer"
+                        >
+                          Ver datos para transferir a BienCuidar
+                        </button>
+                      )
                     ) : (
                       <span className="font-bold">{isNurseView ? 'Pendiente de pago — coordina con la familia' : 'Paga directamente a la enfermera'}</span>
                     )}
@@ -720,12 +748,14 @@ export const BookingsManager: FC = () => {
                         className="text-[10px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg cursor-pointer"
                       >Cancelar</button>
                       <button
-                        onClick={() => handleCheckIn(b.id)}
+                        onClick={() => handleCheckIn(b.id, !!gpsError)}
                         disabled={gpsLoading}
                         className="text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer disabled:opacity-60"
                       >
                         {gpsLoading ? (
                           <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>Obteniendo GPS...</>
+                        ) : gpsError ? (
+                          <><LogIn className="h-3 w-3" />Confirmar sin GPS</>
                         ) : (
                           <><LogIn className="h-3 w-3" />Confirmar llegada</>
                         )}
@@ -810,12 +840,14 @@ export const BookingsManager: FC = () => {
                           )}
                           {b.check_in_at && !b.check_out_at && (
                             <button
-                              onClick={() => handleCheckOut(b.id)}
+                              onClick={() => handleCheckOut(b.id, !!gpsError)}
                               disabled={gpsLoading}
                               className="text-[10px] font-bold text-white bg-rose-600 hover:bg-rose-500 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer disabled:opacity-60"
                             >
                               {gpsLoading ? (
                                 <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>GPS...</>
+                              ) : gpsError ? (
+                                <><LogOut className="h-3.5 w-3.5" />Registrar salida sin GPS</>
                               ) : (
                                 <><LogOut className="h-3.5 w-3.5" />Registrar salida</>
                               )}

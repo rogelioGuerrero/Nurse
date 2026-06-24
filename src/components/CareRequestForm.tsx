@@ -111,7 +111,7 @@ export const CareRequestForm: FC = () => {
     );
   };
 
-  const addDay = (dateStr: string) => setSelectedDays(prev => [...prev, { date: dateStr, shifts: ['morning'] }]);
+  const addDay = (dateStr: string) => setSelectedDays(prev => [...prev, { date: dateStr, shifts: [] }]);
   const removeDay = (dateStr: string) => setSelectedDays(prev => prev.filter(d => d.date !== dateStr));
   const toggleDay = (dateStr: string) => {
     const exists = selectedDays.find(d => d.date === dateStr);
@@ -128,7 +128,7 @@ export const CareRequestForm: FC = () => {
     setSelectedDays(prev => prev.map(d => {
       if (d.date !== dateStr) return d;
       const allThree = d.shifts.length === 3;
-      return { ...d, shifts: allThree ? ['morning'] : ['morning', 'afternoon', 'night'] };
+      return { ...d, shifts: allThree ? [] : ['morning', 'afternoon', 'night'] };
     }));
   };
 
@@ -159,7 +159,7 @@ export const CareRequestForm: FC = () => {
   const nextMonth = () => setCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
 
   const canNextStep1 = conditionTags.length > 0 || conditionExtra.trim().length > 0;
-  const canNextStep2 = selectedDays.length > 0;
+  const canNextStep2 = selectedDays.length > 0 && selectedDays.every(d => d.shifts.length > 0);
   const canSubmit = phone.trim().length >= 8 && locationName.trim().length > 0;
 
   const handleSubmit = () => {
