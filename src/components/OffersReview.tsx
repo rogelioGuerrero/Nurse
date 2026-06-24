@@ -1,10 +1,12 @@
 import { useMemo, useState, type FC } from 'react';
 import { useApp } from '../context/AppContext';
-import { calculateNurseNet } from '../data/standardRates';
+import { calculateNurseNet, calculateFamilyPrice } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
-import { CheckCircle2, XCircle, Star, MapPin, User, Calendar, Clock as ClockIcon, Dumbbell, Users, Heart, MessageCircle, X, BadgeCheck, GraduationCap, Briefcase, ShieldAlert, FileText } from 'lucide-react';
+import { CheckCircle2, XCircle, Star, MapPin, User, Calendar, Clock as ClockIcon, Dumbbell, Users, Heart, MessageCircle, X, BadgeCheck, GraduationCap, Briefcase, ShieldAlert, FileText, Send, Phone, Receipt, Mail, ChevronLeft } from 'lucide-react';
 import { CSSPVerificationBadge } from './CSSPVerificationBadge';
 import { LegalDisclaimer } from './LegalDisclaimer';
+import { ServiceContract } from './ServiceContract';
+import { PaymentSummary } from './PaymentSummary';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -15,11 +17,20 @@ function formatDate(dateStr: string): string {
 }
 
 export const OffersReview: FC = () => {
-  const { careRequests, careOffers, nurses, profiles, currentUser, acceptCareOffer } = useApp();
+  const { careRequests, careOffers, nurses, profiles, currentUser, acceptCareOffer, updatePatientName } = useApp();
 
   const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
   const [confirmingOfferId, setConfirmingOfferId] = useState<string | null>(null);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+
+  // Plan flow states (post-accept)
+  const [planPhase, setPlanPhase] = useState<'offers' | 'patient-data' | 'confirmed'>('offers');
+  const [acceptedRequestId, setAcceptedRequestId] = useState<string | null>(null);
+  const [patientName, setPatientName] = useState('');
+  const [patientAge, setPatientAge] = useState('');
+  const [emergencyContact, setEmergencyContact] = useState('');
+  const [showContract, setShowContract] = useState(false);
+  const [showSummary, setShowSummary] = useState(false);
 
   const profileMap = useMemo(() => new Map(profiles.map(p => [p.id, p])), [profiles]);
 
@@ -35,7 +46,7 @@ export const OffersReview: FC = () => {
     );
   }, [careRequests, careOffers, currentUser]);
 
-  if (pendingOffers.length === 0) {
+  if (planPhase === 'offers' && pendingOffers.length === 0) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center px-5">
         <div className="text-center space-y-3">
@@ -49,6 +60,8 @@ export const OffersReview: FC = () => {
 
   return (
     <div className="space-y-4">
+      {planPhase === 'offers' && (
+      <>
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-slate-800">Ofertas Recibidas</h1>
         <span className="bg-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-1 rounded-full">
@@ -191,6 +204,8 @@ export const OffersReview: FC = () => {
         );
       })}
 
+      </>)}
+
       {/* Modal de Confirmación con Deslinde de Responsabilidad */}
       {confirmingOfferId && (() => {
         const offer = careOffers.find(o => o.id === confirmingOfferId);
@@ -203,7 +218,9 @@ export const OffersReview: FC = () => {
         const handleConfirm = () => {
           if (!agreedToTerms) return;
           acceptCareOffer(confirmingOfferId);
+          setAcceptedRequestId(offer.request_id);
           setConfirmingOfferId(null);
+          setPlanPhase('patient-data');
         };
 
         return (
@@ -388,6 +405,223 @@ export const OffersReview: FC = () => {
               </div>
             </div>
           </div>
+        );
+      })()}
+
+      {/* ── Patient data form (post-accept) ── */}
+      {planPhase === 'patient-data' && acceptedRequestId && (() => {
+        const myRequest = careRequests.find(r => r.id === acceptedRequestId);
+        if (!myRequest) return null;
+
+        const slotDetails = myRequest.slots.map((slot, i) => {
+          const offers = careOffers.filter(o => o.request_id === myRequest.id && o.slot_index === i);
+          const acceptedOffer = offers.find(o => o.status === 'accepted');
+          const nurse = acceptedOffer ? nurses.find(n => n.id === acceptedOffer.nurse_id) : null;
+          const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
+          const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.morning;
+          const nurseRate = acceptedOffer ? Number(acceptedOffer.offered_rate) : (nurse?.shift_rate || 25);
+          const price = calculateFamilyPrice(nurseRate, myRequest.wants_invoice);
+          return { slot, nurse, nurseProfile, shiftInfo, price, nurseRate, hasNurse: !!nurse };
+        });
+
+        const totalShifts = slotDetails.length;
+        const totalPrice = slotDetails.reduce((sum, s) => sum + s.price, 0);
+
+        return (
+          <div className="min-h-[80vh] flex flex-col px-5 py-6 max-w-md mx-auto w-full">
+            <div className="space-y-5 flex-1">
+              <button
+                onClick={() => setPlanPhase('offers')}
+                className="text-xs font-bold text-slate-500 hover:text-slate-700 flex items-center gap-1 cursor-pointer"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Volver a ofertas
+              </button>
+
+              <div>
+                <h2 className="text-lg font-bold text-slate-900 mb-1">Datos del paciente</h2>
+                <p className="text-xs text-slate-500">Ya casi está. Solo necesitamos estos datos para cerrar el trato.</p>
+              </div>
+
+              {/* Plan summary */}
+              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 space-y-2">
+                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Plan confirmado</p>
+                <div className="text-xs text-slate-600 space-y-1">
+                  {slotDetails.map((s, i) => (
+                    <p key={i}>
+                      <span className="font-bold">{s.shiftInfo.label}</span> · {formatDate(s.slot.date)}
+                      {s.nurseProfile && <> · {s.nurseProfile.full_name}</>}
+                      {' · '}<span className="font-bold text-emerald-700">US$ {s.price.toFixed(2)}</span>
+                    </p>
+                  ))}
+                  <div className="border-t border-emerald-200 pt-1.5 mt-1.5">
+                    <span className="font-bold">Total: </span>
+                    <span className="font-bold text-emerald-700">US$ {totalPrice.toFixed(2)}</span>
+                    {' · '}{totalShifts} turno(s)
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Nombre del paciente</label>
+                  <div className="relative">
+                    <Heart className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      value={patientName}
+                      onChange={e => setPatientName(e.target.value)}
+                      placeholder="Ej: Don Alberto Gómez"
+                      className="w-full pl-9 pr-3 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Edad del paciente (opcional)</label>
+                  <input
+                    type="number"
+                    value={patientAge}
+                    onChange={e => setPatientAge(e.target.value)}
+                    placeholder="Ej: 78"
+                    className="w-full px-3 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Contacto de emergencia</label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      type="tel"
+                      value={emergencyContact}
+                      onChange={e => setEmergencyContact(e.target.value)}
+                      placeholder="Teléfono de un familiar o encargado"
+                      className="w-full pl-9 pr-3 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={async () => {
+                if (myRequest) {
+                  await updatePatientName(myRequest.id, patientName, patientAge, emergencyContact);
+                }
+                setPlanPhase('confirmed');
+              }}
+              disabled={patientName.trim().length < 3 || emergencyContact.trim().length < 8}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-200 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer mt-4"
+            >
+              <Send className="h-5 w-5" />
+              Confirmar trato
+            </button>
+          </div>
+        );
+      })()}
+
+      {/* ── Confirmed state ── */}
+      {planPhase === 'confirmed' && acceptedRequestId && (() => {
+        const myRequest = careRequests.find(r => r.id === acceptedRequestId);
+        if (!myRequest) return null;
+
+        const slotDetails = myRequest.slots.map((slot, i) => {
+          const offers = careOffers.filter(o => o.request_id === myRequest.id && o.slot_index === i);
+          const acceptedOffer = offers.find(o => o.status === 'accepted');
+          const nurse = acceptedOffer ? nurses.find(n => n.id === acceptedOffer.nurse_id) : null;
+          const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
+          const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.morning;
+          const nurseRate = acceptedOffer ? Number(acceptedOffer.offered_rate) : (nurse?.shift_rate || 25);
+          const price = calculateFamilyPrice(nurseRate, myRequest.wants_invoice);
+          return { slot, nurse, nurseProfile, shiftInfo, price, nurseRate, hasNurse: !!nurse };
+        });
+
+        const totalShifts = slotDetails.length;
+        const totalPrice = slotDetails.reduce((sum, s) => sum + s.price, 0);
+
+        return (
+          <>
+          <div className="min-h-[80vh] flex items-center justify-center px-5 py-8">
+            <div className="w-full max-w-sm text-center space-y-5">
+              <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
+                <CheckCircle2 className="h-10 w-10 text-emerald-600" />
+              </div>
+              <div className="space-y-2">
+                <h2 className="text-xl font-bold text-slate-900">¡Trato cerrado!</h2>
+                <p className="text-sm text-slate-500 leading-relaxed">
+                  Tu plan ha sido confirmado. La enfermera se comunicará contigo pronto para coordinar la primera visita.
+                </p>
+              </div>
+              <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4 text-left space-y-1.5">
+                <p className="text-xs font-bold text-emerald-700 uppercase tracking-wider">Datos confirmados</p>
+                <div className="text-xs text-slate-600 space-y-1">
+                  <p><span className="font-semibold">Paciente:</span> {patientName}</p>
+                  {patientAge && <p><span className="font-semibold">Edad:</span> {patientAge} años</p>}
+                  <p><span className="font-semibold">Contacto de emergencia:</span> {emergencyContact}</p>
+                  <p><span className="font-semibold">Total:</span> US$ {totalPrice.toFixed(2)} · {totalShifts} turno(s)</p>
+                </div>
+              </div>
+              <LegalDisclaimer variant="compact" />
+
+              <button
+                onClick={() => setShowContract(true)}
+                className="w-full bg-white border border-indigo-200 hover:bg-indigo-50 text-indigo-700 font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <FileText className="h-4 w-4" />
+                Ver contrato de servicios
+              </button>
+
+              <button
+                onClick={() => setShowSummary(true)}
+                className="w-full bg-white border border-emerald-200 hover:bg-emerald-50 text-emerald-700 font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Receipt className="h-4 w-4" />
+                Ver contacto y pago
+              </button>
+
+              <button
+                onClick={() => setPlanPhase('offers')}
+                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl text-sm transition cursor-pointer"
+              >
+                Volver a ofertas
+              </button>
+            </div>
+          </div>
+
+          <ServiceContract
+            open={showContract}
+            onClose={() => setShowContract(false)}
+            familyName={currentUser?.full_name || 'Familia'}
+            patientName={patientName}
+            patientCondition={myRequest?.patient_condition || ''}
+            emergencyContact={emergencyContact}
+            slots={slotDetails.filter(s => s.hasNurse && s.nurse && s.nurseProfile).map(s => ({
+              date: s.slot.date,
+              shift: s.slot.shift as ShiftType,
+              nurseName: s.nurseProfile?.full_name || 'Enfermera',
+              nurseRate: s.nurseRate,
+              csspReg: s.nurse?.cssp_registration || 'N/A',
+              csspLevel: s.nurse?.cssp_level || 'Técnica',
+            }))}
+            totalShifts={totalShifts}
+            totalPrice={totalPrice}
+          />
+
+          <PaymentSummary
+            open={showSummary}
+            onClose={() => setShowSummary(false)}
+            familyName={currentUser?.full_name || 'Familia'}
+            slots={slotDetails.filter(s => s.hasNurse && s.nurse && s.nurseProfile).map(s => ({
+              date: s.slot.date,
+              shift: s.slot.shift as string,
+              nurseName: s.nurseProfile?.full_name || 'Enfermera',
+              nurseRate: s.nurseRate,
+            }))}
+            totalPrice={totalPrice}
+            nursePhone={slotDetails.find(s => s.hasNurse && s.nurseProfile)?.nurseProfile?.phone}
+            wantsInvoice={myRequest.wants_invoice}
+          />
+          </>
         );
       })()}
     </div>

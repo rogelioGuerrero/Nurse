@@ -12,7 +12,7 @@ import { ToastProvider } from './components/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { getDistanceKm, USER_COORDS } from './lib/distance';
 import { 
-  Stethoscope, Calendar, 
+  Stethoscope, 
   Star, Sparkles,
   Heart, Users, ChevronRight, GraduationCap, Network, MapPinned, MessageCircle,
   Search, Inbox, ClipboardList, ShieldCheck, User, LogOut
@@ -30,7 +30,6 @@ const NurseProfileEdit = lazy(() => import('./components/NurseProfileEdit').then
 const ClinicalAI = lazy(() => import('./components/ClinicalAI'));
 const CareRequestForm = lazy(() => import('./components/CareRequestForm').then(m => ({ default: m.CareRequestForm })));
 const NurseInbox = lazy(() => import('./components/NurseInbox').then(m => ({ default: m.NurseInbox })));
-const PlanReview = lazy(() => import('./components/PlanReview').then(m => ({ default: m.PlanReview })));
 const OffersReview = lazy(() => import('./components/OffersReview').then(m => ({ default: m.OffersReview })));
 const CSSPReviewPanel = lazy(() => import('./components/CSSPReviewPanel').then(m => ({ default: m.CSSPReviewPanel })));
 const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
@@ -468,14 +467,6 @@ function MarketplaceApp() {
           </ErrorBoundary>
         )}
 
-        {activeTab === 'plan-review' && (
-          <ErrorBoundary>
-            <Suspense fallback={<LoadingSpinner />}>
-              <PlanReview />
-            </Suspense>
-          </ErrorBoundary>
-        )}
-
         {activeTab === 'offers-review' && (
           <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner />}>
@@ -599,15 +590,6 @@ function MarketplaceApp() {
                       {pendingOffersCount}
                     </span>
                   )}
-                </button>
-                <button
-                  onClick={() => { setSelectedNurseId(null); setActiveTab('plan-review'); }}
-                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
-                    activeTab === 'plan-review' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  <Calendar className="h-5 w-5" />
-                  <span className="text-[9px] font-bold">Plan</span>
                 </button>
                 <button
                   onClick={() => { setActiveTab('clinical-ai'); }}

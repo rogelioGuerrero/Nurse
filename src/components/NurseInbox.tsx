@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { calculateNurseNet } from '../data/standardRates';
 import type { CareRequest, Nurse, Profile, CareOffer } from '../types';
 import { SHIFTS, type ShiftType } from '../types';
-import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User, Sun, Sunset, Moon, FileText } from 'lucide-react';
+import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User, Sun, Sunset, Moon, FileText, Send } from 'lucide-react';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -327,6 +327,93 @@ export const NurseInbox: FC = () => {
           })}
         </div>
       )}
+
+      {/* ── Mis ofertas (historial de ofertas enviadas) ── */}
+      {myNurse && (() => {
+        const myOffers = careOffers
+          .filter(o => o.nurse_id === myNurse.id)
+          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .slice(0, 10);
+
+        if (myOffers.length === 0) return null;
+
+        const getOfferStatusInfo = (offer: typeof myOffers[0]) => {
+          const req = careRequests.find(r => r.id === offer.request_id);
+          if (!req) return { label: 'Solicitud no disponible', color: 'text-slate-400', bg: 'bg-slate-100' };
+
+          if (offer.status === 'accepted') {
+            return { label: 'Confirmado', color: 'text-emerald-600', bg: 'bg-emerald-100' };
+          }
+          if (offer.status === 'rejected') {
+            return { label: 'Rechazaste', color: 'text-slate-400', bg: 'bg-slate-100' };
+          }
+          if (offer.status === 'pending' && req.status === 'open') {
+            return { label: 'Esperando respuesta', color: 'text-indigo-600', bg: 'bg-indigo-100' };
+          }
+          if (offer.status === 'declined') {
+            if (offer.reject_reason === 'auto') {
+              // Check if nurse has accepted offer for same date
+              const slot = req.slots[offer.slot_index];
+              const hasAcceptedSameDate = careOffers.some(o => 
+                o.nurse_id === myNurse.id && 
+                o.status === 'accepted' && 
+                o.id !== offer.id
+              );
+              if (hasAcceptedSameDate) {
+                return { label: 'Auto-retirada: ya tienes servicio esa fecha', color: 'text-amber-600', bg: 'bg-amber-100' };
+              }
+              // Request expired
+              const hadOffers = careOffers.some(o => o.request_id === req.id && o.status !== 'rejected');
+              if (req.status === 'expired') {
+                return { 
+                  label: hadOffers ? 'La familia no decidió a tiempo' : 'Ninguna enfermera respondió a tiempo', 
+                  color: 'text-rose-500', 
+                  bg: 'bg-rose-100' 
+                };
+              }
+              if (req.status === 'closed') {
+                return { label: 'La familia canceló la solicitud', color: 'text-slate-400', bg: 'bg-slate-100' };
+              }
+            }
+            return { label: 'La familia eligió otra enfermera', color: 'text-slate-400', bg: 'bg-slate-100' };
+          }
+          return { label: '—', color: 'text-slate-400', bg: 'bg-slate-100' };
+        };
+
+        return (
+          <div className="space-y-3 pt-4">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+              <Send className="h-3.5 w-3.5" />
+              <span>Mis ofertas recientes</span>
+            </div>
+            {myOffers.map(offer => {
+              const req = careRequests.find(r => r.id === offer.request_id);
+              const slot = req?.slots[offer.slot_index];
+              const shiftInfo = slot ? (SHIFTS[slot.shift as ShiftType] || SHIFTS.morning) : null;
+              const info = getOfferStatusInfo(offer);
+              return (
+                <div key={offer.id} className="bg-white border border-slate-200 rounded-2xl p-3 space-y-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      {slot && shiftInfo && (
+                        <p className="text-xs font-bold text-slate-700">
+                          {formatDate(slot.date)} · {shiftInfo.label}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-slate-500">
+                        Ofertaste: US$ {Number(offer.offered_rate).toFixed(2)}
+                      </p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${info.bg} ${info.color}`}>
+                      {info.label}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Modal de ajuste de tarifa */}
       {acceptModal && (
