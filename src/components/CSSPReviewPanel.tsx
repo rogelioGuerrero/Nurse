@@ -161,7 +161,7 @@ export const CSSPReviewPanel: FC = () => {
                       className="text-[10px] text-indigo-600 font-bold hover:underline flex items-center gap-1"
                     >
                       <ExternalLink className="h-3 w-3" />
-                      Verificar CSSP
+                      CSSP
                     </a>
                     <a
                       href="https://www.simple.sv"
@@ -170,7 +170,7 @@ export const CSSPReviewPanel: FC = () => {
                       className="text-[10px] text-indigo-600 font-bold hover:underline flex items-center gap-1"
                     >
                       <ExternalLink className="h-3 w-3" />
-                      Verificar DUI
+                      simple.sv
                     </a>
                   </div>
                 </div>

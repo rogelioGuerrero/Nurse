@@ -450,7 +450,6 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
                     className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
                   />
                 </div>
-                <p className="text-[10px] text-slate-400">Para verificación de antecedentes por el administrador.</p>
               </div>
             </>
           )}
