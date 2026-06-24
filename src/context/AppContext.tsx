@@ -136,56 +136,126 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
 
   // Load profiles, nurses, bookings, care requests and offers from Supabase
   useEffect(() => {
+    if (!currentUser) return;
+
+    let nursesData: any[] | null = null;
+    let bookingsData: any[] | null = null;
+
     const loadData = async () => {
-      const { data: profilesData } = await supabase.from('profiles').select('*');
-      const { data: nursesData } = await supabase.from('nurses').select('*');
-      const { data: bookingsData } = await supabase.from('bookings').select('*');
-      const { data: requestsData } = await supabase.from('care_requests').select('*');
-      const { data: offersData } = await supabase.from('care_offers').select('*');
-      const { data: logsData } = await supabase.from('care_logs').select('*');
-      const { data: reviewsData } = await supabase.from('nurse_reviews').select('*');
-      
-      if (profilesData) setProfiles(profilesData);
+      const isAdmin = currentUser.role === 'admin';
+      const isNurse = currentUser.role === 'nurse';
+
+      // Nurses list is public to authenticated users (for marketplace)
+      const { data: nursesResult } = await supabase.from('nurses').select('*');
+      nursesData = nursesResult;
       if (nursesData) setNurses(nursesData);
-      if (bookingsData && bookingsData.length > 0) setBookings(bookingsData.map((b: any) => ({ ...b, wants_invoice: b.wants_invoice ?? false })));
+
+      // Profiles: only admin needs all; users get their own via RLS
+      if (isAdmin) {
+        const { data: profilesData } = await supabase.from('profiles').select('*');
+        if (profilesData) setProfiles(profilesData);
+      }
+
+      // Bookings: filter by user_id (family) or via nurse link
+      let bookingsQuery = supabase.from('bookings').select('*');
+      if (!isAdmin) {
+        if (isNurse) {
+          const nurseRow = nursesData?.find(n => n.user_id === currentUser.id);
+          if (nurseRow) {
+            bookingsQuery = bookingsQuery.eq('nurse_id', nurseRow.id);
+          } else {
+            bookingsQuery = bookingsQuery.eq('user_id', currentUser.id);
+          }
+        } else {
+          bookingsQuery = bookingsQuery.eq('user_id', currentUser.id);
+        }
+      }
+      const { data: bookingsResult } = await bookingsQuery;
+      bookingsData = bookingsResult;
+      if (bookingsData) {
+        setBookings(bookingsData.map((b: any) => ({ ...b, wants_invoice: b.wants_invoice ?? false })));
+      }
+
+      // Care requests: family sees own + open; nurse sees open + those with their offers; admin sees all
+      let requestsQuery = supabase.from('care_requests').select('*');
+      if (!isAdmin) {
+        if (isNurse) {
+          requestsQuery = requestsQuery.or(`user_id.eq.${currentUser.id},status.eq.open`);
+        } else {
+          requestsQuery = requestsQuery.or(`user_id.eq.${currentUser.id},status.eq.open`);
+        }
+      }
+      const { data: requestsData } = await requestsQuery;
       if (requestsData) setCareRequests(requestsData.map((r: any) => ({
         ...r,
         wants_invoice: r.wants_invoice ?? false,
         slots: typeof r.slots === 'string' ? JSON.parse(r.slots) : r.slots || []
       })));
+
+      // Care offers: filter by request ownership or nurse ownership
+      let offersQuery = supabase.from('care_offers').select('*');
+      if (!isAdmin) {
+        if (isNurse) {
+          const nurseRow = nursesData?.find(n => n.user_id === currentUser.id);
+          if (nurseRow) {
+            offersQuery = offersQuery.eq('nurse_id', nurseRow.id);
+          }
+        } else {
+          // Family: get offers for their requests
+          const myRequestIds = (requestsData || []).filter(r => r.user_id === currentUser.id).map(r => r.id);
+          if (myRequestIds.length > 0) {
+            offersQuery = offersQuery.in('request_id', myRequestIds);
+          } else {
+            offersQuery = offersQuery.eq('request_id', 'none');
+          }
+        }
+      }
+      const { data: offersData } = await offersQuery;
       if (offersData) setCareOffers(offersData.map((o: any) => ({
         ...o,
         message: o.notes || o.message || ''
       })));
-      if (logsData) {
-        const logsMap: Record<string, CareLog> = {};
-        logsData.forEach((l: any) => {
-          logsMap[l.booking_id] = {
-            bookingId: l.booking_id,
-            serviceType: l.service_type || 'clinical',
-            arrivalTime: l.arrival_time || '',
-            departureTime: l.departure_time || '',
-            patientConditionOnArrival: l.patient_condition_on_arrival || 'Bien',
-            patientConditionOnDeparture: l.patient_condition_on_departure || 'Igual',
-            activities: typeof l.activities === 'string' ? JSON.parse(l.activities) : l.activities || [],
-            observations: l.observations || '',
-            narrativeReport: l.narrative_report || '',
-            updatedAt: l.updated_at || new Date().toISOString()
-          };
-        });
-        setCareLogs(logsMap);
+
+      // Care logs: only for bookings the user can see
+      const visibleBookingIds = (bookingsData || []).map(b => b.id);
+      if (visibleBookingIds.length > 0) {
+        const { data: logsData } = await supabase.from('care_logs').select('*').in('booking_id', visibleBookingIds);
+        if (logsData) {
+          const logsMap: Record<string, CareLog> = {};
+          logsData.forEach((l: any) => {
+            logsMap[l.booking_id] = {
+              bookingId: l.booking_id,
+              serviceType: l.service_type || 'clinical',
+              arrivalTime: l.arrival_time || '',
+              departureTime: l.departure_time || '',
+              patientConditionOnArrival: l.patient_condition_on_arrival || 'Bien',
+              patientConditionOnDeparture: l.patient_condition_on_departure || 'Igual',
+              activities: typeof l.activities === 'string' ? JSON.parse(l.activities) : l.activities || [],
+              observations: l.observations || '',
+              narrativeReport: l.narrative_report || '',
+              updatedAt: l.updated_at || new Date().toISOString()
+            };
+          });
+          setCareLogs(logsMap);
+        }
       }
+
+      // Reviews: public to authenticated
+      const { data: reviewsData } = await supabase.from('nurse_reviews').select('*');
       if (reviewsData) setNurseReviews(reviewsData);
     };
-    
+
     loadData();
 
-    // Realtime subscriptions
+    // Realtime subscriptions — filtered by user relevance
     const channel = supabase
-      .channel('public-changes')
+      .channel('user-changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'care_requests' }, (payload) => {
         const r = payload.new as any;
-        setCareRequests(prev => prev.find(x => x.id === r.id) ? prev : [{ ...r, slots: typeof r.slots === 'string' ? JSON.parse(r.slots) : r.slots || [] }, ...prev]);
+        // Only add if user owns it or it's open (visible to them)
+        if (r.user_id === currentUser.id || r.status === 'open' || currentUser.role === 'admin') {
+          setCareRequests(prev => prev.find(x => x.id === r.id) ? prev : [{ ...r, slots: typeof r.slots === 'string' ? JSON.parse(r.slots) : r.slots || [] }, ...prev]);
+        }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'care_requests' }, (payload) => {
         const r = payload.new as any;
@@ -193,7 +263,13 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'care_offers' }, (payload) => {
         const o = payload.new as any;
-        setCareOffers(prev => prev.find(x => x.id === o.id) ? prev : [{ ...o, message: o.notes || '' }, ...prev]);
+        // Only process if relevant to current user
+        const isRelevant = currentUser.role === 'admin' ||
+          o.nurse_id === nursesData?.find(n => n.user_id === currentUser.id)?.id ||
+          careRequests.some(req => req.id === o.request_id && req.user_id === currentUser.id);
+        if (isRelevant) {
+          setCareOffers(prev => prev.find(x => x.id === o.id) ? prev : [{ ...o, message: o.notes || '' }, ...prev]);
+        }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'care_offers' }, (payload) => {
         const o = payload.new as any;
@@ -201,6 +277,11 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, (payload) => {
         const b = payload.new as any;
+        // Only process if booking belongs to current user or assigned nurse
+        const isRelevant = currentUser.role === 'admin' ||
+          b.user_id === currentUser.id ||
+          nursesData?.some(n => n.id === b.nurse_id && n.user_id === currentUser.id);
+        if (!isRelevant) return;
         if (payload.eventType === 'INSERT') {
           setBookings(prev => prev.find(x => x.id === b.id) ? prev : [b, ...prev]);
         } else if (payload.eventType === 'UPDATE') {
@@ -209,11 +290,18 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'care_logs' }, (payload) => {
         const l = payload.new as any;
-        setCareLogs(prev => ({ ...prev, [l.booking_id]: { bookingId: l.booking_id, serviceType: l.service_type || 'clinical', arrivalTime: l.arrival_time || '', departureTime: l.departure_time || '', patientConditionOnArrival: l.patient_condition_on_arrival || 'Bien', patientConditionOnDeparture: l.patient_condition_on_departure || 'Igual', activities: typeof l.activities === 'string' ? JSON.parse(l.activities) : l.activities || [], observations: l.observations || '', narrativeReport: l.narrative_report || '', updatedAt: l.updated_at || new Date().toISOString() } }));
+        // Only process if the booking belongs to the user
+        const bookingIds = (bookingsData || []).map(b => b.id);
+        if (bookingIds.includes(l.booking_id)) {
+          setCareLogs(prev => ({ ...prev, [l.booking_id]: { bookingId: l.booking_id, serviceType: l.service_type || 'clinical', arrivalTime: l.arrival_time || '', departureTime: l.departure_time || '', patientConditionOnArrival: l.patient_condition_on_arrival || 'Bien', patientConditionOnDeparture: l.patient_condition_on_departure || 'Igual', activities: typeof l.activities === 'string' ? JSON.parse(l.activities) : l.activities || [], observations: l.observations || '', narrativeReport: l.narrative_report || '', updatedAt: l.updated_at || new Date().toISOString() } }));
+        }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'care_logs' }, (payload) => {
         const l = payload.new as any;
-        setCareLogs(prev => ({ ...prev, [l.booking_id]: { bookingId: l.booking_id, serviceType: l.service_type || 'clinical', arrivalTime: l.arrival_time || '', departureTime: l.departure_time || '', patientConditionOnArrival: l.patient_condition_on_arrival || 'Bien', patientConditionOnDeparture: l.patient_condition_on_departure || 'Igual', activities: typeof l.activities === 'string' ? JSON.parse(l.activities) : l.activities || [], observations: l.observations || '', narrativeReport: l.narrative_report || '', updatedAt: l.updated_at || new Date().toISOString() } }));
+        const bookingIds = (bookingsData || []).map(b => b.id);
+        if (bookingIds.includes(l.booking_id)) {
+          setCareLogs(prev => ({ ...prev, [l.booking_id]: { bookingId: l.booking_id, serviceType: l.service_type || 'clinical', arrivalTime: l.arrival_time || '', departureTime: l.departure_time || '', patientConditionOnArrival: l.patient_condition_on_arrival || 'Bien', patientConditionOnDeparture: l.patient_condition_on_departure || 'Igual', activities: typeof l.activities === 'string' ? JSON.parse(l.activities) : l.activities || [], observations: l.observations || '', narrativeReport: l.narrative_report || '', updatedAt: l.updated_at || new Date().toISOString() } }));
+        }
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'nurse_reviews' }, (payload) => {
         const rv = payload.new as any;
@@ -222,7 +310,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [currentUser]);
 
   const [currentNurse, setCurrentNurse] = useState<Nurse | null>(null);
 

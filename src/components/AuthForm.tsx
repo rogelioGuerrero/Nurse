@@ -1,8 +1,9 @@
 import { useState, useEffect, type FC } from 'react';
-import { Stethoscope, User, Mail, Lock, ArrowLeft, CheckCircle2, AlertCircle, FileText, ShieldAlert } from 'lucide-react';
+import { Stethoscope, User, Mail, Lock, ArrowLeft, CheckCircle2, AlertCircle, FileText, ShieldAlert, BadgeCheck } from 'lucide-react';
 import type { Nurse } from '../types';
 import { supabase } from '../lib/supabase';
 import { TermsAndConditions } from './TermsAndConditions';
+import { validateCSSPRegistration } from '../lib/csspValidation';
 
 interface AuthFormProps {
   mode: 'login' | 'register';
@@ -26,6 +27,8 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
   const [loading, setLoading] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
+  const [csspRegistration, setCsspRegistration] = useState('');
+  const [csspLevel, setCsspLevel] = useState<'Licenciada' | 'Tecnóloga' | 'Técnica' | 'Auxiliar'>('Técnica');
 
   const validateEmail = (value: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -61,6 +64,14 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
     if (!acceptedTerms) {
       setError('Debes aceptar los Términos y Condiciones para registrarte');
       return;
+    }
+
+    if (role === 'nurse') {
+      const csspCheck = validateCSSPRegistration(csspRegistration);
+      if (!csspCheck.valid) {
+        setError(csspCheck.message);
+        return;
+      }
     }
 
     setLoading(true);
@@ -126,8 +137,10 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
             bio: '',
             experience_years: 0,
             certifications: ['CSSP'],
-            cssp_registration: '',
-            cssp_level: 'Técnica'
+            cssp_registration: csspRegistration,
+            cssp_level: csspLevel,
+            cssp_verification_status: 'unverified',
+            cssp_verified: false
           });
 
         if (nurseError) {
@@ -368,6 +381,47 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
                 />
               </div>
             </div>
+          )}
+
+          {authMode === 'register' && role === 'nurse' && (
+            <>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                  Número de Registro CSSP *
+                </label>
+                <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                  <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
+                    <BadgeCheck className="h-4 w-4" />
+                  </div>
+                  <input
+                    type="text"
+                    value={csspRegistration}
+                    onChange={(e) => setCsspRegistration(e.target.value)}
+                    placeholder="CSSP-ENF-2024-0456"
+                    className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400">Obligatorio por ley. Será verificado por el administrador.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                  Nivel Profesional
+                </label>
+                <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                  <select
+                    value={csspLevel}
+                    onChange={(e) => setCsspLevel(e.target.value as typeof csspLevel)}
+                    className="w-full bg-transparent pl-3 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm appearance-none"
+                  >
+                    <option value="Licenciada">Licenciada</option>
+                    <option value="Tecnóloga">Tecnóloga</option>
+                    <option value="Técnica">Técnica</option>
+                    <option value="Auxiliar">Auxiliar</option>
+                  </select>
+                </div>
+              </div>
+            </>
           )}
 
           {error && (
