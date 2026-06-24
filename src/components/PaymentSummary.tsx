@@ -98,6 +98,29 @@ export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyN
               <p className="text-[10px] text-indigo-600 leading-relaxed pl-6">
                 BienCuidar retiene el ISR, entera a Hacienda y emite la factura. Transfiere el total (${(totalPrice + managementFee).toFixed(2)}) a la cuenta arriba.
               </p>
+
+              {nursePhone && (
+                <div className="flex gap-2 pl-6">
+                  <a
+                    href={`tel:${nursePhone}`}
+                    className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 px-3 py-2 rounded-lg transition cursor-pointer"
+                  >
+                    <Phone className="h-3 w-3" />
+                    Llamar a {nurseName}
+                  </a>
+                  {whatsappLink && (
+                    <a
+                      href={whatsappLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-lg transition cursor-pointer"
+                    >
+                      <MessageCircle className="h-3 w-3" />
+                      WhatsApp
+                    </a>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-3 space-y-3">
@@ -116,7 +139,7 @@ export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyN
                     className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-white border border-emerald-200 hover:bg-emerald-50 px-3 py-2 rounded-lg transition cursor-pointer"
                   >
                     <Phone className="h-3 w-3" />
-                    Llamar
+                    Llamar a {nurseName}
                   </a>
                   {whatsappLink && (
                     <a

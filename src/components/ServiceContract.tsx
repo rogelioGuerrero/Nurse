@@ -13,11 +13,12 @@ interface ServiceContractProps {
   slots: { date: string; shift: ShiftType; nurseName: string; nurseRate: number; csspReg: string; csspLevel: string }[];
   totalShifts: number;
   totalPrice: number;
+  wantsInvoice?: boolean;
 }
 
 export const ServiceContract: FC<ServiceContractProps> = ({
   open, onClose, familyName, patientName, patientCondition, emergencyContact,
-  slots, totalShifts, totalPrice
+  slots, totalShifts, totalPrice, wantsInvoice = false
 }) => {
   if (!open) return null;
 
@@ -65,8 +66,7 @@ export const ServiceContract: FC<ServiceContractProps> = ({
             </p>
             <p className="text-[10px] text-slate-500 italic">
               Este contrato se celebra directamente entre la familia y la enfermera(s).
-              BienCuidar actúa únicamente como plataforma de intermediación tecnológica y
-              agente de retención fiscal, y no es parte de este contrato.
+              BienCuidar actúa únicamente como plataforma de intermediación tecnológica{wantsInvoice ? ' y agente de retención fiscal' : ''}, y no es parte de este contrato.
             </p>
           </section>
 
@@ -128,12 +128,11 @@ export const ServiceContract: FC<ServiceContractProps> = ({
             ejercicio de su profesión. La familia contrata bajo su propia responsabilidad y
             declara haber verificado el registro CSSP de la enfermera.</p>
 
-            <p><strong>Tercera - Pago:</strong> El pago se realiza a través de la plataforma
-            BienCuidar, que actúa como agente de retención. La tarifa incluye la comisión de
-            intermediación de US$ {PLATFORM_COMMISSION.toFixed(2)} por turno más IVA del
-            {(IVA_RATE * 100).toFixed(0)}% sobre la comisión. La retención de ISR del
-            {(RETENTION_RATE * 100).toFixed(0)}% (Art. 156 C.T.) se aplica sobre la tarifa de la
-            enfermera.</p>
+            <p><strong>Tercera - Pago:</strong> {wantsInvoice ? (
+              <>El pago se realiza a través de la plataforma BienCuidar, que actúa como agente de retención. La tarifa incluye la comisión de intermediación de US$ {PLATFORM_COMMISSION.toFixed(2)} por turno más IVA del {(IVA_RATE * 100).toFixed(0)}% sobre la comisión. La retención de ISR del {(RETENTION_RATE * 100).toFixed(0)}% (Art. 156 C.T.) se aplica sobre la tarifa de la enfermera.</>
+            ) : (
+              <>El pago se realiza directamente entre la familia y la enfermera, en efectivo, transferencia o como acuerden entre ambas partes. BienCuidar no intermedia ni retiene el pago. La enfermera es responsable de reportar sus ingresos ante las autoridades fiscales correspondientes.</>
+            )}</p>
 
             <p><strong>Cuarta - Cancelación:</strong> La familia puede cancelar sin costo hasta
             24 horas antes del servicio. Cancelaciones con menos anticipación podrán generar un

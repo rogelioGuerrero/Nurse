@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { getAllSpecializations } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
-import { MapPin, Calendar, Trash2, Stethoscope, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Sunset, Moon, Clock, X, FileText, AlertCircle, RotateCcw, XCircle, Inbox } from 'lucide-react';
+import { MapPin, Calendar, Trash2, Stethoscope, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Sunset, Moon, Clock, X, FileText, AlertCircle, RotateCcw, XCircle, Inbox, Heart } from 'lucide-react';
 import { AuthForm } from './AuthForm';
 import { getTimeRemaining } from '../data/platformSettings';
 
@@ -50,6 +50,7 @@ export const CareRequestForm: FC = () => {
   const [locating, setLocating] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [published, setPublished] = useState(false);
+  const [patientName, setPatientName] = useState('');
   const [wantsInvoice, setWantsInvoice] = useState(false);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
 
@@ -67,6 +68,7 @@ export const CareRequestForm: FC = () => {
         setSelectedDays(formData.selectedDays || []);
         setLocationName(formData.locationName || '');
         setPhone(formData.phone || '');
+        setPatientName(formData.patientName || '');
         // Clear the draft after restoring
         localStorage.removeItem('biencuidar_care_request_draft');
       } catch (err) {
@@ -159,7 +161,7 @@ export const CareRequestForm: FC = () => {
   const prevMonth = () => setCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() - 1, 1));
   const nextMonth = () => setCalendarMonth(d => new Date(d.getFullYear(), d.getMonth() + 1, 1));
 
-  const canNextStep1 = conditionTags.length > 0 || conditionExtra.trim().length > 0;
+  const canNextStep1 = (conditionTags.length > 0 || conditionExtra.trim().length > 0) && patientName.trim().length >= 3;
   const canNextStep2 = selectedDays.length > 0 && selectedDays.every(d => d.shifts.length > 0);
   const canSubmit = phone.trim().length >= 8 && locationName.trim().length > 0;
 
@@ -177,7 +179,8 @@ export const CareRequestForm: FC = () => {
         notes,
         selectedDays,
         locationName,
-        phone
+        phone,
+        patientName
       };
       localStorage.setItem('biencuidar_care_request_draft', JSON.stringify(formData));
       setShowRegisterModal(true);
@@ -187,7 +190,7 @@ export const CareRequestForm: FC = () => {
     const condition = [...conditionTags, conditionExtra.trim()].filter(Boolean).join('; ');
     const finalSpec = otherSpecialization.trim() || specializationNeeded || 'Geriatría';
     createCareRequest({
-      patient_name: 'Por confirmar',
+      patient_name: patientName.trim(),
       patient_condition: condition,
       specialization_needed: finalSpec,
       slots,
@@ -212,6 +215,7 @@ export const CareRequestForm: FC = () => {
     setLocationName('');
     setPhone('');
     setGpsCoords(null);
+    setPatientName('');
   };
 
   /* ── Hooks must run before any conditional return ── */
@@ -380,8 +384,26 @@ export const CareRequestForm: FC = () => {
       {step === 1 && (
         <div className="flex-1 space-y-5 animate-fade-in">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 mb-1">Selecciona la enfermedad médica</h2>
-            <p className="text-xs text-slate-500">Esto nos ayuda a encontrar la enfermera con la especialidad adecuada para tu ser querido.</p>
+            <h2 className="text-lg font-bold text-slate-900 mb-1">¿A quién vamos a cuidar?</h2>
+            <p className="text-xs text-slate-500">Cuéntanos el nombre del paciente y la condición médica para encontrar la enfermera ideal.</p>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Nombre del paciente</label>
+            <div className="relative">
+              <Heart className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                value={patientName}
+                onChange={e => setPatientName(e.target.value)}
+                placeholder="Ej: Don Alberto Gómez"
+                className="w-full pl-9 pr-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
+              />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-bold text-slate-700 mb-1">Selecciona la enfermedad médica</h3>
+            <p className="text-xs text-slate-500 mb-3">Esto nos ayuda a encontrar la enfermera con la especialidad adecuada.</p>
           </div>
 
           <div className="flex flex-wrap gap-2">

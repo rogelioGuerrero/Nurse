@@ -1,4 +1,4 @@
-import { useState, useMemo, type FC } from 'react';
+import { useState, useMemo, useEffect, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { calculateFamilyPrice } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
@@ -31,6 +31,13 @@ export const PlanReview: FC = () => {
       .filter(r => r.user_id === currentUser.id)
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] || null;
   }, [careRequests, currentUser]);
+
+  // Pre-fill patient name from the request
+  useEffect(() => {
+    if (myRequest?.patient_name && myRequest.patient_name !== 'Por confirmar') {
+      setPatientName(myRequest.patient_name);
+    }
+  }, [myRequest?.patient_name]);
 
   if (!myRequest) {
     return (
@@ -137,6 +144,7 @@ export const PlanReview: FC = () => {
         }))}
         totalShifts={totalShifts}
         totalPrice={totalPrice}
+        wantsInvoice={myRequest?.wants_invoice}
       />
 
       <PaymentSummary
@@ -370,7 +378,7 @@ export const PlanReview: FC = () => {
               <span className="text-xl font-black text-indigo-700">${totalPrice.toFixed(2)}</span>
             </div>
 
-            {allCovered && (
+            {allCovered && myRequest.wants_invoice && (
               <div className="bg-white rounded-xl p-3 border border-emerald-200 mt-2 flex items-start gap-2.5">
                 <Mail className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                 <div>

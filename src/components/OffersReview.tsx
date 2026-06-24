@@ -1,4 +1,4 @@
-import { useMemo, useState, type FC } from 'react';
+import { useMemo, useState, useEffect, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { calculateNurseNet, calculateFamilyPrice } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
@@ -45,6 +45,16 @@ export const OffersReview: FC = () => {
       myRequestIds.includes(o.request_id) && o.status === 'pending'
     );
   }, [careRequests, careOffers, currentUser]);
+
+  // Pre-fill patient name when entering patient-data phase
+  useEffect(() => {
+    if (acceptedRequestId) {
+      const req = careRequests.find(r => r.id === acceptedRequestId);
+      if (req?.patient_name && req.patient_name !== 'Por confirmar') {
+        setPatientName(req.patient_name);
+      }
+    }
+  }, [acceptedRequestId, careRequests]);
 
   if (planPhase === 'offers' && pendingOffers.length === 0) {
     return (
@@ -605,6 +615,7 @@ export const OffersReview: FC = () => {
             }))}
             totalShifts={totalShifts}
             totalPrice={totalPrice}
+            wantsInvoice={myRequest?.wants_invoice}
           />
 
           <PaymentSummary
