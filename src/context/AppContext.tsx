@@ -5,7 +5,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, type FC, type ReactNode } from 'react';
 import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareRequestStatus, CareOffer, CareOfferStatus, ShiftType, SHIFTS, NurseReview } from '../types';
-import { INITIAL_PROFILES, INITIAL_NURSES } from '../data/nurses';
+import { INITIAL_NURSES } from '../data/nurses';
 import { supabase } from '../lib/supabase';
 import { getResponseDeadline } from '../data/platformSettings';
 import { requestNotificationPermission, notifyNewOffer, notifyOfferAccepted, notifyCheckIn, notifyCheckOut, notifyPaymentConfirmed } from '../lib/notifications';
@@ -45,7 +45,6 @@ interface AppContextType {
   nurses: Nurse[];
   bookings: Booking[];
   currentUser: Profile | null;
-  switchUser: (profile: Profile) => void;
   currentNurse: Nurse | null;
   updateProfile: (profileData: Partial<Profile>) => void;
   updateNurseProfile: (nurseData: Partial<Nurse>) => Promise<void>;
@@ -792,9 +791,10 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           notifyPaymentConfirmed(booking.patient_name);
         }
       }
-    } catch {
+    } catch (err) {
       // Rollback on error
       setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, payment_status: 'pending' } : b));
+      console.warn('Payment confirmation failed, rolled back:', err);
     }
   };
 
@@ -803,7 +803,14 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     const prevRequests = careRequests;
     const prevBookings = bookings;
 
-    setCareRequests(prev => prev.map(r => r.id === requestId ? { ...r, patient_name: patientName } : r));
+    setCareRequests(prev => prev.map(r => r.id === requestId ? {
+      ...r,
+      patient_name: patientName,
+      patient_data: {
+        ...(r.patient_data || { diagnosis: '', autonomy: '', allergies: '', medications: '', emergency_contact: '' }),
+        emergency_contact: emergencyContact ?? r.patient_data?.emergency_contact ?? '',
+      }
+    } : r));
     setBookings(prev => prev.map(b => {
       const req = careRequests.find(r => r.id === requestId);
       if (req && b.patient_name === 'Por confirmar') {
@@ -813,7 +820,16 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     }));
 
     try {
-      await supabase.from('care_requests').update({ patient_name: patientName }).eq('id', requestId);
+      const updateData: Record<string, unknown> = { patient_name: patientName };
+      if (emergencyContact !== undefined) {
+        const request = careRequests.find(r => r.id === requestId);
+        const patientData = {
+          ...(request?.patient_data || { diagnosis: '', autonomy: '', allergies: '', medications: '', emergency_contact: '' }),
+          emergency_contact: emergencyContact
+        };
+        updateData.patient_data = JSON.stringify(patientData);
+      }
+      await supabase.from('care_requests').update(updateData).eq('id', requestId);
       const relatedBookings = bookings.filter(b => {
         const req = careRequests.find(r => r.id === requestId);
         return req && b.patient_name === 'Por confirmar';
@@ -821,10 +837,10 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       for (const b of relatedBookings) {
         await supabase.from('bookings').update({ patient_name: patientName }).eq('id', b.id);
       }
-    } catch {
+    } catch (err) {
       setCareRequests(prevRequests);
       setBookings(prevBookings);
-      console.warn('Patient name update failed, rolled back.');
+      console.warn('Patient name update failed, rolled back:', err);
     }
   };
 
@@ -984,14 +1000,10 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         created_at: data.created_at,
         updated_at: data.updated_at
       };
-    } catch {
+    } catch (err) {
+      console.warn('Failed to save availability to Supabase:', err);
       return newAvailability;
     }
-  };
-
-  const switchUser = (profile: Profile) => {
-    setCurrentUser(profile);
-    setActiveTab(profile.role === 'nurse' ? 'nurse-inbox' : profile.role === 'admin' ? 'admin-panel' : 'care-request');
   };
 
   return (
@@ -1000,7 +1012,6 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       nurses,
       bookings,
       currentUser,
-      switchUser,
       currentNurse,
       updateProfile,
       updateNurseProfile,
