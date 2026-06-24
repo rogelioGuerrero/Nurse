@@ -31,7 +31,6 @@ const ClinicalAI = lazy(() => import('./components/ClinicalAI'));
 const CareRequestForm = lazy(() => import('./components/CareRequestForm').then(m => ({ default: m.CareRequestForm })));
 const NurseInbox = lazy(() => import('./components/NurseInbox').then(m => ({ default: m.NurseInbox })));
 const OffersReview = lazy(() => import('./components/OffersReview').then(m => ({ default: m.OffersReview })));
-const CSSPReviewPanel = lazy(() => import('./components/CSSPReviewPanel').then(m => ({ default: m.CSSPReviewPanel })));
 const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
 const FamilyProfileEdit = lazy(() => import('./components/FamilyProfileEdit').then(m => ({ default: m.FamilyProfileEdit })));
 import { LandingPage } from './components/LandingPage';
@@ -208,17 +207,7 @@ function MarketplaceApp() {
                     : 'bg-indigo-800 hover:bg-indigo-700 text-white'
                 }`}
               >
-                Notificaciones
-              </button>
-              <button
-                onClick={() => { setActiveTab('cssp-review'); }}
-                className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
-                  activeTab === 'cssp-review'
-                    ? 'bg-white text-indigo-900'
-                    : 'bg-indigo-800 hover:bg-indigo-700 text-white'
-                }`}
-              >
-                Revisión CSSP
+                Panel
               </button>
               <button
                 onClick={async () => { await supabase.auth.signOut(); }}
@@ -513,14 +502,6 @@ function MarketplaceApp() {
           <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner />}>
               <FamilyProfileEdit />
-            </Suspense>
-          </ErrorBoundary>
-        )}
-
-        {activeTab === 'cssp-review' && (
-          <ErrorBoundary>
-            <Suspense fallback={<LoadingSpinner />}>
-              <CSSPReviewPanel />
             </Suspense>
           </ErrorBoundary>
         )}

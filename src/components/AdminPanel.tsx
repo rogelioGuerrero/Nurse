@@ -1,6 +1,7 @@
 import { useState, useMemo, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { MessageCircle, ShieldCheck, Users, FileText, Clock, MapPin, Phone, DollarSign, CheckCircle2 } from 'lucide-react';
+import { CSSPReviewPanel } from './CSSPReviewPanel';
 
 export const AdminPanel: FC = () => {
   const { currentUser, careRequests, careOffers, profiles, nurses, bookings, confirmPayment } = useApp();
@@ -298,31 +299,7 @@ export const AdminPanel: FC = () => {
       )}
 
       {section === 'cssp' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-4">
-          <p className="text-xs text-slate-500 mb-3">
-            Para revisión detallada de CSSP, usa el botón "Revisión CSSP" en la barra superior.
-          </p>
-          <div className="space-y-2">
-            {nurses.map(n => {
-              const profile = profileMap.get(n.user_id);
-              return (
-                <div key={n.id} className="flex items-center justify-between text-xs py-2 border-b border-slate-100">
-                  <div>
-                    <span className="font-bold text-slate-700">{profile?.full_name || 'N/A'}</span>
-                    <span className="text-slate-500 ml-2">{n.cssp_registration}</span>
-                  </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                    n.cssp_verified ? 'bg-emerald-100 text-emerald-700' :
-                    n.cssp_verification_status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                    'bg-slate-100 text-slate-500'
-                  }`}>
-                    {n.cssp_verified ? 'Verificada' : n.cssp_verification_status || 'Sin verificar'}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <CSSPReviewPanel />
       )}
     </div>
   );
