@@ -58,6 +58,8 @@ interface AppContextType {
   saveCareLog: (bookingId: string, log: Omit<CareLog, 'bookingId' | 'updatedAt'>) => void;
   careRequests: CareRequest[];
   createCareRequest: (data: Omit<CareRequest, 'id' | 'user_id' | 'created_at' | 'status' | 'response_deadline'>) => CareRequest;
+  closeCareRequest: (requestId: string) => void;
+  republisheCareRequest: (requestId: string) => void;
   careOffers: CareOffer[];
   createCareOffer: (data: Omit<CareOffer, 'id' | 'created_at' | 'status'> & { status?: CareOffer['status'] }) => CareOffer;
   acceptCareOffer: (offerId: string) => void;
@@ -298,6 +300,45 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     return newRequest;
   }, [currentUser, careRequests]);
 
+  const closeCareRequest = useCallback((requestId: string) => {
+    setCareRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'closed' as CareRequestStatus } : r));
+    setCareOffers(prev => prev.map(o => o.request_id === requestId && o.status === 'pending' ? { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' } : o));
+    supabase.from('care_requests').update({ status: 'closed' }).eq('id', requestId).then();
+    supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('request_id', requestId).eq('status', 'pending').then();
+  }, []);
+
+  const republisheCareRequest = useCallback((requestId: string) => {
+    const original = careRequests.find(r => r.id === requestId);
+    if (!original) return;
+    const now = new Date().toISOString();
+    const newRequest: CareRequest = {
+      ...original,
+      id: crypto.randomUUID(),
+      status: 'open',
+      response_deadline: getResponseDeadline(now),
+      created_at: now,
+    };
+    setCareRequests(prev => [newRequest, ...prev]);
+    supabase.from('care_requests').insert({
+      id: newRequest.id,
+      user_id: newRequest.user_id,
+      patient_name: newRequest.patient_name,
+      patient_condition: newRequest.patient_condition,
+      specialization_needed: newRequest.specialization_needed,
+      slots: newRequest.slots,
+      location_name: newRequest.location_name,
+      lat: newRequest.lat,
+      lng: newRequest.lng,
+      notes: newRequest.notes,
+      wants_invoice: newRequest.wants_invoice,
+      status: 'open',
+      response_deadline: newRequest.response_deadline,
+      created_at: now
+    }).then(({ error }) => {
+      if (error) console.warn('Failed to republish care request:', error.message);
+    });
+  }, [careRequests]);
+
   const createCareOffer = useCallback((data: Omit<CareOffer, 'id' | 'created_at' | 'status'> & { status?: CareOffer['status'] }): CareOffer => {
     const newOffer: CareOffer = {
       ...data,
@@ -357,30 +398,33 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
 
   // Auto-expire care requests past their response_deadline (12h)
   useEffect(() => {
-    const now = Date.now();
-    const expiredRequests = careRequests.filter(r => 
-      r.status === 'open' && 
-      new Date(r.response_deadline).getTime() <= now
-    );
-    if (expiredRequests.length > 0) {
-      // Mark requests as expired
-      const expiredIds = expiredRequests.map(r => r.id);
-      setCareRequests(prev => prev.map(r => 
-        expiredIds.includes(r.id) ? { ...r, status: 'expired' as CareRequestStatus } : r
-      ));
-      // Decline all pending offers on those requests
-      setCareOffers(prev => prev.map(o => 
-        expiredIds.includes(o.request_id) && o.status === 'pending'
-          ? { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' }
-          : o
-      ));
-      // Sync to Supabase
-      expiredIds.forEach(id => {
-        supabase.from('care_requests').update({ status: 'expired' }).eq('id', id).then();
-        supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('request_id', id).eq('status', 'pending').then();
-      });
-    }
-  }, [careRequests]); // Check whenever careRequests change
+    const checkExpired = () => {
+      const now = Date.now();
+      const expiredRequests = careRequests.filter(r => 
+        r.status === 'open' && 
+        new Date(r.response_deadline).getTime() <= now
+      );
+      if (expiredRequests.length > 0) {
+        const expiredIds = expiredRequests.map(r => r.id);
+        setCareRequests(prev => prev.map(r => 
+          expiredIds.includes(r.id) ? { ...r, status: 'expired' as CareRequestStatus } : r
+        ));
+        setCareOffers(prev => prev.map(o => 
+          expiredIds.includes(o.request_id) && o.status === 'pending'
+            ? { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' }
+            : o
+        ));
+        expiredIds.forEach(id => {
+          supabase.from('care_requests').update({ status: 'expired' }).eq('id', id).then();
+          supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('request_id', id).eq('status', 'pending').then();
+        });
+      }
+    };
+
+    checkExpired();
+    const interval = setInterval(checkExpired, 60000);
+    return () => clearInterval(interval);
+  }, [careRequests]);
 
   // Auto-withdraw nurse's pending offers when one of their offers is accepted (they now have a booking)
   useEffect(() => {
@@ -857,6 +901,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       saveCareLog,
       careRequests,
       createCareRequest,
+      closeCareRequest,
+      republisheCareRequest,
       careOffers,
       createCareOffer,
       acceptCareOffer,

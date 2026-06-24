@@ -1,9 +1,10 @@
-import { useState, useEffect, type FC } from 'react';
+import { useState, useEffect, useMemo, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { getAllSpecializations } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
-import { MapPin, Calendar, Trash2, Stethoscope, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Sunset, Moon, Clock, X, FileText } from 'lucide-react';
+import { MapPin, Calendar, Trash2, Stethoscope, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Sunset, Moon, Clock, X, FileText, AlertCircle, RotateCcw, XCircle, Inbox } from 'lucide-react';
 import { AuthForm } from './AuthForm';
+import { getTimeRemaining } from '../data/platformSettings';
 
 interface DaySelection {
   date: string;
@@ -30,7 +31,7 @@ const STEPS = [
 ];
 
 export const CareRequestForm: FC = () => {
-  const { createCareRequest, currentUser } = useApp();
+  const { createCareRequest, currentUser, careRequests, careOffers, closeCareRequest, republisheCareRequest } = useApp();
   const specializations = getAllSpecializations();
 
   const [step, setStep] = useState(1);
@@ -248,8 +249,107 @@ export const CareRequestForm: FC = () => {
   }
 
   /* ── Stepper form ── */
+  const myRequests = useMemo(() => {
+    if (!currentUser) return [];
+    return careRequests
+      .filter(r => r.user_id === currentUser.id)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [careRequests, currentUser]);
+
+  const activeRequests = myRequests.filter(r => r.status === 'open');
+  const expiredRequests = myRequests.filter(r => r.status === 'expired' || r.status === 'closed');
+
   return (
     <div className="min-h-[80vh] flex flex-col px-5 py-6 max-w-md mx-auto w-full">
+
+      {/* My active/expired requests */}
+      {currentUser && (activeRequests.length > 0 || expiredRequests.length > 0) && (
+        <div className="space-y-3 mb-6">
+          {activeRequests.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <Inbox className="h-3.5 w-3.5" />
+                <span>Solicitudes activas</span>
+              </div>
+              {activeRequests.map(req => {
+                const offersCount = careOffers.filter(o => o.request_id === req.id && o.status === 'pending').length;
+                const timeLeft = getTimeRemaining(req.created_at);
+                return (
+                  <div key={req.id} className="bg-white border border-indigo-200 rounded-2xl p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-800 truncate">{req.patient_condition}</p>
+                        <p className="text-[10px] text-slate-500">{req.slots.length} turno(s) · {req.location_name}</p>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                        timeLeft === 'Expirado' ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700'
+                      }`}>
+                        {timeLeft}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-500">
+                        {offersCount > 0 ? `${offersCount} oferta(s) recibida(s)` : 'Esperando ofertas...'}
+                      </span>
+                      <button
+                        onClick={() => closeCareRequest(req.id)}
+                        className="text-[10px] font-bold text-slate-400 hover:text-rose-600 transition flex items-center gap-1 cursor-pointer"
+                      >
+                        <XCircle className="h-3 w-3" />
+                        Cerrar
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {expiredRequests.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span>Finalizadas</span>
+              </div>
+              {expiredRequests.map(req => {
+                const offersCount = careOffers.filter(o => o.request_id === req.id).length;
+                const isExpired = req.status === 'expired';
+                return (
+                  <div key={req.id} className={`bg-slate-50 border rounded-2xl p-3 space-y-2 ${isExpired ? 'border-slate-200' : 'border-slate-200'}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-600 truncate">{req.patient_condition}</p>
+                        <p className="text-[10px] text-slate-400">{req.slots.length} turno(s) · {req.location_name}</p>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                        isExpired ? 'bg-rose-100 text-rose-600' : 'bg-slate-200 text-slate-500'
+                      }`}>
+                        {isExpired ? 'Expirada' : 'Cerrada'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400">
+                        {isExpired
+                          ? (offersCount > 0 ? 'No decidiste a tiempo' : 'Sin respuesta de enfermeras')
+                          : 'Cerrada manualmente'}
+                      </span>
+                      {isExpired && (
+                        <button
+                          onClick={() => republisheCareRequest(req.id)}
+                          className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          Republicar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stepper indicator */}
       <div className="flex items-center justify-between mb-8 px-2">
