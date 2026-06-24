@@ -523,7 +523,10 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   }, [careRequests]);
 
   // Auto-withdraw nurse's pending offers when one of their offers is accepted (they now have a booking)
+  // Only runs on nurse's client — family clients should see offers as-is from Supabase
   useEffect(() => {
+    if (!currentUser || currentUser.role !== 'nurse') return;
+
     // Find nurses that have at least one accepted offer (meaning they got a booking)
     const acceptedNurseIds = new Set(
       careOffers.filter(o => o.status === 'accepted').map(o => o.nurse_id)
@@ -578,7 +581,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('id', id).then(({ error }) => { if (error) console.warn('withdraw expired offers sync error:', error.message); });
       });
     }
-  }, [careOffers, careRequests]);
+  }, [careOffers, careRequests, currentUser]);
 
   // Bookings are sourced from Supabase + realtime
 
