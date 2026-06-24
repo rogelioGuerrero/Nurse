@@ -138,7 +138,7 @@ export const FamilyProfileEdit: FC = () => {
           <div className="flex items-center gap-2.5">
             <BookOpen className="h-5 w-5 text-indigo-600 shrink-0" />
             <div className="text-left">
-              <span className="text-sm font-bold text-slate-800 block">Mi Bitácora</span>
+              <span className="text-sm font-bold text-slate-800 block">Mi Historial</span>
               <span className="text-[10px] text-slate-500">Historial de solicitudes y reportes</span>
             </div>
           </div>
