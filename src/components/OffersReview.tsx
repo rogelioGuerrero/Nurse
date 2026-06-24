@@ -7,6 +7,7 @@ import { CSSPVerificationBadge } from './CSSPVerificationBadge';
 import { LegalDisclaimer } from './LegalDisclaimer';
 import { ServiceContract } from './ServiceContract';
 import { PaymentSummary } from './PaymentSummary';
+import { LocationPicker } from './LocationPicker';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -514,69 +515,28 @@ export const OffersReview: FC = () => {
                   </div>
                 </div>
 
-                {myRequest && !myRequest.lat && !myRequest.lng && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+                {myRequest && (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
                     <div className="flex items-center gap-1.5">
-                      <MapPin className="h-4 w-4 text-amber-600" />
-                      <p className="text-xs font-bold text-amber-800">Ubicación sin coordenadas</p>
+                      <MapPin className="h-4 w-4 text-indigo-600" />
+                      <p className="text-xs font-bold text-slate-700">
+                        {myRequest.lat && myRequest.lng ? 'Ubicación del paciente' : 'Confirma la ubicación exacta'}
+                      </p>
                     </div>
-                    <p className="text-[11px] text-amber-700">
-                      La enfermera necesita coordenadas exactas para llegar. Toca el botón para capturar tu ubicación actual.
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={updatedLocationName || myRequest.location_name || ''}
-                        onChange={e => setUpdatedLocationName(e.target.value)}
-                        placeholder="Dirección (ej: Col. Escalón, pasaje 3, casa #15)"
-                        className="flex-1 px-3 py-2.5 border border-amber-200 rounded-lg text-sm bg-white focus:outline-none focus:border-amber-400"
-                      />
-                      <button
-                        onClick={() => {
-                          if (!navigator.geolocation) return;
-                          setLocating(true);
-                          navigator.geolocation.getCurrentPosition(
-                            async (pos) => {
-                              const { latitude, longitude } = pos.coords;
-                              setGpsCoords({ lat: latitude, lng: longitude });
-                              try {
-                                const res = await fetch(
-                                  `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=16&addressdetails=1`,
-                                  { headers: { 'Accept-Language': 'es' } }
-                                );
-                                const data = await res.json();
-                                const addr = data.address || {};
-                                const parts = [
-                                  addr.road || addr.neighbourhood,
-                                  addr.suburb || addr.city_district,
-                                  addr.city || addr.town || addr.village || addr.municipality,
-                                ].filter(Boolean);
-                                const name = parts.join(', ') || data.display_name?.split(',').slice(0, 3).join(',');
-                                setUpdatedLocationName(name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-                              } catch {
-                                setUpdatedLocationName(`${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-                              } finally {
-                                setLocating(false);
-                              }
-                            },
-                            () => setLocating(false),
-                            { enableHighAccuracy: true, timeout: 10000 }
-                          );
-                        }}
-                        disabled={locating}
-                        className="flex-shrink-0 px-3 py-2.5 bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                        title="Usar mi ubicación"
-                      >
-                        {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
-                        <span className="text-xs font-bold">GPS</span>
-                      </button>
-                    </div>
-                    {gpsCoords && (
-                      <p className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3" />
-                        Coordenadas capturadas: {gpsCoords.lat.toFixed(4)}, {gpsCoords.lng.toFixed(4)}
+                    {!myRequest.lat && !myRequest.lng && (
+                      <p className="text-[11px] text-amber-700">
+                        La enfermera necesita coordenadas exactas para llegar. Usa GPS o toca el mapa para colocar el pin.
                       </p>
                     )}
+                    <LocationPicker
+                      initialLat={myRequest.lat}
+                      initialLng={myRequest.lng}
+                      initialAddress={myRequest.location_name}
+                      onLocationChange={(latVal, lngVal, addr) => {
+                        setGpsCoords({ lat: latVal, lng: lngVal });
+                        setUpdatedLocationName(addr);
+                      }}
+                    />
                   </div>
                 )}
               </div>
