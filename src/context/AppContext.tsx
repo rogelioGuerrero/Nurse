@@ -62,6 +62,7 @@ interface AppContextType {
   republisheCareRequest: (requestId: string) => void;
   careOffers: CareOffer[];
   createCareOffer: (data: Omit<CareOffer, 'id' | 'created_at' | 'status'> & { status?: CareOffer['status'] }) => CareOffer;
+  withdrawCareOffer: (offerId: string) => void;
   acceptCareOffer: (offerId: string) => void;
   nurseReviews: NurseReview[];
   submitReview: (bookingId: string, nurseId: string, rating: number, comment?: string) => Promise<void>;
@@ -369,6 +370,11 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     }
     return newOffer;
   }, [careRequests, currentUser, nurses, profiles]);
+
+  const withdrawCareOffer = useCallback((offerId: string) => {
+    setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'rejected' as CareOfferStatus } : o));
+    supabase.from('care_offers').update({ status: 'rejected' }).eq('id', offerId).then();
+  }, []);
 
   // Synchronize dynamic nurse profile if active user role is 'nurse'
   useEffect(() => {
@@ -905,6 +911,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       republisheCareRequest,
       careOffers,
       createCareOffer,
+      withdrawCareOffer,
       acceptCareOffer,
       nurseReviews,
       submitReview,

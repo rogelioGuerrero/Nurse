@@ -57,7 +57,7 @@ function getProfileSuggestions(nurse: Nurse | undefined, offer: CareOffer | unde
 }
 
 export const NurseInbox: FC = () => {
-  const { careRequests, careOffers, nurses, profiles, currentUser, createCareOffer } = useApp();
+  const { careRequests, careOffers, nurses, profiles, currentUser, createCareOffer, withdrawCareOffer } = useApp();
 
   // Modal de ajuste de tarifa
   const [acceptModal, setAcceptModal] = useState<{ request: CareRequest; slotIndex: number } | null>(null);
@@ -114,18 +114,6 @@ export const NurseInbox: FC = () => {
     if (!myNurse) return;
     setAcceptModal({ request, slotIndex });
     setOfferRate(myNurse.shift_rate);
-  };
-
-  const handleDecline = (request: CareRequest, slotIndex: number) => {
-    if (!myNurse) return;
-    createCareOffer({
-      request_id: request.id,
-      nurse_id: myNurse.id,
-      slot_index: slotIndex,
-      offered_rate: myNurse.shift_rate,
-      message: 'No tengo disponibilidad para esta fecha.',
-      status: 'rejected'
-    });
   };
 
   const handleConfirmOffer = () => {
@@ -279,14 +267,7 @@ export const NurseInbox: FC = () => {
                               className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-200 disabled:cursor-not-allowed text-white text-xs font-bold py-2 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer"
                             >
                               <CheckCircle2 className="h-3.5 w-3.5" />
-                              Aceptar
-                            </button>
-                            <button
-                              onClick={() => handleDecline(req, idx)}
-                              className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold py-2 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer"
-                            >
-                              <XCircle className="h-3.5 w-3.5" />
-                              Rechazar
+                              Ofertar
                             </button>
                           </div>
                         ) : offer?.status === 'accepted' ? (
@@ -295,9 +276,18 @@ export const NurseInbox: FC = () => {
                             Confirmado
                           </div>
                         ) : offer?.status === 'pending' ? (
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 pl-14">
-                            <CheckCircle2 className="h-4 w-4" />
-                            Ofreciste tu servicio
+                          <div className="flex items-center justify-between pl-14">
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-600">
+                              <CheckCircle2 className="h-4 w-4" />
+                              Ofreciste tu servicio
+                            </div>
+                            <button
+                              onClick={() => withdrawCareOffer(offer.id)}
+                              className="text-[10px] font-bold text-slate-400 hover:text-rose-600 transition flex items-center gap-1 cursor-pointer"
+                            >
+                              <XCircle className="h-3 w-3" />
+                              Retirar
+                            </button>
                           </div>
                         ) : offer?.status === 'declined' ? (
                           <div className="pl-14 space-y-1.5">
@@ -312,12 +302,12 @@ export const NurseInbox: FC = () => {
                               </p>
                             ))}
                           </div>
-                        ) : (
+                        ) : offer?.status === 'rejected' ? (
                           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 pl-14">
                             <XCircle className="h-4 w-4" />
-                            Rechazaste
+                            Retiraste tu oferta
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     );
                   })}
@@ -345,7 +335,7 @@ export const NurseInbox: FC = () => {
             return { label: 'Confirmado', color: 'text-emerald-600', bg: 'bg-emerald-100' };
           }
           if (offer.status === 'rejected') {
-            return { label: 'Rechazaste', color: 'text-slate-400', bg: 'bg-slate-100' };
+            return { label: 'Retiraste tu oferta', color: 'text-slate-400', bg: 'bg-slate-100' };
           }
           if (offer.status === 'pending' && req.status === 'open') {
             return { label: 'Esperando respuesta', color: 'text-indigo-600', bg: 'bg-indigo-100' };
