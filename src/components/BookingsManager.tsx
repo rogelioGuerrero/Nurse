@@ -92,11 +92,9 @@ export const BookingsManager: FC = () => {
 
   const handleCheckIn = async (bookingId: string, skipGps = false) => {
     if (skipGps) {
-      const address = reportedAddress.trim() || 'Sin GPS - confirmación manual';
       try {
-        await checkInBooking(bookingId, 0, 0, address, false);
+        await checkInBooking(bookingId, 0, 0, 'Sin GPS - confirmación manual', false);
         setCheckInBookingId(null);
-        setReportedAddress('');
         setGpsError(null);
       } catch {
         setGpsError('Error al registrar llegada');
@@ -117,12 +115,9 @@ export const BookingsManager: FC = () => {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        const address = reportedAddress.trim() || 'Ubicación GPS registrada';
-        const mismatch = !!reportedAddress.trim();
         try {
-          await checkInBooking(bookingId, latitude, longitude, address, mismatch);
+          await checkInBooking(bookingId, latitude, longitude, 'Ubicación GPS registrada', false);
           setCheckInBookingId(null);
-          setReportedAddress('');
         } catch {
           setGpsError('Error al registrar llegada');
         }
@@ -772,11 +767,6 @@ export const BookingsManager: FC = () => {
                     <LogIn className="h-3.5 w-3.5" />
                     <span className="font-bold">Llegada:</span>
                     <span>{new Date(b.check_in_at).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' })}</span>
-                    {b.address_mismatch && (
-                      <span className="text-amber-600 font-bold flex items-center gap-0.5">
-                        <AlertTriangle className="h-3 w-3" />Dirección diferente
-                      </span>
-                    )}
                     {b.check_out_at && (
                       <>
                         <span className="text-slate-300">·</span>
@@ -788,41 +778,32 @@ export const BookingsManager: FC = () => {
                   </div>
                 )}
 
-                {/* Llegada address report (nurse only, before arrival) */}
+                {/* Check-in GPS loading (nurse only) */}
                 {b.status === 'confirmed' && isNurseView && !b.check_in_at && checkInBookingId === b.id && (
-                  <div className="px-3 py-3 bg-amber-50 border-t border-amber-100 space-y-2">
-                    <p className="text-[10px] font-bold text-amber-800 flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5" />
-                      ¿Estás en la dirección correcta?
-                    </p>
-                    <p className="text-[10px] text-slate-500">Si la dirección real es diferente a la que dio la familia, repórtala aquí para tu protección.</p>
-                    <input
-                      type="text"
-                      value={reportedAddress}
-                      onChange={e => setReportedAddress(e.target.value)}
-                      placeholder="Dirección real (opcional, solo si es diferente)"
-                      className="w-full text-[11px] border border-amber-200 rounded-lg p-2 bg-white"
-                    />
-                    {gpsError && <p className="text-[10px] text-rose-600">{gpsError}</p>}
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => { setCheckInBookingId(null); setReportedAddress(''); setGpsError(null); }}
-                        className="text-[10px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg cursor-pointer"
-                      >Cancelar</button>
-                      <button
-                        onClick={() => handleCheckIn(b.id, !!gpsError)}
-                        disabled={gpsLoading}
-                        className="text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer disabled:opacity-60"
-                      >
-                        {gpsLoading ? (
-                          <><div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>Obteniendo GPS...</>
-                        ) : gpsError ? (
-                          <><LogIn className="h-3 w-3" />Confirmar sin GPS</>
-                        ) : (
-                          <><LogIn className="h-3 w-3" />Confirmar llegada</>
-                        )}
-                      </button>
-                    </div>
+                  <div className="px-3 py-3 bg-emerald-50 border-t border-emerald-100 space-y-2">
+                    {gpsLoading ? (
+                      <p className="text-[10px] font-bold text-emerald-700 flex items-center gap-1.5">
+                        <div className="w-3 h-3 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                        Capturando ubicación...
+                      </p>
+                    ) : (
+                      <>
+                        {gpsError && <p className="text-[10px] text-rose-600">{gpsError}</p>}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => { setCheckInBookingId(null); setGpsError(null); }}
+                            className="text-[10px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg cursor-pointer"
+                          >Cancelar</button>
+                          <button
+                            onClick={() => handleCheckIn(b.id, !!gpsError)}
+                            className="text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer"
+                          >
+                            <LogIn className="h-3 w-3" />
+                            {gpsError ? 'Confirmar sin GPS' : 'Confirmar llegada'}
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -887,7 +868,7 @@ export const BookingsManager: FC = () => {
                           {!b.check_in_at && checkInBookingId !== b.id && cancelBookingId !== b.id && (
                             <>
                               <button
-                                onClick={() => setCheckInBookingId(b.id)}
+                                onClick={() => handleCheckIn(b.id)}
                                 className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer"
                               >
                                 <LogIn className="h-3.5 w-3.5" />Registrar llegada
