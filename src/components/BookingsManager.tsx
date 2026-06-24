@@ -90,42 +90,32 @@ export const BookingsManager: FC = () => {
   // Service tabs: upcoming vs completed
   const [activeServiceTab, setActiveServiceTab] = useState<'upcoming' | 'completed'>('upcoming');
 
-  const handleCheckIn = async (bookingId: string, skipGps = false) => {
-    if (skipGps) {
-      try {
-        await checkInBooking(bookingId, 0, 0, 'Sin GPS - confirmación manual', false);
-        setCheckInBookingId(null);
-        setGpsError(null);
-      } catch {
-        setGpsError('Error al registrar llegada');
-      }
-      return;
-    }
-
+  const handleCheckIn = async (bookingId: string) => {
     setGpsLoading(true);
-    setGpsError(null);
     setCheckInBookingId(bookingId);
 
-    if (!navigator.geolocation) {
-      setGpsError('Tu dispositivo no soporta geolocalización');
+    const registerArrival = async (lat = 0, lng = 0, address = 'Llegada registrada') => {
+      try {
+        await checkInBooking(bookingId, lat, lng, address, false);
+      } catch {
+        console.warn('Check-in failed');
+      }
+      setCheckInBookingId(null);
       setGpsLoading(false);
+    };
+
+    if (!navigator.geolocation) {
+      await registerArrival();
       return;
     }
 
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords;
-        try {
-          await checkInBooking(bookingId, latitude, longitude, 'Ubicación GPS registrada', false);
-          setCheckInBookingId(null);
-        } catch {
-          setGpsError('Error al registrar llegada');
-        }
-        setGpsLoading(false);
+        await registerArrival(latitude, longitude, 'Ubicación GPS registrada');
       },
-      (err) => {
-        setGpsError(`No se pudo obtener tu ubicación: ${err.message}`);
-        setGpsLoading(false);
+      () => {
+        registerArrival();
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -778,32 +768,13 @@ export const BookingsManager: FC = () => {
                   </div>
                 )}
 
-                {/* Check-in GPS loading (nurse only) */}
+                {/* Check-in loading (nurse only) */}
                 {b.status === 'confirmed' && isNurseView && !b.check_in_at && checkInBookingId === b.id && (
-                  <div className="px-3 py-3 bg-emerald-50 border-t border-emerald-100 space-y-2">
-                    {gpsLoading ? (
-                      <p className="text-[10px] font-bold text-emerald-700 flex items-center gap-1.5">
-                        <div className="w-3 h-3 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
-                        Capturando ubicación...
-                      </p>
-                    ) : (
-                      <>
-                        {gpsError && <p className="text-[10px] text-rose-600">{gpsError}</p>}
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => { setCheckInBookingId(null); setGpsError(null); }}
-                            className="text-[10px] font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg cursor-pointer"
-                          >Cancelar</button>
-                          <button
-                            onClick={() => handleCheckIn(b.id, !!gpsError)}
-                            className="text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer"
-                          >
-                            <LogIn className="h-3 w-3" />
-                            {gpsError ? 'Confirmar sin GPS' : 'Confirmar llegada'}
-                          </button>
-                        </div>
-                      </>
-                    )}
+                  <div className="px-3 py-3 bg-emerald-50 border-t border-emerald-100">
+                    <p className="text-[10px] font-bold text-emerald-700 flex items-center gap-1.5">
+                      <div className="w-3 h-3 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+                      Registrando llegada...
+                    </p>
                   </div>
                 )}
 
