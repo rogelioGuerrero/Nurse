@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://biencuidar.agtisa.com/sitemap.xml

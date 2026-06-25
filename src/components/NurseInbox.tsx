@@ -72,12 +72,10 @@ export const NurseInbox: FC = () => {
   );
 
   // Requests where this nurse hasn't offered on any slot — sorted by most recent
-  // Only show short-term (≤3 days) requests. Longer assignments are managed by AGTI directly.
   const availableRequests = useMemo(() => {
     if (!myNurse) return [];
     return careRequests
       .filter(req => req.status === 'open')
-      .filter(req => (req.expected_duration || 'shifts') === 'shifts')
       .filter(req => !careOffers.some(o => o.request_id === req.id && o.nurse_id === myNurse.id))
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [careRequests, careOffers, myNurse]);
