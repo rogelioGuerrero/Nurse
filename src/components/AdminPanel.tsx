@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, type FC } from 'react';
 import { useApp } from '../context/AppContext';
-import { MessageCircle, ShieldCheck, Users, FileText, Clock, MapPin, Phone, DollarSign, CheckCircle2, TrendingUp, RefreshCw } from 'lucide-react';
+import { MessageCircle, ShieldCheck, Users, FileText, Clock, MapPin, Phone, DollarSign, CheckCircle2, TrendingUp, RefreshCw, Loader2 } from 'lucide-react';
 import { CSSPReviewPanel } from './CSSPReviewPanel';
 import { groqChat } from '../lib/groq';
 
@@ -10,6 +10,7 @@ export const AdminPanel: FC = () => {
   const [dailySummary, setDailySummary] = useState('');
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryDate, setSummaryDate] = useState('');
+  const [waLoading, setWaLoading] = useState<string | null>(null);
 
   if (!currentUser || currentUser.role !== 'admin') {
     return (
@@ -104,6 +105,52 @@ export const AdminPanel: FC = () => {
     if (!cleanPhone) return null;
     const fullPhone = cleanPhone.startsWith('503') ? cleanPhone : `503${cleanPhone}`;
     return `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
+  };
+
+  const generateWaMessage = async (type: 'family' | 'nurse', data: {
+    familyName?: string; patientName?: string; offerCount?: number; location?: string;
+    nurseName?: string; offeredRate?: number; shift?: string;
+  }): Promise<string> => {
+    const systemPrompt = 'Redactas mensajes cortos de WhatsApp para BienCuidar, plataforma de cuidado de salud en El Salvador. REGLAS: (1) Usa SOLO los datos proporcionados. (2) Máximo 40 palabras. (3) Tono cálido y personal, no robótico. (4) Incluye el link https://biencuidar.app al final. (5) No saludes con "Estimado/a".';
+    let userContent = '';
+    if (type === 'family') {
+      userContent = `Redacta un mensaje para ${data.familyName || 'la familia'}:
+- Tienen ${data.offerCount} enfermera(s) interesada(s) en cuidar a ${data.patientName}
+- Ubicación: ${data.location || 'no especificada'}
+Mensaje para avisarles que revisen las ofertas en la app.`;
+    } else {
+      userContent = `Redacta un mensaje para ${data.nurseName || 'la enfermera'}:
+- Su oferta para cuidar a ${data.patientName} fue aceptada
+- Tarifa acordada: $${data.offeredRate}/turno
+Mensaje para avisarle que revise los detalles en la app.`;
+    }
+    try {
+      return await groqChat(
+        [{ role: 'system', content: systemPrompt }, { role: 'user', content: userContent }],
+        { temperature: 0.5, maxTokens: 80 }
+      );
+    } catch {
+      if (type === 'family') {
+        return `Hola ${data.familyName || ''}, tienes ${data.offerCount} enfermera(s) interesada(s) en cuidar a ${data.patientName}. Revisa las ofertas en BienCuidar: https://biencuidar.app`;
+      }
+      return `Hola ${data.nurseName || ''}, tu oferta para cuidar a ${data.patientName} fue aceptada. Revisa los detalles en BienCuidar: https://biencuidar.app`;
+    }
+  };
+
+  const handleFamilyWa = async (reqId: string, familyName: string, patientName: string, offerCount: number, location: string, phone?: string) => {
+    setWaLoading(reqId);
+    const msg = await generateWaMessage('family', { familyName, patientName, offerCount, location });
+    setWaLoading(null);
+    const wa = waLink(phone, msg);
+    if (wa) window.open(wa, '_blank');
+  };
+
+  const handleNurseWa = async (offerId: string, nurseName: string, patientName: string, offeredRate: number, phone?: string) => {
+    setWaLoading(offerId);
+    const msg = await generateWaMessage('nurse', { nurseName, patientName, offeredRate });
+    setWaLoading(null);
+    const wa = waLink(phone, msg);
+    if (wa) window.open(wa, '_blank');
   };
 
   // Requests with pending offers that family hasn't been notified about
@@ -291,10 +338,6 @@ export const AdminPanel: FC = () => {
                 {requestsWithOffers.map(req => {
                   const family = profileMap.get(req.user_id);
                   const offers = careOffers.filter(o => o.request_id === req.id && o.status === 'pending');
-                  const wa = waLink(
-                    family?.phone,
-                    `Hola ${family?.full_name || ''}, tienes ${offers.length} oferta(s) de cuidado para ${req.patient_name} en BienCuidar. Entra a la app para revisarlas: https://biencuidar.app`
-                  );
                   return (
                     <div key={req.id} className="px-4 py-3 flex items-center justify-between gap-3">
                       <div className="min-w-0 flex-1">
@@ -306,16 +349,18 @@ export const AdminPanel: FC = () => {
                           <Phone className="h-2.5 w-2.5" />{family?.phone || 'Sin teléfono'}
                         </p>
                       </div>
-                      {wa ? (
-                        <a
-                          href={wa}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-lg cursor-pointer"
+                      {family?.phone ? (
+                        <button
+                          onClick={() => handleFamilyWa(req.id, family?.full_name || '', req.patient_name, offers.length, req.location_name || '', family?.phone)}
+                          disabled={waLoading === req.id}
+                          className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-lg cursor-pointer disabled:opacity-60"
                         >
-                          <MessageCircle className="h-3.5 w-3.5" />
-                          Avisar
-                        </a>
+                          {waLoading === req.id ? (
+                            <><Loader2 className="h-3.5 w-3.5 animate-spin" />Redactando...</>
+                          ) : (
+                            <><MessageCircle className="h-3.5 w-3.5" />Avisar</>
+                          )}
+                        </button>
                       ) : (
                         <span className="shrink-0 text-[10px] text-slate-400 italic">Sin teléfono</span>
                       )}
@@ -343,10 +388,6 @@ export const AdminPanel: FC = () => {
                   const nurse = nurseMap.get(offer.nurse_id);
                   const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
                   const req = careRequests.find(r => r.id === offer.request_id);
-                  const wa = waLink(
-                    nurseProfile?.phone,
-                    `Hola ${nurseProfile?.full_name || ''}, tu oferta para cuidar a ${req?.patient_name || 'el paciente'} fue aceptada en BienCuidar. Entra a la app para ver los detalles: https://biencuidar.app`
-                  );
                   return (
                     <div key={offer.id} className="px-4 py-3 flex items-center justify-between gap-3">
                       <div className="min-w-0 flex-1">
@@ -358,16 +399,18 @@ export const AdminPanel: FC = () => {
                           <Phone className="h-2.5 w-2.5" />{nurseProfile?.phone || 'Sin teléfono'}
                         </p>
                       </div>
-                      {wa ? (
-                        <a
-                          href={wa}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-lg cursor-pointer"
+                      {nurseProfile?.phone ? (
+                        <button
+                          onClick={() => handleNurseWa(offer.id, nurseProfile?.full_name || '', req?.patient_name || 'el paciente', offer.offered_rate, nurseProfile?.phone)}
+                          disabled={waLoading === offer.id}
+                          className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-lg cursor-pointer disabled:opacity-60"
                         >
-                          <MessageCircle className="h-3.5 w-3.5" />
-                          Avisar
-                        </a>
+                          {waLoading === offer.id ? (
+                            <><Loader2 className="h-3.5 w-3.5 animate-spin" />Redactando...</>
+                          ) : (
+                            <><MessageCircle className="h-3.5 w-3.5" />Avisar</>
+                          )}
+                        </button>
                       ) : (
                         <span className="shrink-0 text-[10px] text-slate-400 italic">Sin teléfono</span>
                       )}

@@ -10,7 +10,7 @@ import { groqChat } from '../lib/groq';
 import { PLATFORM_SETTINGS } from '../data/platformSettings';
 import {
   Calendar, User, CheckCircle2,
-  PlusCircle, FileText, AlertTriangle,
+  PlusCircle, FileText, AlertTriangle, AlertCircle,
   Phone, ChevronLeft, ChevronRight, MessageCircle,
   MapPin, LogIn, LogOut, Star, DollarSign, X, Building2
 } from 'lucide-react';
@@ -213,7 +213,7 @@ export const BookingsManager: FC = () => {
         { temperature: 0.3, maxTokens: 200 }
       );
       // Generar versión simplificada para la familia
-      const familyPrompt = 'Eres un redactor que traduce reportes de enfermería a lenguaje sencillo para familias no médicas. REGLAS: (1) Usa SOLO los datos proporcionados. (2) Lenguaje cálido pero claro, sin jerga médica. (3) Máximo 60 palabras. (4) Empieza con el nombre del paciente. (5) No des consejos ni recomendaciones. (6) No saludes ni te despides.';
+      const familyPrompt = 'Eres un redactor que traduce reportes de enfermería a lenguaje sencillo para familias no médicas. REGLAS: (1) Usa SOLO los datos proporcionados. (2) Lenguaje cálido pero claro, sin jerga médica. (3) Máximo 100 palabras, puede ser menos. (4) Empieza con el nombre del paciente. (5) No des consejos ni recomendaciones. (6) No saludes ni te despides.';
       const familyContent = `Redacta un mensaje sencillo para la familia sobre la visita de hoy:
 - Paciente: ${patientName}
 - Horario: ${formArrivalTime} a ${formDepartureTime}
@@ -604,6 +604,14 @@ export const BookingsManager: FC = () => {
                           <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Observaciones</label>
                           <textarea value={formObservations} onChange={e => setFormObservations(e.target.value)} rows={3} className="w-full bg-white border border-slate-200 rounded-lg p-2 font-semibold resize-none" placeholder="Notas de la visita..." />
                         </div>
+
+                        {/* Advertencia de inconsistencia */}
+                        {((formConditionArrival === 'Crítico' || formConditionArrival === 'Deteriorado' || formConditionDeparture === 'Empeoró') && !formActivities.some(a => ['Medicación', 'Curación', 'Fisioterapia'].includes(a))) && (
+                          <div className="flex items-start gap-1.5 bg-amber-50 border border-amber-200 rounded-lg p-2 text-[10px] text-amber-700">
+                            <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                            <span>Marcaste un estado grave — considera agregar actividades de atención médica (medicación, curación o fisioterapia) si aplica.</span>
+                          </div>
+                        )}
 
                         <div className="flex gap-2 justify-end pt-1">
                           <button type="button" onClick={() => setEditingBookingId(null)} className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-[11px] cursor-pointer">Cancelar</button>
