@@ -11,11 +11,15 @@ const MAX_MESSAGE_LENGTH = 4000;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 10;
 
-const ALLOWED_ORIGIN = `${Deno.env.get("SUPABASE_URL") || ""}`;
+const ALLOWED_ORIGINS = [
+  "https://localnurse.netlify.app",
+  "https://zqgtkrqfyhcvgagjhbnv.supabase.co",
+];
 
-function corsHeaders() {
+function corsHeaders(origin?: string) {
+  const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
-    "Access-Control-Allow-Origin": ALLOWED_ORIGIN || "https://zqgtkrqfyhcvgagjhbnv.supabase.co",
+    "Access-Control-Allow-Origin": allowed,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Access-Control-Allow-Headers": "authorization, content-type, x-client-info, apikey",
   };
@@ -133,7 +137,7 @@ async function callGroq(
 Deno.serve(async (req: Request) => {
   // CORS
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders() });
+    return new Response(null, { headers: corsHeaders(req.headers.get("Origin") || undefined) });
   }
 
   if (req.method !== "POST") {
@@ -155,7 +159,7 @@ Deno.serve(async (req: Request) => {
         status: 429,
         headers: {
           "Content-Type": "application/json",
-          ...corsHeaders(),
+          ...corsHeaders(req.headers.get("Origin") || undefined),
           "Retry-After": "60",
         },
       },
@@ -209,7 +213,7 @@ Deno.serve(async (req: Request) => {
         status: 200,
         headers: {
           "Content-Type": "application/json",
-          ...corsHeaders(),
+          ...corsHeaders(req.headers.get("Origin") || undefined),
         },
       },
     );
@@ -221,7 +225,7 @@ Deno.serve(async (req: Request) => {
         status: 500,
         headers: {
           "Content-Type": "application/json",
-          ...corsHeaders(),
+          ...corsHeaders(req.headers.get("Origin") || undefined),
         },
       },
     );

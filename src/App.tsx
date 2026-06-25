@@ -575,15 +575,6 @@ function MarketplaceApp() {
                   )}
                 </button>
                 <button
-                  onClick={() => { setActiveTab('clinical-ai'); }}
-                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
-                    activeTab === 'clinical-ai' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  <Sparkles className="h-5 w-5 text-amber-500" />
-                  <span className="text-[9px] font-bold">Apoyo</span>
-                </button>
-                <button
                   onClick={() => { setActiveTab('family-profile-edit'); }}
                   className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
                     activeTab === 'family-profile-edit' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
@@ -591,6 +582,15 @@ function MarketplaceApp() {
                 >
                   <User className="h-5 w-5" />
                   <span className="text-[9px] font-bold">Perfil</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('clinical-ai'); }}
+                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
+                    activeTab === 'clinical-ai' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <Sparkles className="h-5 w-5 text-amber-500" />
+                  <span className="text-[9px] font-bold">Apoyo</span>
                 </button>
                 <button
                   onClick={async () => { await supabase.auth.signOut(); }}
@@ -621,15 +621,6 @@ function MarketplaceApp() {
                   <span className="text-[9px] font-bold">Servicios</span>
                 </button>
                 <button
-                  onClick={() => { setActiveTab('clinical-ai'); }}
-                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
-                    activeTab === 'clinical-ai' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  <Sparkles className="h-5 w-5 text-amber-500" />
-                  <span className="text-[9px] font-bold">Apoyo</span>
-                </button>
-                <button
                   onClick={() => { setActiveTab('nurse-profile-edit'); }}
                   className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
                     activeTab === 'nurse-profile-edit' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
@@ -637,6 +628,15 @@ function MarketplaceApp() {
                 >
                   <Network className="h-5 w-5" />
                   <span className="text-[9px] font-bold">Perfil</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('clinical-ai'); }}
+                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
+                    activeTab === 'clinical-ai' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <Sparkles className="h-5 w-5 text-amber-500" />
+                  <span className="text-[9px] font-bold">Apoyo</span>
                 </button>
                 <button
                   onClick={async () => { await supabase.auth.signOut(); }}
