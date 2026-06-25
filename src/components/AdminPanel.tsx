@@ -1,11 +1,15 @@
-import { useState, useMemo, type FC } from 'react';
+import { useState, useMemo, useEffect, type FC } from 'react';
 import { useApp } from '../context/AppContext';
-import { MessageCircle, ShieldCheck, Users, FileText, Clock, MapPin, Phone, DollarSign, CheckCircle2 } from 'lucide-react';
+import { MessageCircle, ShieldCheck, Users, FileText, Clock, MapPin, Phone, DollarSign, CheckCircle2, TrendingUp, RefreshCw } from 'lucide-react';
 import { CSSPReviewPanel } from './CSSPReviewPanel';
+import { groqChat } from '../lib/groq';
 
 export const AdminPanel: FC = () => {
   const { currentUser, careRequests, careOffers, profiles, nurses, bookings, confirmPayment } = useApp();
-  const [section, setSection] = useState<'notifications' | 'cssp'>('notifications');
+  const [section, setSection] = useState<'summary' | 'notifications' | 'cssp'>('summary');
+  const [dailySummary, setDailySummary] = useState('');
+  const [summaryLoading, setSummaryLoading] = useState(false);
+  const [summaryDate, setSummaryDate] = useState('');
 
   if (!currentUser || currentUser.role !== 'admin') {
     return (
@@ -17,6 +21,83 @@ export const AdminPanel: FC = () => {
 
   const profileMap = useMemo(() => new Map(profiles.map(p => [p.id, p])), [profiles]);
   const nurseMap = useMemo(() => new Map(nurses.map(n => [n.id, n])), [nurses]);
+
+  // Daily metrics
+  const today = new Date().toISOString().split('T')[0];
+  const todayBookings = bookings.filter(b => {
+    const bDate = b.start_time ? new Date(b.start_time).toISOString().split('T')[0] : null;
+    return bDate === today;
+  });
+  const completedToday = bookings.filter(b => b.status === 'completed' && b.check_out_at && new Date(b.check_out_at).toISOString().split('T')[0] === today);
+  const pendingPayments = bookings.filter(b => b.wants_invoice && b.status === 'confirmed' && b.payment_status !== 'paid');
+  const pendingCSSP = nurses.filter(n => n.cssp_verification_status === 'pending' || (!n.cssp_verified && n.cssp_registration));
+  const newNurses = nurses.filter(n => !n.cssp_verified && n.cssp_registration);
+  const newProfiles = profiles.filter(p => p.role === 'user');
+  const cancelledToday = bookings.filter(b => b.status === 'cancelled' && b.check_out_at && new Date(b.check_out_at).toISOString().split('T')[0] === today);
+  const invoicedRevenue = completedToday.filter(b => b.wants_invoice).reduce((sum, b) => sum + 5.65, 0);
+
+  const generateSummary = async () => {
+    setSummaryLoading(true);
+    setSummaryDate(new Date().toLocaleDateString('es-SV', { weekday: 'long', day: 'numeric', month: 'long' }));
+
+    const metrics = {
+      fecha: new Date().toLocaleDateString('es-SV', { weekday: 'long', day: 'numeric', month: 'long' }),
+      servicios_hoy: todayBookings.length,
+      completados_hoy: completedToday.length,
+      cancelados_hoy: cancelledToday.length,
+      pagos_pendientes: pendingPayments.length,
+      enfermeras_por_verificar: pendingCSSP.length,
+      nuevas_enfermeras: newNurses.length,
+      nuevas_familias: newProfiles.length,
+      solicitudes_activas: careRequests.filter(r => r.status === 'open').length,
+      ofertas_pendientes: careOffers.filter(o => o.status === 'pending').length,
+      ingresos_comision: invoicedRevenue.toFixed(2),
+      nombres_nuevas_enfermeras: newNurses.map(n => profileMap.get(n.user_id)?.full_name).filter(Boolean),
+      nombres_nuevas_familias: newProfiles.map(p => p.full_name).filter(Boolean),
+      nombres_por_verificar: pendingCSSP.map(n => ({ nombre: profileMap.get(n.user_id)?.full_name, cssp: n.cssp_registration })).filter(x => x.nombre),
+    };
+
+    const systemPrompt = 'Eres un asistente administrativo de BienCuidar, plataforma de cuidado de salud en El Salvador. Redactas un resumen ejecutivo diario para el administrador. REGLAS: (1) Usa SOLO los datos proporcionados, no inventes. (2) Sé breve, claro y profesional. (3) Si un valor es 0, menciónalo brevemente o omítelo. (4) Destaca lo que requiere acción inmediata (pagos pendientes, enfermeras por verificar). (5) Máximo 120 palabras. (6) Tono directo, sin saludos ni despedidas.';
+
+    const userContent = `Genera el resumen ejecutivo diario con estos datos EXACTOS:
+- Fecha: ${metrics.fecha}
+- Servicios programados hoy: ${metrics.servicios_hoy}
+- Servicios completados hoy: ${metrics.completados_hoy}
+- Servicios cancelados hoy: ${metrics.cancelados_hoy}
+- Pagos pendientes de validar: ${metrics.pagos_pendientes}
+- Enfermeras pendientes de verificar CSSP: ${metrics.enfermeras_por_verificar}${metrics.nombres_por_verificar.length > 0 ? ` (${metrics.nombres_por_verificar.map(x => x.nombre).join(', ')})` : ''}
+- Enfermeras registradas sin verificar: ${metrics.nuevas_enfermeras}${metrics.nombres_nuevas_enfermeras.length > 0 ? ` (${metrics.nombres_nuevas_enfermeras.join(', ')})` : ''}
+- Familias registradas: ${metrics.nuevas_familias}
+- Solicitudes activas: ${metrics.solicitudes_activas}
+- Ofertas pendientes de respuesta: ${metrics.ofertas_pendientes}
+- Ingresos por comisión hoy: $${metrics.ingresos_comision}`;
+
+    try {
+      const content = await groqChat(
+        [{ role: 'system', content: systemPrompt }, { role: 'user', content: userContent }],
+        { temperature: 0.4, maxTokens: 250 }
+      );
+      setDailySummary(content);
+    } catch {
+      // Fallback sin Groq
+      const lines = [
+        `${metrics.fecha}: ${metrics.servicios_hoy} servicios programados, ${metrics.completados_hoy} completados, ${metrics.cancelados_hoy} cancelados.`,
+        metrics.pagos_pendientes > 0 ? `${metrics.pagos_pendientes} pago(s) por validar.` : null,
+        metrics.enfermeras_por_verificar > 0 ? `${metrics.enfermeras_por_verificar} enfermera(s) por verificar CSSP.` : null,
+        metrics.nuevas_enfermeras > 0 ? `${metrics.nuevas_enfermeras} enfermera(s) sin verificar: ${metrics.nombres_nuevas_enfermeras.join(', ')}.` : null,
+        metrics.nuevas_familias > 0 ? `${metrics.nuevas_familias} familia(s) registradas.` : null,
+        `${metrics.solicitudes_activas} solicitudes activas, ${metrics.ofertas_pendientes} ofertas pendientes. Ingresos por comisión: $${metrics.ingresos_comision}.`,
+      ].filter(Boolean);
+      setDailySummary(lines.join(' '));
+    }
+    setSummaryLoading(false);
+  };
+
+  useEffect(() => {
+    if (section === 'summary' && !dailySummary && !summaryLoading) {
+      generateSummary();
+    }
+  }, [section]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const waLink = (phone: string | undefined, message: string) => {
     const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
@@ -38,13 +119,27 @@ export const AdminPanel: FC = () => {
       {/* Section tabs */}
       <div className="flex gap-2 bg-white border border-slate-200 rounded-xl p-1.5">
         <button
+          onClick={() => setSection('summary')}
+          className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+            section === 'summary' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <TrendingUp className="h-3.5 w-3.5 inline mr-1" />
+          Resumen
+        </button>
+        <button
           onClick={() => setSection('notifications')}
           className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
             section === 'notifications' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
           <MessageCircle className="h-3.5 w-3.5 inline mr-1" />
-          Notificaciones WhatsApp
+          Notificaciones
+          {(requestsWithOffers.length + acceptedOffers.length + pendingPayments.length) > 0 && (
+            <span className="ml-1 bg-red-500 text-white text-[8px] font-bold w-4 h-4 rounded-full inline-flex items-center justify-center">
+              {requestsWithOffers.length + acceptedOffers.length + pendingPayments.length}
+            </span>
+          )}
         </button>
         <button
           onClick={() => setSection('cssp')}
@@ -53,9 +148,130 @@ export const AdminPanel: FC = () => {
           }`}
         >
           <ShieldCheck className="h-3.5 w-3.5 inline mr-1" />
-          Revisión CSSP
+          CSSP
+          {pendingCSSP.length > 0 && (
+            <span className="ml-1 bg-amber-500 text-white text-[8px] font-bold w-4 h-4 rounded-full inline-flex items-center justify-center">
+              {pendingCSSP.length}
+            </span>
+          )}
         </button>
       </div>
+
+      {section === 'summary' && (
+        <div className="space-y-4">
+          {/* Daily executive summary */}
+          <div className="bg-gradient-to-r from-indigo-900 to-indigo-950 rounded-2xl p-5 text-white shadow-md">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-indigo-300" />
+                <div>
+                  <h3 className="text-sm font-bold">Resumen del día</h3>
+                  {summaryDate && <p className="text-[10px] text-indigo-300 capitalize">{summaryDate}</p>}
+                </div>
+              </div>
+              <button
+                onClick={generateSummary}
+                disabled={summaryLoading}
+                className="text-[10px] font-bold text-indigo-200 hover:text-white flex items-center gap-1 cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${summaryLoading ? 'animate-spin' : ''}`} />
+                Actualizar
+              </button>
+            </div>
+            {summaryLoading ? (
+              <div className="flex items-center gap-2.5 text-xs text-indigo-200 font-medium py-2">
+                <div className="w-4 h-4 border-2 border-indigo-300 border-t-transparent rounded-full animate-spin"></div>
+                <span>Generando resumen...</span>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-100 leading-relaxed">{dailySummary}</p>
+            )}
+          </div>
+
+          {/* Quick metrics grid */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white border border-slate-200 rounded-xl p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Clock className="h-3.5 w-3.5 text-indigo-500" />
+                <span className="text-[10px] font-bold text-slate-500 uppercase">Servicios hoy</span>
+              </div>
+              <p className="text-xl font-bold text-slate-800">{todayBookings.length}</p>
+              <p className="text-[10px] text-slate-400">{completedToday.length} completados</p>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-xl p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <DollarSign className="h-3.5 w-3.5 text-amber-500" />
+                <span className="text-[10px] font-bold text-slate-500 uppercase">Pagos pendientes</span>
+              </div>
+              <p className="text-xl font-bold text-slate-800">{pendingPayments.length}</p>
+              <p className="text-[10px] text-slate-400">por validar</p>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-xl p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+                <span className="text-[10px] font-bold text-slate-500 uppercase">CSSP</span>
+              </div>
+              <p className="text-xl font-bold text-slate-800">{pendingCSSP.length}</p>
+              <p className="text-[10px] text-slate-400">por verificar</p>
+            </div>
+            <div className="bg-white border border-slate-200 rounded-xl p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Users className="h-3.5 w-3.5 text-indigo-500" />
+                <span className="text-[10px] font-bold text-slate-500 uppercase">Nuevos hoy</span>
+              </div>
+              <p className="text-xl font-bold text-slate-800">{newNurses.length + newProfiles.length}</p>
+              <p className="text-[10px] text-slate-400">{newNurses.length} sin verificar, {newProfiles.length} familias</p>
+            </div>
+          </div>
+
+          {/* Action items */}
+          {(pendingPayments.length > 0 || pendingCSSP.length > 0 || requestsWithOffers.length > 0 || acceptedOffers.length > 0) && (
+            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+              <div className="px-4 py-3 bg-amber-50 border-b border-amber-100">
+                <h3 className="text-xs font-bold text-amber-800 uppercase tracking-wide">Requiere atención</h3>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {pendingPayments.length > 0 && (
+                  <button onClick={() => setSection('notifications')} className="w-full px-4 py-3 flex items-center justify-between text-left cursor-pointer hover:bg-slate-50">
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">{pendingPayments.length} pago(s) por validar</p>
+                      <p className="text-[10px] text-slate-400">Servicios con factura pendientes</p>
+                    </div>
+                    <DollarSign className="h-4 w-4 text-amber-500" />
+                  </button>
+                )}
+                {pendingCSSP.length > 0 && (
+                  <button onClick={() => setSection('cssp')} className="w-full px-4 py-3 flex items-center justify-between text-left cursor-pointer hover:bg-slate-50">
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">{pendingCSSP.length} enfermera(s) por verificar CSSP</p>
+                      <p className="text-[10px] text-slate-400">Revisión pendiente</p>
+                    </div>
+                    <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                  </button>
+                )}
+                {requestsWithOffers.length > 0 && (
+                  <button onClick={() => setSection('notifications')} className="w-full px-4 py-3 flex items-center justify-between text-left cursor-pointer hover:bg-slate-50">
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">{requestsWithOffers.length} familia(s) por notificar</p>
+                      <p className="text-[10px] text-slate-400">Tienen ofertas pendientes</p>
+                    </div>
+                    <MessageCircle className="h-4 w-4 text-indigo-500" />
+                  </button>
+                )}
+                {acceptedOffers.length > 0 && (
+                  <button onClick={() => setSection('notifications')} className="w-full px-4 py-3 flex items-center justify-between text-left cursor-pointer hover:bg-slate-50">
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">{acceptedOffers.length} enfermera(s) por avisar</p>
+                      <p className="text-[10px] text-slate-400">Ofertas aceptadas, notificar</p>
+                    </div>
+                    <MessageCircle className="h-4 w-4 text-emerald-500" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {section === 'notifications' && (
         <div className="space-y-4">
