@@ -5,7 +5,7 @@
 
 export type UserRole = 'user' | 'nurse' | 'admin';
 
-export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+export type BookingStatus = 'pending' | 'pending_payment' | 'confirmed' | 'completed' | 'cancelled';
 
 export type CareRequestStatus = 'open' | 'matched' | 'closed' | 'expired';
 

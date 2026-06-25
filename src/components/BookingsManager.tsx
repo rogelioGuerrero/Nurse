@@ -264,6 +264,8 @@ export const BookingsManager: FC = () => {
     switch (status) {
       case 'pending':
         return <span className="bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">Pendiente</span>;
+      case 'pending_payment':
+        return <span className="bg-orange-50 text-orange-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-orange-200">Esperando pago</span>;
       case 'confirmed':
         return <span className="bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-200">Confirmado</span>;
       case 'completed':
@@ -306,7 +308,7 @@ export const BookingsManager: FC = () => {
 
   // Ordenar bookings por fecha
   const allSortedBookings = [...filteredBookings].sort((a, b) => a.date.localeCompare(b.date));
-  const upcomingBookings = allSortedBookings.filter(b => b.status === 'confirmed' || b.status === 'pending');
+  const upcomingBookings = allSortedBookings.filter(b => b.status === 'confirmed' || b.status === 'pending' || b.status === 'pending_payment');
   const completedBookings = allSortedBookings.filter(b => b.status === 'completed' || b.status === 'cancelled');
   const visibleBookings = activeServiceTab === 'upcoming' ? upcomingBookings : completedBookings;
 
@@ -358,7 +360,7 @@ export const BookingsManager: FC = () => {
               if (!dateStr) return <div key={i} />;
               const dayBookings = bookingsByDate.get(dateStr) || [];
               const hasBooked = dayBookings.length > 0;
-              const hasConfirmed = dayBookings.some(b => b.status === 'confirmed');
+              const hasConfirmed = dayBookings.some(b => b.status === 'confirmed' || b.status === 'pending_payment');
               const hasCompleted = dayBookings.some(b => b.status === 'completed');
               const hasPending = dayBookings.some(b => b.status === 'pending');
               const dayNum = parseInt(dateStr.split('-')[2]);
@@ -747,6 +749,23 @@ export const BookingsManager: FC = () => {
                   );
                 })()}
 
+                {/* Pending payment banner (invoice bookings awaiting transfer) */}
+                {b.status === 'pending_payment' && (
+                  <div className="px-3 py-2 border-t bg-orange-50 border-orange-100 flex items-center gap-2 text-[10px] text-orange-700">
+                    <DollarSign className="h-3.5 w-3.5" />
+                    {isNurseView ? (
+                      <span className="font-bold">Esperando pago de la familia a BienCuidar. No asistas hasta que se confirme.</span>
+                    ) : (
+                      <button
+                        onClick={() => setPaymentBookingId(b.id)}
+                        className="font-bold text-orange-700 hover:underline cursor-pointer"
+                      >
+                        Transfiere a BienCuidar para confirmar el servicio
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* Payment status badge */}
                 {(b.status === 'confirmed' || b.status === 'completed') && (
                   <div className={`px-3 py-2 border-t flex items-center gap-2 text-[10px] ${
@@ -853,6 +872,11 @@ export const BookingsManager: FC = () => {
 
                 {/* Action buttons */}
                 <div className="flex items-center justify-end gap-2 p-3 border-t border-slate-100/60">
+                  {b.status === 'pending_payment' && (
+                    !isNurseView ? (
+                      <button onClick={() => updateBookingStatus(b.id, 'cancelled').catch(console.error)} className="text-[10px] font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg cursor-pointer">Cancelar</button>
+                    ) : null
+                  )}
                   {b.status === 'pending' && (
                     <>
                       {isNurseView ? (

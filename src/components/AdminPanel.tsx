@@ -30,7 +30,7 @@ export const AdminPanel: FC = () => {
     return bDate === today;
   });
   const completedToday = bookings.filter(b => b.status === 'completed' && b.check_out_at && new Date(b.check_out_at).toISOString().split('T')[0] === today);
-  const pendingPayments = bookings.filter(b => b.wants_invoice && b.status === 'confirmed' && b.payment_status !== 'paid');
+  const pendingPayments = bookings.filter(b => b.wants_invoice && (b.status === 'confirmed' || b.status === 'pending_payment') && b.payment_status !== 'paid');
   const pendingCSSP = nurses.filter(n => n.cssp_verification_status === 'pending' || (!n.cssp_verified && n.cssp_registration));
   const newNurses = nurses.filter(n => !n.cssp_verified && n.cssp_registration);
   const newProfiles = profiles.filter(p => p.role === 'user');
@@ -422,17 +422,17 @@ Mensaje para avisarle que revise los detalles en la app.`;
           </div>
 
           {/* Transfers to validate — only for invoiced bookings */}
-          {bookings.filter(b => b.wants_invoice && b.status === 'confirmed' && b.payment_status !== 'paid').length > 0 && (
+          {bookings.filter(b => b.wants_invoice && (b.status === 'confirmed' || b.status === 'pending_payment') && b.payment_status !== 'paid').length > 0 && (
             <div className="bg-white border border-amber-200 rounded-2xl overflow-hidden">
               <div className="px-4 py-3 bg-amber-50 border-b border-amber-100">
                 <h3 className="text-xs font-bold text-amber-800 uppercase tracking-wide flex items-center gap-1.5">
                   <DollarSign className="h-4 w-4" />
-                  Transferencias por validar ({bookings.filter(b => b.wants_invoice && b.status === 'confirmed' && b.payment_status !== 'paid').length})
+                  Transferencias por validar ({bookings.filter(b => b.wants_invoice && (b.status === 'confirmed' || b.status === 'pending_payment') && b.payment_status !== 'paid').length})
                 </h3>
                 <p className="text-[10px] text-slate-500 mt-0.5">Servicios con factura. Confirma que la familia transfirió a la cuenta de BienCuidar.</p>
               </div>
               <div className="divide-y divide-slate-100">
-                {bookings.filter(b => b.wants_invoice && b.status === 'confirmed' && b.payment_status !== 'paid').map(b => {
+                {bookings.filter(b => b.wants_invoice && (b.status === 'confirmed' || b.status === 'pending_payment') && b.payment_status !== 'paid').map(b => {
                   const family = profileMap.get(b.user_id);
                   const nurse = nurseMap.get(b.nurse_id);
                   const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;

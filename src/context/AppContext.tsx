@@ -657,7 +657,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   // Action: Create booking (Supabase only, no localStorage fallback)
-  const createBooking = async (bookingData: Omit<Booking, 'id' | 'user_id' | 'created_at' | 'status'>) => {
+  const createBooking = async (bookingData: Omit<Booking, 'id' | 'user_id' | 'created_at' | 'status'> & { status?: Booking['status'] }) => {
     if (!currentUser) throw new Error('Debes iniciar sesión para agendar.');
     
     // Validate no double-booking: same nurse, same date, overlapping time
@@ -672,11 +672,12 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       throw new Error('Esta enfermera ya tiene una reserva en ese horario. Elige otra fecha u hora.');
     }
     
+    const bookingStatus = bookingData.status || 'confirmed';
     const newBooking: Booking = {
       ...bookingData,
       id: crypto.randomUUID(),
       user_id: currentUser.id,
-      status: 'confirmed',
+      status: bookingStatus,
       created_at: new Date().toISOString()
     };
 
@@ -690,7 +691,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           start_time: bookingData.start_time,
           end_time: bookingData.end_time,
           hours: bookingData.hours,
-          status: 'confirmed',
+          status: bookingStatus,
           total_price: bookingData.total_price,
           notes: bookingData.notes,
           patient_name: bookingData.patient_name,
@@ -755,6 +756,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         lng: request.lng,
         location_name: request.location_name,
         wants_invoice: request.wants_invoice,
+        status: request.wants_invoice ? 'pending_payment' : 'confirmed',
       });
 
       // Auto-withdraw nurse's other pending offers for the same date (server-side)
@@ -825,15 +827,16 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const confirmPayment = async (bookingId: string) => {
-    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, payment_status: 'paid' } : b));
+    const booking = bookings.find(b => b.id === bookingId);
+    const newStatus = booking?.status === 'pending_payment' ? 'confirmed' : booking?.status;
+    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, payment_status: 'paid', status: newStatus || b.status } : b));
     try {
       const { error } = await supabase
         .from('bookings')
-        .update({ payment_status: 'paid' })
+        .update({ payment_status: 'paid', status: newStatus })
         .eq('id', bookingId);
       if (error) throw error;
       // Notify nurse that payment is confirmed
-      const booking = bookings.find(b => b.id === bookingId);
       if (booking) {
         const nurse = nurses.find(n => n.id === booking.nurse_id);
         if (nurse && currentUser?.id !== nurse.user_id) {
@@ -842,7 +845,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       }
     } catch (err) {
       // Rollback on error
-      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, payment_status: 'pending' } : b));
+      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, payment_status: 'pending', status: booking?.status || b.status } : b));
       console.warn('Payment confirmation failed, rolled back:', err);
     }
   };
