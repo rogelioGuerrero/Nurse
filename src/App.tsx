@@ -594,13 +594,6 @@ function MarketplaceApp() {
                   <span className="text-[9px] font-bold">Apoyo</span>
                 </button>
                 <button
-                  onClick={() => openSupport('Hola, soy enfermera en BienCuidar y necesito ayuda')}
-                  className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer text-slate-400 hover:text-green-600"
-                >
-                  <MessageCircle className="h-5 w-5" />
-                  <span className="text-[9px] font-bold">Soporte</span>
-                </button>
-                <button
                   onClick={async () => { await supabase.auth.signOut(); }}
                   className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer text-slate-400 hover:text-rose-600"
                 >
@@ -657,6 +650,17 @@ function MarketplaceApp() {
             )}
           </div>
         </nav>
+      )}
+
+      {/* Floating WhatsApp support button - visible on all screens when logged in */}
+      {currentUser && (
+        <button
+          onClick={() => openSupport(currentUser.role === 'nurse' ? 'Hola, soy enfermera en BienCuidar y necesito ayuda' : 'Hola, necesito ayuda con BienCuidar')}
+          className="fixed bottom-20 right-4 w-12 h-12 bg-green-500 hover:bg-green-600 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition z-40 cursor-pointer"
+          aria-label="Soporte por WhatsApp"
+        >
+          <MessageCircle className="h-6 w-6 text-white" />
+        </button>
       )}
 
     </div>
