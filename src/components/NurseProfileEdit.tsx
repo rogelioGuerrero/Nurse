@@ -545,7 +545,7 @@ export const NurseProfileEdit: FC = () => {
                   onChange={(e) => setPaymentPreference(e.target.value as PaymentPreference)}
                   className="w-full text-xs font-medium bg-white border border-slate-200 outline-none rounded-xl px-3 py-2.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
                 >
-                  <option value="per_shift">Pago por turno (modelo actual)</option>
+                  <option value="per_shift">Pago por turno</option>
                   <option value="service_contract">Contrato de servicios profesionales</option>
                   <option value="both">Ambos me funcionan</option>
                 </select>

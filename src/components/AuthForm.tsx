@@ -71,16 +71,14 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
       return;
     }
 
-    if (role === 'family') {
-      const phoneTrimmed = phone.trim();
-      if (!phoneTrimmed) {
-        setError('El teléfono es obligatorio para las familias');
-        return;
-      }
-      if (phoneTrimmed.replace(/\D/g, '').length < 8) {
-        setError('Ingresa un teléfono válido (mínimo 8 dígitos)');
-        return;
-      }
+    const phoneTrimmed = phone.trim();
+    if (!phoneTrimmed) {
+      setError('El teléfono es obligatorio');
+      return;
+    }
+    if (phoneTrimmed.replace(/\D/g, '').length < 8) {
+      setError('Ingresa un teléfono válido (mínimo 8 dígitos)');
+      return;
     }
 
     if (role === 'nurse') {
@@ -156,7 +154,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
             coverage_radius: 10,
             available_shifts: ['morning'],
             available_days: [1, 2, 3, 4, 5],
-            rating: 0,
+            rating: 5.0,
             review_count: 0,
             lat: 13.6929,
             lng: -89.2182,
@@ -420,7 +418,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
             </div>
           )}
 
-          {authMode === 'register' && role === 'family' && (
+          {authMode === 'register' && (
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
                 Teléfono / WhatsApp *
@@ -437,7 +435,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
                   className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
                 />
               </div>
-              <p className="text-[10px] text-slate-400">Para coordinar con la enfermera. No se comparte públicamente.</p>
+              <p className="text-[10px] text-slate-400">{role === 'nurse' ? 'Para que las familias te contacten tras aceptar una oferta.' : 'Para coordinar con la enfermera. No se comparte públicamente.'}</p>
             </div>
           )}
 
@@ -527,7 +525,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
                     onChange={(e) => setPaymentPreference(e.target.value as PaymentPreference)}
                     className="w-full bg-transparent pl-3 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm appearance-none"
                   >
-                    <option value="per_shift">Pago por turno (modelo actual)</option>
+                    <option value="per_shift">Pago por turno</option>
                     <option value="service_contract">Contrato de servicios profesionales</option>
                     <option value="both">Ambos me funcionan</option>
                   </select>

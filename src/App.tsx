@@ -6,6 +6,7 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { AppContextProvider, useApp } from './context/AppContext';
 import { supabase } from './lib/supabase';
+import { openSupport } from './lib/support';
 import { MapComponent } from './components/MapComponent';
 import { SearchFilters } from './components/SearchFilters';
 import { ToastProvider } from './components/Toast';
@@ -591,6 +592,13 @@ function MarketplaceApp() {
                 >
                   <Sparkles className="h-5 w-5 text-amber-500" />
                   <span className="text-[9px] font-bold">Apoyo</span>
+                </button>
+                <button
+                  onClick={() => openSupport('Hola, soy enfermera en BienCuidar y necesito ayuda')}
+                  className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer text-slate-400 hover:text-green-600"
+                >
+                  <MessageCircle className="h-5 w-5" />
+                  <span className="text-[9px] font-bold">Soporte</span>
                 </button>
                 <button
                   onClick={async () => { await supabase.auth.signOut(); }}

@@ -1,6 +1,7 @@
 import { type FC, useState, useRef } from 'react';
-import { Stethoscope, Search, ShieldCheck, Calendar, DollarSign, ChevronDown, ChevronUp, UserCheck, Clock, MapPin, FileText, CheckCircle2 } from 'lucide-react';
+import { Stethoscope, Search, ShieldCheck, Calendar, DollarSign, ChevronDown, ChevronUp, UserCheck, Clock, MapPin, FileText, CheckCircle2, MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { openSupport } from '../lib/support';
 
 interface LandingPageProps {
   onFamily: () => void;
@@ -58,7 +59,7 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
 
   const steps = [
     { icon: UserCheck, title: 'Regístrate', desc: 'Crea tu cuenta con tus datos profesionales y número de CSSP.' },
-    { icon: ShieldCheck, title: 'Verificamos tu CSSP', desc: 'Confirmamos tu registro ante el CSSP. Las familias ven tu badge de verificación.' },
+    { icon: ShieldCheck, title: 'Verificamos tu CSSP', desc: 'Confirmamos tu registro ante el CSSP. Las familias ven tu sello de verificación.' },
     { icon: Stethoscope, title: 'Recibe solicitudes', desc: 'Las familias publican solicitudes. Tú ves los detalles y decides cuáles aceptar.' },
   ];
 
@@ -210,6 +211,15 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
         </div>
 
       </div>
+
+      {/* Floating WhatsApp support button */}
+      <button
+        onClick={() => openSupport('Hola, tengo una duda sobre BienCuidar')}
+        className="fixed bottom-5 right-5 w-14 h-14 bg-green-500 hover:bg-green-600 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition z-50 cursor-pointer"
+        aria-label="Soporte por WhatsApp"
+      >
+        <MessageCircle className="h-7 w-7 text-white" />
+      </button>
     </div>
   );
 };
