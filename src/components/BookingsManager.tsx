@@ -33,7 +33,9 @@ export const BookingsManager: FC = () => {
     careLogs,
     saveCareLog,
     nurseReviews,
-    submitReview
+    submitReview,
+    familyReviews,
+    submitFamilyReview
   } = useApp();
 
   const isNurseView = currentUser?.role === 'nurse';
@@ -77,6 +79,12 @@ export const BookingsManager: FC = () => {
   const [reviewComment, setReviewComment] = useState('');
   const [reviewingBookingId, setReviewingBookingId] = useState<string | null>(null);
   const [hoverRating, setHoverRating] = useState(0);
+
+  // Family review state (nurse rates family)
+  const [familyReviewRating, setFamilyReviewRating] = useState(0);
+  const [familyReviewComment, setFamilyReviewComment] = useState('');
+  const [reviewingFamilyBookingId, setReviewingFamilyBookingId] = useState<string | null>(null);
+  const [hoverFamilyRating, setHoverFamilyRating] = useState(0);
 
   // Calendario
   const [calendarMonth, setCalendarMonth] = useState(() => {
@@ -744,6 +752,88 @@ export const BookingsManager: FC = () => {
                       >
                         <Star className="h-3.5 w-3.5" />
                         Calificar enfermera
+                      </button>
+                    </div>
+                  );
+                })()}
+
+                {/* Family review - nurse only, completed bookings */}
+                {b.status === 'completed' && isNurseView && (() => {
+                  const existingFamilyReview = familyReviews.find(r => r.booking_id === b.id);
+                  if (existingFamilyReview) {
+                    return (
+                      <div className="border-t border-slate-100 p-3">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                          <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                          <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">Tu calificación de la familia</span>
+                        </div>
+                        <div className="flex items-center gap-0.5 mb-1">
+                          {[1, 2, 3, 4, 5].map(n => (
+                            <Star key={n} className={`h-3.5 w-3.5 ${n <= existingFamilyReview.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-300'}`} />
+                          ))}
+                        </div>
+                        {existingFamilyReview.comment && (
+                          <p className="text-[11px] text-slate-600 italic">"{existingFamilyReview.comment}"</p>
+                        )}
+                      </div>
+                    );
+                  }
+                  if (reviewingFamilyBookingId === b.id) {
+                    return (
+                      <div className="border-t border-slate-100 p-3 space-y-3">
+                        <div className="flex items-center gap-1.5">
+                          <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400" />
+                          <span className="text-[10px] font-bold text-slate-700 uppercase tracking-wider">Califica a la familia</span>
+                        </div>
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4, 5].map(n => (
+                            <button
+                              key={n}
+                              onClick={() => setFamilyReviewRating(n)}
+                              onMouseEnter={() => setHoverFamilyRating(n)}
+                              onMouseLeave={() => setHoverFamilyRating(0)}
+                              className="cursor-pointer"
+                            >
+                              <Star className={`h-6 w-6 transition ${(hoverFamilyRating || familyReviewRating) >= n ? 'text-amber-400 fill-amber-400' : 'text-slate-300'}`} />
+                            </button>
+                          ))}
+                        </div>
+                        <textarea
+                          value={familyReviewComment}
+                          onChange={e => setFamilyReviewComment(e.target.value)}
+                          rows={2}
+                          placeholder="¿Cómo fue la experiencia con esta familia? (opcional)"
+                          className="w-full bg-white border border-slate-200 rounded-lg p-2 text-xs resize-none"
+                        />
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={() => { setReviewingFamilyBookingId(null); setFamilyReviewRating(0); setFamilyReviewComment(''); }}
+                            className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-[11px] cursor-pointer"
+                          >Cancelar</button>
+                          <button
+                            onClick={async () => {
+                              if (familyReviewRating > 0) {
+                                await submitFamilyReview(b.id, b.nurse_id, b.user_id, familyReviewRating, familyReviewComment.trim() || undefined);
+                                setReviewingFamilyBookingId(null);
+                                setFamilyReviewRating(0);
+                                setFamilyReviewComment('');
+                              }
+                            }}
+                            disabled={familyReviewRating === 0}
+                            className="bg-amber-500 hover:bg-amber-400 text-white px-4 py-1.5 rounded-lg font-bold text-[11px] cursor-pointer disabled:opacity-40"
+                          >Enviar calificación</button>
+                        </div>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="border-t border-slate-100 p-3">
+                      <button
+                        onClick={() => setReviewingFamilyBookingId(b.id)}
+                        className="w-full flex items-center justify-center gap-1.5 text-[10px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 py-2 rounded-lg border border-amber-200 cursor-pointer"
+                      >
+                        <Star className="h-3.5 w-3.5" />
+                        Calificar familia
                       </button>
                     </div>
                   );

@@ -4,7 +4,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, useCallback, type FC, type ReactNode } from 'react';
-import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareRequestStatus, CareOffer, CareOfferStatus, ShiftType, SHIFTS, NurseReview } from '../types';
+import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareRequestStatus, CareOffer, CareOfferStatus, ShiftType, SHIFTS, NurseReview, FamilyReview } from '../types';
 import { INITIAL_NURSES } from '../data/nurses';
 import { supabase } from '../lib/supabase';
 import { getResponseDeadline } from '../data/platformSettings';
@@ -67,6 +67,8 @@ interface AppContextType {
   acceptCareOffer: (offerId: string) => void;
   nurseReviews: NurseReview[];
   submitReview: (bookingId: string, nurseId: string, rating: number, comment?: string) => Promise<void>;
+  familyReviews: FamilyReview[];
+  submitFamilyReview: (bookingId: string, nurseId: string, userId: string, rating: number, comment?: string) => Promise<void>;
   confirmPayment: (bookingId: string) => Promise<void>;
   updatePatientName: (requestId: string, patientName: string, patientAge?: string, emergencyContact?: string) => Promise<void>;
   updateRequestLocation: (requestId: string, lat: number, lng: number, locationName: string) => Promise<void>;
@@ -254,6 +256,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       // Reviews: public to authenticated
       const { data: reviewsData } = await supabase.from('nurse_reviews').select('*');
       if (reviewsData) setNurseReviews(reviewsData);
+      const { data: familyReviewsData } = await supabase.from('family_reviews').select('*');
+      if (familyReviewsData) setFamilyReviews(familyReviewsData);
     };
 
     loadData();
@@ -397,6 +401,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       lng: data.lng,
       notes: data.notes || null,
       wants_invoice: data.wants_invoice,
+      expected_duration: data.expected_duration || 'shifts',
       status: 'open',
       response_deadline: newRequest.response_deadline,
       created_at: now
@@ -796,6 +801,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
 
   // Nurse reviews
   const [nurseReviews, setNurseReviews] = useState<NurseReview[]>([]);
+  // Family reviews (nurse rates family)
+  const [familyReviews, setFamilyReviews] = useState<FamilyReview[]>([]);
 
   const submitReview = async (bookingId: string, nurseId: string, rating: number, comment?: string) => {
     if (!currentUser) return;
@@ -823,6 +830,35 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       if (error) throw error;
     } catch {
       console.warn('Failed to save review to Supabase');
+    }
+  };
+
+  const submitFamilyReview = async (bookingId: string, nurseId: string, userId: string, rating: number, comment?: string) => {
+    if (!currentUser) return;
+    const newReview: FamilyReview = {
+      id: crypto.randomUUID(),
+      booking_id: bookingId,
+      nurse_id: nurseId,
+      user_id: userId,
+      rating,
+      comment,
+      created_at: new Date().toISOString(),
+    };
+    setFamilyReviews(prev => [...prev, newReview]);
+
+    try {
+      const { error } = await supabase
+        .from('family_reviews')
+        .insert({
+          booking_id: bookingId,
+          nurse_id: nurseId,
+          user_id: userId,
+          rating,
+          comment: comment || null,
+        });
+      if (error) throw error;
+    } catch {
+      console.warn('Failed to save family review to Supabase');
     }
   };
 
@@ -1126,6 +1162,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       acceptCareOffer,
       nurseReviews,
       submitReview,
+      familyReviews,
+      submitFamilyReview,
       confirmPayment,
       updatePatientName,
       updateRequestLocation,

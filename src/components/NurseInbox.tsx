@@ -4,6 +4,7 @@ import { calculateNurseNet } from '../data/standardRates';
 import type { CareRequest, Nurse, Profile, CareOffer } from '../types';
 import { SHIFTS, type ShiftType } from '../types';
 import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User, Sun, Sunset, Moon, FileText, Send } from 'lucide-react';
+import { FamilyTrustBadge } from './FamilyTrustBadge';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -57,7 +58,7 @@ function getProfileSuggestions(nurse: Nurse | undefined, offer: CareOffer | unde
 }
 
 export const NurseInbox: FC = () => {
-  const { careRequests, careOffers, nurses, profiles, currentUser, createCareOffer, withdrawCareOffer } = useApp();
+  const { careRequests, careOffers, nurses, profiles, currentUser, createCareOffer, withdrawCareOffer, familyReviews } = useApp();
 
   // Modal de ajuste de tarifa
   const [acceptModal, setAcceptModal] = useState<{ request: CareRequest; slotIndex: number } | null>(null);
@@ -78,6 +79,21 @@ export const NurseInbox: FC = () => {
       .filter(req => !careOffers.some(o => o.request_id === req.id && o.nurse_id === myNurse.id))
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [careRequests, careOffers, myNurse]);
+
+  // Check if nurse's assignment_availability is compatible with request's expected_duration
+  const isDurationCompatible = (req: CareRequest): boolean => {
+    const nurseAvail: string = myNurse?.assignment_availability || 'shifts_only';
+    const duration: string = req.expected_duration || 'shifts';
+    if (nurseAvail === 'flexible') return true;
+    if (duration === 'unsure' || duration === 'shifts') return true;
+    if (duration === 'up_to_2_weeks') {
+      return ['up_to_2_weeks', 'up_to_1_month', 'flexible'].includes(nurseAvail);
+    }
+    if (duration === 'up_to_1_month') {
+      return ['up_to_1_month', 'flexible'].includes(nurseAvail);
+    }
+    return true;
+  };
 
   // This nurse's offers — excluding accepted (go to Servicios) and declined/rejected older than 48h
   const myOffersList = useMemo(() => {
@@ -219,11 +235,44 @@ export const NurseInbox: FC = () => {
                         <MapPin className="h-3 w-3 flex-shrink-0" />
                         <span className="truncate">{req.location_name}</span>
                       </div>
+                      <div className="mt-1">
+                        <FamilyTrustBadge familyProfile={familyProfile} familyReviews={familyReviews} variant="compact" />
+                      </div>
                     </div>
                     <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full flex-shrink-0">
                       {req.specialization_needed}
                     </span>
                   </div>
+
+                  {/* Duration indicator based on expected_duration */}
+                  {(() => {
+                    const duration = req.expected_duration || 'shifts';
+                    const compatible = isDurationCompatible(req);
+                    if (duration === 'shifts') return null;
+                    const labels: Record<string, string> = {
+                      up_to_2_weeks: 'Hasta 2 semanas',
+                      up_to_1_month: '1 mes o más',
+                      unsure: 'Duración por definir',
+                    };
+                    const colors: Record<string, string> = {
+                      up_to_2_weeks: 'bg-amber-50 text-amber-700 border-amber-100',
+                      up_to_1_month: 'bg-emerald-50 text-emerald-700 border-emerald-100',
+                      unsure: 'bg-slate-50 text-slate-500 border-slate-100',
+                    };
+                    return (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full border ${colors[duration]}`}>
+                          <Calendar className="h-3 w-3" />
+                          {labels[duration]}
+                        </span>
+                        {!compatible && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-rose-50 text-rose-600 border border-rose-100">
+                            No coincide con tu disponibilidad
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Patient info */}
                   <div className="bg-slate-50 rounded-xl p-3 space-y-1.5">

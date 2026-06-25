@@ -34,6 +34,9 @@ export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0=Dom ... 6=Sab
 
 export type CSSPVerificationStatus = 'unverified' | 'pending' | 'auto_verified' | 'manual_verified' | 'rejected';
 
+export type AssignmentAvailability = 'shifts_only' | 'up_to_2_weeks' | 'up_to_1_month' | 'flexible';
+export type PaymentPreference = 'per_shift' | 'service_contract' | 'both';
+
 export interface Nurse {
   id: string; // UUID
   user_id: string; // profiles FK
@@ -61,6 +64,8 @@ export interface Nurse {
     college_registration?: string; // Número de registro del colegio/asociación
   };
   // FSE y retencion 10% ISR son automaticos para todas las enfermeras en BienCuidar
+  assignment_availability?: AssignmentAvailability;
+  payment_preference?: PaymentPreference;
 }
 
 export interface Booking {
@@ -121,6 +126,8 @@ export interface CareRequestSlot {
   shift: ShiftType; // morning | afternoon | night
 }
 
+export type ExpectedDuration = 'shifts' | 'up_to_2_weeks' | 'up_to_1_month' | 'unsure';
+
 export interface CareRequest {
   id: string;
   user_id: string; // family profile who posted
@@ -140,6 +147,7 @@ export interface CareRequest {
   lng?: number;
   notes?: string;
   wants_invoice: boolean;
+  expected_duration?: ExpectedDuration;
   status: CareRequestStatus;
   response_deadline: string; // ISO datetime when the response window closes
   created_at: string;
@@ -162,6 +170,16 @@ export interface NurseReview {
   booking_id: string;
   nurse_id: string;
   user_id: string;
+  rating: number;
+  comment?: string;
+  created_at: string;
+}
+
+export interface FamilyReview {
+  id: string;
+  booking_id: string;
+  nurse_id: string;
+  user_id: string; // family profile being reviewed
   rating: number;
   comment?: string;
   created_at: string;

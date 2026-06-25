@@ -1,9 +1,10 @@
 import { useState, useEffect, type FC } from 'react';
-import { Stethoscope, User, Mail, Lock, ArrowLeft, CheckCircle2, AlertCircle, FileText, ShieldAlert, BadgeCheck } from 'lucide-react';
-import type { Nurse } from '../types';
+import { Stethoscope, User, Mail, Lock, ArrowLeft, CheckCircle2, AlertCircle, FileText, ShieldAlert, BadgeCheck, Phone } from 'lucide-react';
+import type { Nurse, AssignmentAvailability, PaymentPreference } from '../types';
 import { supabase } from '../lib/supabase';
 import { TermsAndConditions } from './TermsAndConditions';
 import { validateCSSPRegistration } from '../lib/csspValidation';
+import { verifyCSSP } from '../lib/csspVerify';
 
 interface AuthFormProps {
   mode: 'login' | 'register';
@@ -30,6 +31,9 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
   const [csspRegistration, setCsspRegistration] = useState('');
   const [csspLevel, setCsspLevel] = useState<'Licenciada' | 'Tecnóloga' | 'Técnica' | 'Auxiliar'>('Técnica');
   const [dui, setDui] = useState('');
+  const [phone, setPhone] = useState('');
+  const [assignmentAvailability, setAssignmentAvailability] = useState<AssignmentAvailability>('shifts_only');
+  const [paymentPreference, setPaymentPreference] = useState<PaymentPreference>('per_shift');
 
   const validateEmail = (value: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -65,6 +69,18 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
     if (!acceptedTerms) {
       setError('Debes aceptar los Términos y Condiciones para registrarte');
       return;
+    }
+
+    if (role === 'family') {
+      const phoneTrimmed = phone.trim();
+      if (!phoneTrimmed) {
+        setError('El teléfono es obligatorio para las familias');
+        return;
+      }
+      if (phoneTrimmed.replace(/\D/g, '').length < 8) {
+        setError('Ingresa un teléfono válido (mínimo 8 dígitos)');
+        return;
+      }
     }
 
     if (role === 'nurse') {
@@ -119,7 +135,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
           email: email,
           full_name: fullName,
           role: role === 'nurse' ? 'nurse' : 'user',
-          phone: '',
+          phone: phone.trim(),
           location_name: ''
         });
 
@@ -131,7 +147,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
 
       // If nurse, create Nurse profile
       if (role === 'nurse') {
-        const { error: nurseError } = await supabase
+        const { data: nurseData, error: nurseError } = await supabase
           .from('nurses')
           .insert({
             user_id: authData.user.id,
@@ -151,13 +167,23 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
             cssp_level: csspLevel,
             dui: dui.trim(),
             cssp_verification_status: 'unverified',
-            cssp_verified: false
-          });
+            cssp_verified: false,
+            assignment_availability: assignmentAvailability,
+            payment_preference: paymentPreference
+          })
+          .select('id')
+          .single();
 
         if (nurseError) {
           setError('Error al crear perfil de enfermera: ' + nurseError.message);
           setLoading(false);
           return;
+        }
+
+        // Disparar verificación CSSP automática en background
+        if (nurseData?.id) {
+          verifyCSSP(nurseData.id, csspRegistration, fullName, csspLevel)
+            .catch(() => {});
         }
       }
       
@@ -394,6 +420,27 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
             </div>
           )}
 
+          {authMode === 'register' && role === 'family' && (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                Teléfono / WhatsApp *
+              </label>
+              <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
+                  <Phone className="h-4 w-4" />
+                </div>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="7000-1234"
+                  className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
+                />
+              </div>
+              <p className="text-[10px] text-slate-400">Para coordinar con la enfermera. No se comparte públicamente.</p>
+            </div>
+          )}
+
           {authMode === 'register' && role === 'nurse' && (
             <>
               <div className="space-y-1.5">
@@ -450,6 +497,42 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
                     className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
                   />
                 </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                  Disponibilidad con una misma familia
+                </label>
+                <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                  <select
+                    value={assignmentAvailability}
+                    onChange={(e) => setAssignmentAvailability(e.target.value as AssignmentAvailability)}
+                    className="w-full bg-transparent pl-3 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm appearance-none"
+                  >
+                    <option value="shifts_only">Solo por turnos (1 a 3 días)</option>
+                    <option value="up_to_2_weeks">Hasta 2 semanas (7 a 15 días)</option>
+                    <option value="up_to_1_month">Hasta 1 mes o más (30+ días)</option>
+                    <option value="flexible">Flexible — cualquier duración</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                  Modelo de pago preferido
+                </label>
+                <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                  <select
+                    value={paymentPreference}
+                    onChange={(e) => setPaymentPreference(e.target.value as PaymentPreference)}
+                    className="w-full bg-transparent pl-3 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm appearance-none"
+                  >
+                    <option value="per_shift">Pago por turno (modelo actual)</option>
+                    <option value="service_contract">Contrato de servicios profesionales</option>
+                    <option value="both">Ambos me funcionan</option>
+                  </select>
+                </div>
+                <p className="text-[10px] text-slate-400">Esto nos ayuda a saber con quién contar para asignaciones largas.</p>
               </div>
             </>
           )}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { getAllSpecializations } from '../data/standardRates';
-import { SHIFTS, type ShiftType } from '../types';
+import { SHIFTS, type ShiftType, type ExpectedDuration } from '../types';
 import { MapPin, Calendar, Trash2, Stethoscope, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Sunset, Moon, Clock, X, FileText, AlertCircle, RotateCcw, XCircle, Inbox, Heart } from 'lucide-react';
 import { AuthForm } from './AuthForm';
 import { getTimeRemaining } from '../data/platformSettings';
@@ -52,6 +52,7 @@ export const CareRequestForm: FC = () => {
   const [published, setPublished] = useState(false);
   const [patientName, setPatientName] = useState('');
   const [wantsInvoice, setWantsInvoice] = useState(false);
+  const [expectedDuration, setExpectedDuration] = useState<ExpectedDuration>('shifts');
   const [showRegisterModal, setShowRegisterModal] = useState(false);
 
   // Restore form data from localStorage if available
@@ -199,6 +200,7 @@ export const CareRequestForm: FC = () => {
       lng: gpsCoords?.lng,
       notes: notes.trim() || undefined,
       wants_invoice: wantsInvoice,
+      expected_duration: expectedDuration,
     });
     setPublished(true);
   };
@@ -596,6 +598,61 @@ export const CareRequestForm: FC = () => {
               Toca un día en el calendario para agregarlo
             </div>
           )}
+
+          <div>
+            <label className="text-xs font-semibold text-slate-600 mb-1.5 block">¿Por cuánto tiempo necesitas el servicio?</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setExpectedDuration('shifts')}
+                className={`py-2.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  expectedDuration === 'shifts'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                Por turnos (1-3 días)
+              </button>
+              <button
+                type="button"
+                onClick={() => setExpectedDuration('up_to_2_weeks')}
+                className={`py-2.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  expectedDuration === 'up_to_2_weeks'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                Hasta 2 semanas
+              </button>
+              <button
+                type="button"
+                onClick={() => setExpectedDuration('up_to_1_month')}
+                className={`py-2.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  expectedDuration === 'up_to_1_month'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                1 mes o más
+              </button>
+              <button
+                type="button"
+                onClick={() => setExpectedDuration('unsure')}
+                className={`py-2.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  expectedDuration === 'unsure'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                No estoy seguro aún
+              </button>
+            </div>
+            {expectedDuration === 'up_to_1_month' && (
+              <p className="text-[10px] text-indigo-600 mt-1.5 leading-relaxed">
+                Para servicios de 1 mes o más, BienCuidar puede gestionar un contrato de servicios profesionales con la enfermera. Te contactaremos con más detalles.
+              </p>
+            )}
+          </div>
 
           <div>
             <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Notas adicionales (opcional)</label>

@@ -6,10 +6,11 @@
 import { useState, useMemo, type FC, type FormEvent } from 'react';
 import { useApp } from '../context/AppContext';
 import { Save, Edit3, CheckCircle2, Calculator, Sun, Moon, Sunset, ShieldCheck, FileText, Crosshair, Loader2, MapPin, ChevronDown, ChevronUp, BookOpen, DollarSign, Star, User, XCircle } from 'lucide-react';
-import { SHIFTS, type ShiftType, type WeekDay } from '../types';
+import { SHIFTS, type ShiftType, type WeekDay, type AssignmentAvailability, type PaymentPreference } from '../types';
 import { RETENTION_RATE, calculateNurseNet } from '../data/standardRates';
 import { CSSPVerificationBadge } from './CSSPVerificationBadge';
 import { validateCSSPRegistration } from '../lib/csspValidation';
+import { verifyCSSP } from '../lib/csspVerify';
 
 const allSpecialtyTags = [
   'Geriatría', 'Demencia y Alzheimer', 'Inyecciones', 'Postoperatorio', 
@@ -53,6 +54,8 @@ export const NurseProfileEdit: FC = () => {
   const [csspReg, setCsspReg] = useState<string>(currentNurse?.cssp_registration || '');
   const [csspLevel, setCsspLevel] = useState<string>(currentNurse?.cssp_level || 'Licenciada');
   const [collegeReg, setCollegeReg] = useState<string>(currentNurse?.verifications?.college_registration || '');
+  const [assignmentAvailability, setAssignmentAvailability] = useState<AssignmentAvailability>(currentNurse?.assignment_availability || 'shifts_only');
+  const [paymentPreference, setPaymentPreference] = useState<PaymentPreference>(currentNurse?.payment_preference || 'per_shift');
 
   // Stepper
   const [step, setStep] = useState<number>(1);
@@ -155,6 +158,8 @@ export const NurseProfileEdit: FC = () => {
       return;
     }
 
+    const csspChanged = currentNurse?.cssp_registration !== csspReg.trim() || currentNurse?.cssp_level !== csspLevel;
+
     updateNurseProfile({
       shift_rate: Number(shiftRate),
       available_shifts: selectedShifts,
@@ -164,6 +169,8 @@ export const NurseProfileEdit: FC = () => {
       specialization: selectedSpecs,
       cssp_registration: csspReg.trim(),
       cssp_level: csspLevel as 'Licenciada' | 'Tecnóloga' | 'Técnica' | 'Auxiliar',
+      assignment_availability: assignmentAvailability,
+      payment_preference: paymentPreference,
       verifications: {
         college_registration: collegeReg.trim() || undefined,
       },
@@ -173,6 +180,12 @@ export const NurseProfileEdit: FC = () => {
       phone,
       location_name: locationName
     });
+
+    // Re-disparar verificación CSSP si cambió el registro o nivel
+    if (csspChanged && currentNurse?.id) {
+      verifyCSSP(currentNurse.id, csspReg.trim(), currentUser?.full_name, csspLevel)
+        .catch(() => {});
+    }
 
     setShowNotify(true);
     setTimeout(() => setShowNotify(false), 3000);
@@ -507,6 +520,36 @@ export const NurseProfileEdit: FC = () => {
                   <option value="Técnica">Técnica en Enfermería</option>
                   <option value="Auxiliar">Auxiliar de Enfermería</option>
                 </select>
+              </div>
+            </div>
+
+            {/* Disponibilidad y modelo de pago */}
+            <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-4 space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Disponibilidad con una misma familia</label>
+                <select
+                  value={assignmentAvailability}
+                  onChange={(e) => setAssignmentAvailability(e.target.value as AssignmentAvailability)}
+                  className="w-full text-xs font-medium bg-white border border-slate-200 outline-none rounded-xl px-3 py-2.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                >
+                  <option value="shifts_only">Solo por turnos (1 a 3 días)</option>
+                  <option value="up_to_2_weeks">Hasta 2 semanas (7 a 15 días)</option>
+                  <option value="up_to_1_month">Hasta 1 mes o más (30+ días)</option>
+                  <option value="flexible">Flexible — cualquier duración</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Modelo de pago preferido</label>
+                <select
+                  value={paymentPreference}
+                  onChange={(e) => setPaymentPreference(e.target.value as PaymentPreference)}
+                  className="w-full text-xs font-medium bg-white border border-slate-200 outline-none rounded-xl px-3 py-2.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                >
+                  <option value="per_shift">Pago por turno (modelo actual)</option>
+                  <option value="service_contract">Contrato de servicios profesionales</option>
+                  <option value="both">Ambos me funcionan</option>
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1">Esto nos ayuda a saber con quién contar para asignaciones largas.</p>
               </div>
             </div>
 
