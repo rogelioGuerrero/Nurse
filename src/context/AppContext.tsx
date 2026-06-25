@@ -76,6 +76,8 @@ interface AppContextType {
   setActiveTab: (tab: string) => void;
   selectedNurseId: string | null;
   setSelectedNurseId: (id: string | null) => void;
+  passwordRecoveryMode: boolean;
+  setPasswordRecoveryMode: (val: boolean) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -89,6 +91,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
 
   const [activeTab, setActiveTab] = useState<string>('landing');
   const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
+  const [passwordRecoveryMode, setPasswordRecoveryMode] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<Profile | null>(null);
 
@@ -115,7 +118,12 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session?.user) {
+      if (event === 'PASSWORD_RECOVERY' && session?.user) {
+        setPasswordRecoveryMode(true);
+        setCurrentUser(null);
+        setActiveTab('landing');
+      } else if (event === 'SIGNED_IN' && session?.user) {
+        setPasswordRecoveryMode(false);
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
@@ -127,6 +135,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           setActiveTab(profile.role === 'nurse' ? 'nurse-inbox' : profile.role === 'admin' ? 'admin-panel' : 'care-request');
         }
       } else if (event === 'SIGNED_OUT') {
+        setPasswordRecoveryMode(false);
         setCurrentUser(null);
         setActiveTab('landing');
       }
@@ -1167,7 +1176,9 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       activeTab,
       setActiveTab,
       selectedNurseId,
-      setSelectedNurseId
+      setSelectedNurseId,
+      passwordRecoveryMode,
+      setPasswordRecoveryMode
     }}>
       {children}
     </AppContext.Provider>

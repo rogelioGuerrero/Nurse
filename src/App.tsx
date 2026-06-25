@@ -16,7 +16,7 @@ import {
   Stethoscope, 
   Star, Sparkles,
   Heart, Users, ChevronRight, GraduationCap, Network, MapPinned, MessageCircle,
-  Search, Inbox, ClipboardList, ShieldCheck, User, LogOut
+  Search, Inbox, ClipboardList, ShieldCheck, User, LogOut, Lock, CheckCircle2, AlertCircle
 } from 'lucide-react';
 
 const LoadingSpinner = () => (
@@ -38,6 +38,125 @@ import { LandingPage } from './components/LandingPage';
 import { AuthForm } from './components/AuthForm';
 import { LegalDisclaimer } from './components/LegalDisclaimer';
 
+function PasswordRecoveryForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async () => {
+    setError('');
+    setMessage('');
+
+    if (newPassword.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Las contraseñas no coinciden');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateError) {
+        setError(updateError.message);
+        setLoading(false);
+        return;
+      }
+      setMessage('Contraseña actualizada correctamente. Redirigiendo...');
+      setLoading(false);
+      setTimeout(() => onSuccess(), 1500);
+    } catch {
+      setError('Error al actualizar la contraseña. Intenta nuevamente.');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-[80vh] flex items-center justify-center px-5 py-8">
+      <div className="w-full max-w-sm space-y-4">
+        <div className="text-center space-y-2">
+          <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto">
+            <Lock className="h-7 w-7 text-white" />
+          </div>
+          <h1 className="text-lg font-bold text-slate-800">Recuperar Contraseña</h1>
+          <p className="text-xs text-slate-500">Ingresa tu nueva contraseña</p>
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium px-3 py-2 rounded-lg">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {message && (
+          <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium px-3 py-2 rounded-lg">
+            <CheckCircle2 className="h-4 w-4 shrink-0" />
+            <span>{message}</span>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+              Nueva Contraseña
+            </label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full px-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              placeholder="Mínimo 6 caracteres"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+              Confirmar Contraseña
+            </label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !loading) handleSubmit(); }}
+              className="w-full px-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              placeholder="Repite la contraseña"
+            />
+          </div>
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-2.5 rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
+          >
+            {loading ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                <CheckCircle2 className="h-4 w-4" />
+                Actualizar Contraseña
+              </>
+            )}
+          </button>
+
+          <button
+            onClick={onCancel}
+            className="w-full text-xs text-slate-500 font-bold hover:text-slate-700 transition cursor-pointer"
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MarketplaceApp() {
   const { 
     nurses, 
@@ -48,7 +167,9 @@ function MarketplaceApp() {
     selectedNurseId,
     setSelectedNurseId,
     careRequests,
-    careOffers
+    careOffers,
+    passwordRecoveryMode,
+    setPasswordRecoveryMode
   } = useApp();
 
   // Search and general filtering states
@@ -227,7 +348,19 @@ function MarketplaceApp() {
         {/* Landing page when no user */}
         {activeTab === 'landing' && (
           <>
-            {isAdminAccess ? (
+            {passwordRecoveryMode ? (
+              <PasswordRecoveryForm
+                onSuccess={() => {
+                  setPasswordRecoveryMode(false);
+                  setAuthMode('login');
+                  window.location.reload();
+                }}
+                onCancel={() => {
+                  setPasswordRecoveryMode(false);
+                  setAuthMode('landing');
+                }}
+              />
+            ) : isAdminAccess ? (
               <div className="min-h-[80vh] flex items-center justify-center px-5 py-8">
                 <div className="w-full max-w-sm space-y-4">
                   <div className="text-center space-y-2">
