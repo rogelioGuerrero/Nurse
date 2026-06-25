@@ -56,7 +56,6 @@ export const NurseProfileEdit: FC = () => {
   const [collegeReg, setCollegeReg] = useState<string>(currentNurse?.verifications?.college_registration || '');
   const [assignmentAvailability, setAssignmentAvailability] = useState<AssignmentAvailability>(currentNurse?.assignment_availability || 'shifts_only');
   const [paymentPreference, setPaymentPreference] = useState<PaymentPreference>(currentNurse?.payment_preference || 'per_shift');
-  const [monthlySalaryExpectation, setMonthlySalaryExpectation] = useState<string>(currentNurse?.monthly_salary_expectation || '');
 
   // Stepper
   const [step, setStep] = useState<number>(1);
@@ -172,7 +171,6 @@ export const NurseProfileEdit: FC = () => {
       cssp_level: csspLevel as 'Licenciada' | 'Tecnóloga' | 'Técnica' | 'Auxiliar',
       assignment_availability: assignmentAvailability,
       payment_preference: paymentPreference,
-      monthly_salary_expectation: monthlySalaryExpectation || undefined,
       verifications: {
         college_registration: collegeReg.trim() || undefined,
       },
@@ -553,25 +551,6 @@ export const NurseProfileEdit: FC = () => {
                 </select>
                 <p className="text-[10px] text-slate-400 mt-1">Esto nos ayuda a saber con quién contar para asignaciones largas.</p>
               </div>
-              {(assignmentAvailability === 'up_to_1_month' || assignmentAvailability === 'flexible') && (
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Expectativa salarial mensual (contratos largos)</label>
-                  <select
-                    value={monthlySalaryExpectation}
-                    onChange={(e) => setMonthlySalaryExpectation(e.target.value)}
-                    className="w-full text-xs font-medium bg-white border border-slate-200 outline-none rounded-xl px-3 py-2.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
-                  >
-                    <option value="">Selecciona un rango</option>
-                    <option value="less_400">Menos de $400/mes</option>
-                    <option value="400_500">$400 - $500/mes</option>
-                    <option value="500_600">$500 - $600/mes</option>
-                    <option value="600_700">$600 - $700/mes</option>
-                    <option value="more_700">Más de $700/mes</option>
-                    <option value="negotiable">Prefiero negociar según el caso</option>
-                  </select>
-                  <p className="text-[10px] text-slate-400 mt-1">Referencia para AGTI al negociar contratos de 30 días o más.</p>
-                </div>
-              )}
             </div>
 
             {/* Estado de verificación CSSP (si ya tiene registro guardado) */}

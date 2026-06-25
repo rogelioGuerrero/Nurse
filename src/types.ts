@@ -66,7 +66,6 @@ export interface Nurse {
   // FSE y retencion 10% ISR son automaticos para todas las enfermeras en BienCuidar
   assignment_availability?: AssignmentAvailability;
   payment_preference?: PaymentPreference;
-  monthly_salary_expectation?: string; // salary range for long contracts (AGTI reference)
 }
 
 export interface Booking {

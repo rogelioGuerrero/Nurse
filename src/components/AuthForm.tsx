@@ -34,7 +34,6 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
   const [phone, setPhone] = useState('');
   const [assignmentAvailability, setAssignmentAvailability] = useState<AssignmentAvailability>('shifts_only');
   const [paymentPreference, setPaymentPreference] = useState<PaymentPreference>('per_shift');
-  const [monthlySalaryExpectation, setMonthlySalaryExpectation] = useState<string>('');
 
   const validateEmail = (value: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -170,8 +169,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
             cssp_verification_status: 'unverified',
             cssp_verified: false,
             assignment_availability: assignmentAvailability,
-            payment_preference: paymentPreference,
-            monthly_salary_expectation: monthlySalaryExpectation || null
+            payment_preference: paymentPreference
           })
           .select('id')
           .single();
@@ -536,30 +534,6 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
                 </div>
                 <p className="text-[10px] text-slate-400">Esto nos ayuda a saber con quién contar para asignaciones largas.</p>
               </div>
-
-              {(assignmentAvailability === 'up_to_1_month' || assignmentAvailability === 'flexible') && (
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-                    Expectativa salarial mensual (contratos largos)
-                  </label>
-                  <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
-                    <select
-                      value={monthlySalaryExpectation}
-                      onChange={(e) => setMonthlySalaryExpectation(e.target.value)}
-                      className="w-full bg-transparent pl-3 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm appearance-none"
-                    >
-                      <option value="">Selecciona un rango</option>
-                      <option value="less_400">Menos de $400/mes</option>
-                      <option value="400_500">$400 - $500/mes</option>
-                      <option value="500_600">$500 - $600/mes</option>
-                      <option value="600_700">$600 - $700/mes</option>
-                      <option value="more_700">Más de $700/mes</option>
-                      <option value="negotiable">Prefiero negociar según el caso</option>
-                    </select>
-                  </div>
-                  <p className="text-[10px] text-slate-400">Referencia para AGTI al negociar contratos de 30 días o más.</p>
-                </div>
-              )}
             </>
           )}
 
