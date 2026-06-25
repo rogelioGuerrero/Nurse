@@ -90,7 +90,7 @@ export const ServiceContract: FC<ServiceContractProps> = ({
                   return (
                     <tr key={i} className="border-t border-slate-100">
                       <td className="px-2 py-1.5">{s.date}</td>
-                      <td className="px-2 py-1.5">{shift.label} ({shift.start}-{shift.end})</td>
+                      <td className="px-2 py-1.5">{shift.label}</td>
                       <td className="px-2 py-1.5">{s.nurseName}</td>
                       <td className="px-2 py-1.5 text-[9px]">{s.csspReg}</td>
                       <td className="px-2 py-1.5 text-right font-bold">US$ {price.toFixed(2)}</td>

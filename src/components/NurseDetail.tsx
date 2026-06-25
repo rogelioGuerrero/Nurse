@@ -451,7 +451,7 @@ export const NurseDetail: FC = () => {
                       <span className="text-xs font-semibold text-slate-500">/ turno</span>
                     </div>
                     <p className="mt-1.5 text-[10px] text-slate-500 leading-normal">
-                      <strong>Turnos disponibles:</strong> {nurse.available_shifts.map(s => s === 'morning' ? 'Mañana' : s === 'afternoon' ? 'Tarde' : 'Noche').join(', ')}
+                      <strong>Turnos disponibles:</strong> {nurse.available_shifts.map(s => s === 'day' ? 'Día' : s === 'night' ? 'Noche' : '24 horas').join(', ')}
                     </p>
                   </div>
 

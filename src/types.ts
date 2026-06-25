@@ -22,12 +22,12 @@ export interface Profile {
   updated_at: string;
 }
 
-export type ShiftType = 'morning' | 'afternoon' | 'night';
+export type ShiftType = 'day' | 'night' | 'full_day';
 
-export const SHIFTS: Record<ShiftType, { label: string; start: string; end: string; hours: number }> = {
-  morning:   { label: 'Mañana',  start: '07:00', end: '15:00', hours: 8 },
-  afternoon: { label: 'Tarde',   start: '15:00', end: '23:00', hours: 8 },
-  night:     { label: 'Noche',   start: '23:00', end: '07:00', hours: 8 },
+export const SHIFTS: Record<ShiftType, { label: string }> = {
+  day:      { label: 'Día' },
+  night:    { label: 'Noche' },
+  full_day: { label: '24 horas' },
 };
 
 export type WeekDay = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0=Dom ... 6=Sab
@@ -73,9 +73,10 @@ export interface Booking {
   user_id: string; // profile who booked
   nurse_id: string; // nurse booked
   date: string; // YYYY-MM-DD
-  start_time: string; // HH:MM
-  end_time: string; // HH:MM
-  hours: number;
+  shift?: ShiftType; // day | night | full_day
+  start_time?: string; // HH:MM — pactado entre familia y enfermera
+  end_time?: string; // HH:MM — pactado entre familia y enfermera
+  hours?: number;
   status: BookingStatus;
   total_price: number;
   notes?: string;
@@ -123,7 +124,7 @@ export interface Availability {
 
 export interface CareRequestSlot {
   date: string; // YYYY-MM-DD
-  shift: ShiftType; // morning | afternoon | night
+  shift: ShiftType; // day | night | full_day
 }
 
 export type ExpectedDuration = 'shifts' | 'up_to_2_weeks' | 'up_to_1_month' | 'unsure';

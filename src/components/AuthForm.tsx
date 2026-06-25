@@ -152,7 +152,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
             specialization: [],
             shift_rate: 15,
             coverage_radius: 10,
-            available_shifts: ['morning'],
+            available_shifts: ['day'],
             available_days: [1, 2, 3, 4, 5],
             rating: 5.0,
             review_count: 0,

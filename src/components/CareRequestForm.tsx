@@ -2,13 +2,13 @@ import { useState, useEffect, useMemo, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { getAllSpecializations } from '../data/standardRates';
 import { SHIFTS, type ShiftType, type ExpectedDuration } from '../types';
-import { MapPin, Calendar, Trash2, Stethoscope, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Sunset, Moon, Clock, X, FileText, AlertCircle, RotateCcw, XCircle, Inbox, Heart } from 'lucide-react';
+import { MapPin, Calendar, Trash2, Stethoscope, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Moon, Clock, X, FileText, AlertCircle, RotateCcw, XCircle, Inbox, Heart } from 'lucide-react';
 import { AuthForm } from './AuthForm';
 import { getTimeRemaining } from '../data/platformSettings';
 
 interface DaySelection {
   date: string;
-  shifts: ShiftType[]; // which shifts are needed: morning/afternoon/night. All 3 = 24h
+  shifts: ShiftType[]; // which shifts are needed: day/night/full_day
 }
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -124,22 +124,30 @@ export const CareRequestForm: FC = () => {
     setSelectedDays(prev => prev.map(d => {
       if (d.date !== dateStr) return d;
       const has = d.shifts.includes(shift);
-      return { ...d, shifts: has ? d.shifts.filter(s => s !== shift) : [...d.shifts, shift] };
+      if (has) {
+        return { ...d, shifts: d.shifts.filter(s => s !== shift) };
+      }
+      // full_day is mutually exclusive with day/night
+      if (shift === 'full_day') {
+        return { ...d, shifts: ['full_day'] };
+      }
+      // selecting day or night removes full_day
+      return { ...d, shifts: [...d.shifts.filter(s => s !== 'full_day'), shift] };
     }));
   };
   const toggleAllShifts = (dateStr: string) => {
     setSelectedDays(prev => prev.map(d => {
       if (d.date !== dateStr) return d;
-      const allThree = d.shifts.length === 3;
-      return { ...d, shifts: allThree ? [] : ['morning', 'afternoon', 'night'] };
+      const hasFullDay = d.shifts.includes('full_day');
+      return { ...d, shifts: hasFullDay ? [] : ['full_day'] };
     }));
   };
 
   // Expand selected days into slot list for submission
   const slots = selectedDays.flatMap(d => d.shifts.map(s => ({ date: d.date, shift: s })));
 
-  const SHIFT_ICONS: Record<ShiftType, typeof Sun> = { morning: Sun, afternoon: Sunset, night: Moon };
-  const SHIFT_LABELS: Record<ShiftType, string> = { morning: 'Mañana', afternoon: 'Tarde', night: 'Noche' };
+  const SHIFT_ICONS: Record<ShiftType, typeof Sun> = { day: Sun, night: Moon, full_day: Clock };
+  const SHIFT_LABELS: Record<ShiftType, string> = { day: 'Día', night: 'Noche', full_day: '24 horas' };
 
   const getCalendarDays = () => {
     const year = calendarMonth.getFullYear();
@@ -534,7 +542,7 @@ export const CareRequestForm: FC = () => {
                     <span>{dayNum}</span>
                     {selected && daySel && (
                       <span className="text-[7px] font-normal leading-none text-indigo-200">
-                        {daySel.shifts.length === 3 ? '24h' : daySel.shifts.length + 't'}
+                        {daySel.shifts.includes('full_day') ? '24h' : daySel.shifts.length + 't'}
                       </span>
                     )}
                   </button>
@@ -548,7 +556,7 @@ export const CareRequestForm: FC = () => {
               <p className="text-xs font-bold text-slate-600">Días seleccionados ({selectedDays.length})</p>
               {selectedDays.map((daySel) => {
                 const date = new Date(daySel.date + 'T00:00:00');
-                const is24h = daySel.shifts.length === 3;
+                const is24h = daySel.shifts.includes('full_day');
                 return (
                   <div key={daySel.date} className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3 space-y-2">
                     <div className="flex items-center gap-3">
@@ -560,7 +568,7 @@ export const CareRequestForm: FC = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-[10px] font-bold text-slate-500">{DAY_NAMES[date.getDay()]}</div>
-                        {is24h && <div className="text-[10px] font-bold text-indigo-600 flex items-center gap-1"><Clock className="h-3 w-3" /> Cuido 24 horas (3 enfermeras)</div>}
+                        {is24h && <div className="text-[10px] font-bold text-indigo-600 flex items-center gap-1"><Clock className="h-3 w-3" /> Cuidado 24 horas</div>}
                       </div>
                       <button
                         type="button"

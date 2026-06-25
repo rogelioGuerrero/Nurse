@@ -5,7 +5,7 @@
 
 import { useState, useMemo, type FC } from 'react';
 import { useApp, type ServiceLogType } from '../context/AppContext';
-import { Booking, BookingStatus } from '../types';
+import { Booking, BookingStatus, SHIFTS, type ShiftType } from '../types';
 import { groqChat } from '../lib/groq';
 import { PLATFORM_SETTINGS } from '../data/platformSettings';
 import {
@@ -459,7 +459,7 @@ export const BookingsManager: FC = () => {
                         <Calendar className="h-3 w-3" />
                         <span>{b.date}</span>
                         <span className="text-slate-300">·</span>
-                        <span>{b.start_time}-{b.end_time}</span>
+                        <span>{b.shift ? SHIFTS[b.shift as ShiftType]?.label : (b.start_time ? `${b.start_time}-${b.end_time}` : 'Turno')}</span>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-1 flex-shrink-0">

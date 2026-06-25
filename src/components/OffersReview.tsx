@@ -182,7 +182,7 @@ export const OffersReview: FC = () => {
 
         const slot = request.slots[offer.slot_index];
 
-        const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.morning;
+        const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.day;
 
         const totalNet = calculateNurseNet(offer.offered_rate, true);
 
@@ -313,8 +313,6 @@ export const OffersReview: FC = () => {
               <ClockIcon className="h-3.5 w-3.5" />
 
               <span className="font-medium">{shiftInfo.label}</span>
-
-              <span className="text-slate-400">({shiftInfo.start}-{shiftInfo.end})</span>
 
             </div>
 
@@ -866,7 +864,7 @@ export const OffersReview: FC = () => {
 
           const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
 
-          const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.morning;
+          const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.day;
 
           const nurseRate = acceptedOffer ? Number(acceptedOffer.offered_rate) : (nurse?.shift_rate || 25);
 
@@ -1228,7 +1226,7 @@ export const OffersReview: FC = () => {
 
           const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
 
-          const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.morning;
+          const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.day;
 
           const nurseRate = acceptedOffer ? Number(acceptedOffer.offered_rate) : (nurse?.shift_rate || 25);
 

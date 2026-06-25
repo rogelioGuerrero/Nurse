@@ -5,7 +5,7 @@
 
 import { useState, useMemo, type FC, type FormEvent } from 'react';
 import { useApp } from '../context/AppContext';
-import { Save, Edit3, CheckCircle2, Calculator, Sun, Moon, Sunset, ShieldCheck, FileText, Crosshair, Loader2, MapPin, ChevronDown, ChevronUp, BookOpen, DollarSign, Star, User, XCircle } from 'lucide-react';
+import { Save, Edit3, CheckCircle2, Calculator, Sun, Moon, Clock, ShieldCheck, FileText, Crosshair, Loader2, MapPin, ChevronDown, ChevronUp, BookOpen, DollarSign, Star, User, XCircle } from 'lucide-react';
 import { SHIFTS, type ShiftType, type WeekDay, type AssignmentAvailability, type PaymentPreference } from '../types';
 import { RETENTION_RATE, calculateNurseNet } from '../data/standardRates';
 import { CSSPVerificationBadge } from './CSSPVerificationBadge';
@@ -29,16 +29,16 @@ const DAY_LABELS: { day: WeekDay; label: string }[] = [
 ];
 
 const SHIFT_ICONS: Record<ShiftType, typeof Sun> = {
-  morning: Sun,
-  afternoon: Sunset,
+  day: Sun,
   night: Moon,
+  full_day: Clock,
 };
 
 export const NurseProfileEdit: FC = () => {
   const { currentNurse, currentUser, updateNurseProfile, updateProfile, bookings, careLogs, nurseReviews, nurses, profiles } = useApp();
 
   const [shiftRate, setShiftRate] = useState<number>(currentNurse?.shift_rate || 25);
-  const [selectedShifts, setSelectedShifts] = useState<ShiftType[]>(currentNurse?.available_shifts || ['morning']);
+  const [selectedShifts, setSelectedShifts] = useState<ShiftType[]>(currentNurse?.available_shifts || ['day']);
   const [selectedDays, setSelectedDays] = useState<WeekDay[]>(currentNurse?.available_days || [1, 2, 3, 4, 5]);
   const [bio, setBio] = useState<string>(currentNurse?.bio || '');
   const [experienceYears, setExperienceYears] = useState<number>(currentNurse?.experience_years || 5);
@@ -426,7 +426,6 @@ export const NurseProfileEdit: FC = () => {
                     >
                       <Icon className="h-4 w-4" />
                       <span>{SHIFTS[shift].label}</span>
-                      <span className="text-[9px] opacity-70">{SHIFTS[shift].start}-{SHIFTS[shift].end}</span>
                     </button>
                   );
                 })}

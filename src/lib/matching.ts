@@ -32,9 +32,6 @@ export function buildVisitPlan(
   const originLng = request.lng ?? USER_COORDS.lng;
 
   for (const slot of request.slots) {
-    const shiftInfo = SHIFTS[slot.shift as ShiftType];
-    const shiftHours = shiftInfo.hours;
-
     const candidates = nurses
       .filter(n => n.specialization.includes(request.specialization_needed))
       .filter(n => n.available_shifts.includes(slot.shift as ShiftType))
@@ -59,7 +56,7 @@ export function buildVisitPlan(
         slot,
         nurse: best.nurse,
         distance: best.distance,
-        shiftHours,
+        shiftHours: 0,
         price: calculateFamilyPrice(best.nurse.shift_rate, request.wants_invoice)
       });
     } else {
@@ -67,7 +64,7 @@ export function buildVisitPlan(
         slot,
         nurse: null,
         distance: 0,
-        shiftHours,
+        shiftHours: 0,
         price: 0,
         reason: 'No hay enfermeras disponibles para este turno'
       });
@@ -104,8 +101,6 @@ export function buildFinalPlanFromOffers(
 
   for (let i = 0; i < request.slots.length; i++) {
     const slot = request.slots[i];
-    const shiftInfo = SHIFTS[slot.shift as ShiftType];
-    const shiftHours = shiftInfo.hours;
 
     const acceptedOffers = offers.filter(
       o => o.request_id === request.id &&
@@ -118,7 +113,7 @@ export function buildFinalPlanFromOffers(
         slot,
         nurse: null,
         distance: 0,
-        shiftHours,
+        shiftHours: 0,
         price: 0,
         reason: 'Ninguna enfermera confirmó este turno'
       });
@@ -145,7 +140,7 @@ export function buildFinalPlanFromOffers(
         slot,
         nurse: best.nurse,
         distance: best.distance,
-        shiftHours,
+        shiftHours: 0,
         price: calculateFamilyPrice(best.nurse.shift_rate, request.wants_invoice)
       });
     } else {
@@ -153,7 +148,7 @@ export function buildFinalPlanFromOffers(
         slot,
         nurse: null,
         distance: 0,
-        shiftHours,
+        shiftHours: 0,
         price: 0,
         reason: 'Ninguna enfermera confirmó este turno'
       });

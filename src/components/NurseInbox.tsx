@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { calculateNurseNet } from '../data/standardRates';
 import type { CareRequest, Nurse, Profile, CareOffer } from '../types';
 import { SHIFTS, type ShiftType } from '../types';
-import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User, Sun, Sunset, Moon, FileText, Send } from 'lucide-react';
+import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User, Sun, Moon, FileText, Send } from 'lucide-react';
 import { FamilyTrustBadge } from './FamilyTrustBadge';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -275,12 +275,12 @@ export const NurseInbox: FC = () => {
                     const offer = getOfferForSlot(req.id, idx);
                     const responded = hasOffered(req.id, idx);
                     const dateConflict = isDateBooked(slot.date) && !responded;
-                    const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.morning;
+                    const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.day;
                     const nurseRate = offer ? Number(offer.offered_rate) : (myNurse.shift_rate || 25);
                     const wantsInvoicing = req.wants_invoice;
                     const payout = calculateNurseNet(nurseRate, wantsInvoicing);
 
-                    const SHIFT_ICON: Record<ShiftType, typeof Sun> = { morning: Sun, afternoon: Sunset, night: Moon };
+                    const SHIFT_ICON: Record<ShiftType, typeof Sun> = { day: Sun, night: Moon, full_day: Clock };
                     const ShiftIcon = SHIFT_ICON[slot.shift as ShiftType] || Sun;
 
                     return (
@@ -433,7 +433,7 @@ export const NurseInbox: FC = () => {
             {myOffersList.map(offer => {
               const req = careRequests.find(r => r.id === offer.request_id);
               const slot = req?.slots[offer.slot_index];
-              const shiftInfo = slot ? (SHIFTS[slot.shift as ShiftType] || SHIFTS.morning) : null;
+              const shiftInfo = slot ? (SHIFTS[slot.shift as ShiftType] || SHIFTS.day) : null;
               const info = getOfferStatusInfo(offer);
               const familyProfile = req ? profileMap.get(req.user_id) : null;
               return (

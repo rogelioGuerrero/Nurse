@@ -4,7 +4,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, useCallback, type FC, type ReactNode } from 'react';
-import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareRequestStatus, CareOffer, CareOfferStatus, ShiftType, SHIFTS, NurseReview, FamilyReview } from '../types';
+import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareRequestStatus, CareOffer, CareOfferStatus, ShiftType, NurseReview, FamilyReview } from '../types';
 import { INITIAL_NURSES } from '../data/nurses';
 import { supabase } from '../lib/supabase';
 import { getResponseDeadline } from '../data/platformSettings';
@@ -665,16 +665,15 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   const createBooking = async (bookingData: Omit<Booking, 'id' | 'user_id' | 'created_at' | 'status'> & { status?: Booking['status'] }) => {
     if (!currentUser) throw new Error('Debes iniciar sesión para agendar.');
     
-    // Validate no double-booking: same nurse, same date, overlapping time
+    // Validate no double-booking: same nurse, same date, same shift
     const overlapping = bookings.find(b => 
       b.nurse_id === bookingData.nurse_id &&
       b.date === bookingData.date &&
       b.status !== 'cancelled' &&
-      bookingData.start_time < b.end_time &&
-      bookingData.end_time > b.start_time
+      b.shift === bookingData.shift
     );
     if (overlapping) {
-      throw new Error('Esta enfermera ya tiene una reserva en ese horario. Elige otra fecha u hora.');
+      throw new Error('Esta enfermera ya tiene una reserva para ese turno. Elige otra fecha u hora.');
     }
     
     const bookingStatus = bookingData.status || 'confirmed';
@@ -693,9 +692,10 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           user_id: currentUser.id,
           nurse_id: bookingData.nurse_id,
           date: bookingData.date,
-          start_time: bookingData.start_time,
-          end_time: bookingData.end_time,
-          hours: bookingData.hours,
+          shift: bookingData.shift || null,
+          start_time: bookingData.start_time || null,
+          end_time: bookingData.end_time || null,
+          hours: bookingData.hours || null,
           status: bookingStatus,
           total_price: bookingData.total_price,
           notes: bookingData.notes,
@@ -743,16 +743,13 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     const request = careRequests.find(r => r.id === offer.request_id);
     if (request) {
       const slot = request.slots[offer.slot_index];
-      const shift = SHIFTS[slot.shift];
       const nurseRate = Number(offer.offered_rate);
       const totalPrice = calculateFamilyPrice(nurseRate, request.wants_invoice);
       
       await createBooking({
         nurse_id: offer.nurse_id,
         date: slot.date,
-        start_time: shift.start,
-        end_time: shift.end,
-        hours: shift.hours,
+        shift: slot.shift,
         total_price: totalPrice,
         patient_name: request.patient_name,
         patient_condition: request.patient_condition,

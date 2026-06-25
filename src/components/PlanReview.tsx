@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { calculateFamilyPrice } from '../data/standardRates';
 import { SHIFTS, type ShiftType } from '../types';
-import { CheckCircle2, XCircle, Clock, MapPin, Calendar, Star, User, Phone, Heart, Send, ChevronLeft, Sun, Sunset, Moon, FileText, Receipt, Mail } from 'lucide-react';
+import { CheckCircle2, XCircle, Clock, MapPin, Calendar, Star, User, Phone, Heart, Send, ChevronLeft, Sun, Moon, FileText, Receipt, Mail } from 'lucide-react';
 import { LegalDisclaimer } from './LegalDisclaimer';
 import { ServiceContract } from './ServiceContract';
 import { PaymentSummary } from './PaymentSummary';
@@ -57,7 +57,7 @@ export const PlanReview: FC = () => {
     const acceptedOffer = offers.find(o => o.status === 'accepted');
     const nurse = acceptedOffer ? nurses.find(n => n.id === acceptedOffer.nurse_id) : null;
     const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
-    const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.morning;
+    const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.day;
     const nurseRate = acceptedOffer ? Number(acceptedOffer.offered_rate) : (nurse?.shift_rate || 25);
     const wantsInvoicing = myRequest.wants_invoice;
     const price = calculateFamilyPrice(nurseRate, wantsInvoicing);
@@ -306,7 +306,7 @@ export const PlanReview: FC = () => {
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="text-xs text-slate-500 font-semibold">
-                    {DAY_NAMES[new Date(detail.slot.date + 'T00:00:00').getDay()]} · {detail.shiftInfo.label} ({detail.shiftInfo.start}-{detail.shiftInfo.end})
+                    {DAY_NAMES[new Date(detail.slot.date + 'T00:00:00').getDay()]} · {detail.shiftInfo.label}
                   </div>
 
                   {detail.hasNurse && detail.nurse && detail.nurseProfile ? (
