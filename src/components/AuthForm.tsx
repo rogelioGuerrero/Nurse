@@ -34,6 +34,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
   const [phone, setPhone] = useState('');
   const [assignmentAvailability, setAssignmentAvailability] = useState<AssignmentAvailability>('shifts_only');
   const [paymentPreference, setPaymentPreference] = useState<PaymentPreference>('per_shift');
+  const [monthlySalaryExpectation, setMonthlySalaryExpectation] = useState<number>(0);
 
   const validateEmail = (value: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -169,7 +170,8 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
             cssp_verification_status: 'unverified',
             cssp_verified: false,
             assignment_availability: assignmentAvailability,
-            payment_preference: paymentPreference
+            payment_preference: paymentPreference,
+            monthly_salary_expectation: monthlySalaryExpectation || null
           })
           .select('id')
           .single();
@@ -534,6 +536,28 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
                 </div>
                 <p className="text-[10px] text-slate-400">Esto nos ayuda a saber con quién contar para asignaciones largas.</p>
               </div>
+
+              {(assignmentAvailability === 'up_to_1_month' || assignmentAvailability === 'flexible') && (
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                    Expectativa salarial mensual (contratos largos)
+                  </label>
+                  <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                    <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
+                      <span className="text-sm font-bold">$</span>
+                    </div>
+                    <input
+                      type="number"
+                      value={monthlySalaryExpectation || ''}
+                      onChange={(e) => setMonthlySalaryExpectation(Number(e.target.value))}
+                      placeholder="Ej: 500"
+                      min={0}
+                      className="w-full bg-transparent pl-8 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400">USD por mes para contratos de 30 días o más. Referencia para AGTI al negociar.</p>
+                </div>
+              )}
             </>
           )}
 

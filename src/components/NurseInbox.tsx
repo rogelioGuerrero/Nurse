@@ -72,10 +72,12 @@ export const NurseInbox: FC = () => {
   );
 
   // Requests where this nurse hasn't offered on any slot — sorted by most recent
+  // Only show short-term (≤3 days) requests. Longer assignments are managed by AGTI directly.
   const availableRequests = useMemo(() => {
     if (!myNurse) return [];
     return careRequests
       .filter(req => req.status === 'open')
+      .filter(req => (req.expected_duration || 'shifts') === 'shifts')
       .filter(req => !careOffers.some(o => o.request_id === req.id && o.nurse_id === myNurse.id))
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [careRequests, careOffers, myNurse]);
@@ -243,36 +245,6 @@ export const NurseInbox: FC = () => {
                       {req.specialization_needed}
                     </span>
                   </div>
-
-                  {/* Duration indicator based on expected_duration */}
-                  {(() => {
-                    const duration = req.expected_duration || 'shifts';
-                    const compatible = isDurationCompatible(req);
-                    if (duration === 'shifts') return null;
-                    const labels: Record<string, string> = {
-                      up_to_2_weeks: 'Hasta 2 semanas',
-                      up_to_1_month: '1 mes o más',
-                      unsure: 'Duración por definir',
-                    };
-                    const colors: Record<string, string> = {
-                      up_to_2_weeks: 'bg-amber-50 text-amber-700 border-amber-100',
-                      up_to_1_month: 'bg-emerald-50 text-emerald-700 border-emerald-100',
-                      unsure: 'bg-slate-50 text-slate-500 border-slate-100',
-                    };
-                    return (
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full border ${colors[duration]}`}>
-                          <Calendar className="h-3 w-3" />
-                          {labels[duration]}
-                        </span>
-                        {!compatible && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full bg-rose-50 text-rose-600 border border-rose-100">
-                            No coincide con tu disponibilidad
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })()}
 
                   {/* Patient info */}
                   <div className="bg-slate-50 rounded-xl p-3 space-y-1.5">

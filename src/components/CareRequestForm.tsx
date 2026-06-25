@@ -602,6 +602,19 @@ export const CareRequestForm: FC = () => {
             </div>
           )}
 
+          {selectedDays.length > 3 && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                <p className="text-xs font-bold text-emerald-800">BienCuidar gestiona esta asignación directamente</p>
+              </div>
+              <p className="text-[11px] text-emerald-700 leading-relaxed">
+                Para servicios de más de 3 días, nuestro equipo contacta a enfermeras con disponibilidad confirmada y te envía una <span className="font-bold">cotización personalizada con precio preferencial</span>. Entre más días necesites, mejor tarifa conseguimos para ti.
+              </p>
+              <p className="text-[10px] text-emerald-600 font-semibold">Te contactaremos por WhatsApp en menos de 24 horas.</p>
+            </div>
+          )}
+
           <div>
             <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Notas adicionales (opcional)</label>
             <textarea

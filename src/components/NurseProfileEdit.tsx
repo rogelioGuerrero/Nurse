@@ -56,6 +56,7 @@ export const NurseProfileEdit: FC = () => {
   const [collegeReg, setCollegeReg] = useState<string>(currentNurse?.verifications?.college_registration || '');
   const [assignmentAvailability, setAssignmentAvailability] = useState<AssignmentAvailability>(currentNurse?.assignment_availability || 'shifts_only');
   const [paymentPreference, setPaymentPreference] = useState<PaymentPreference>(currentNurse?.payment_preference || 'per_shift');
+  const [monthlySalaryExpectation, setMonthlySalaryExpectation] = useState<number>(currentNurse?.monthly_salary_expectation || 0);
 
   // Stepper
   const [step, setStep] = useState<number>(1);
@@ -171,6 +172,7 @@ export const NurseProfileEdit: FC = () => {
       cssp_level: csspLevel as 'Licenciada' | 'Tecnóloga' | 'Técnica' | 'Auxiliar',
       assignment_availability: assignmentAvailability,
       payment_preference: paymentPreference,
+      monthly_salary_expectation: monthlySalaryExpectation || undefined,
       verifications: {
         college_registration: collegeReg.trim() || undefined,
       },
@@ -551,6 +553,23 @@ export const NurseProfileEdit: FC = () => {
                 </select>
                 <p className="text-[10px] text-slate-400 mt-1">Esto nos ayuda a saber con quién contar para asignaciones largas.</p>
               </div>
+              {(assignmentAvailability === 'up_to_1_month' || assignmentAvailability === 'flexible') && (
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Expectativa salarial mensual (contratos largos)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">$</span>
+                    <input
+                      type="number"
+                      value={monthlySalaryExpectation || ''}
+                      onChange={(e) => setMonthlySalaryExpectation(Number(e.target.value))}
+                      placeholder="Ej: 500"
+                      min={0}
+                      className="w-full text-xs font-medium bg-white border border-slate-200 outline-none rounded-xl pl-7 pr-3 py-2.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1">USD por mes para contratos de 30 días o más. Referencia para AGTI al negociar.</p>
+                </div>
+              )}
             </div>
 
             {/* Estado de verificación CSSP (si ya tiene registro guardado) */}
