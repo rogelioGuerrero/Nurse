@@ -37,6 +37,7 @@ export interface CareLog {
   activities: string[];
   observations: string;
   narrativeReport: string;
+  familyReport: string;
   updatedAt: string;
 }
 
@@ -242,6 +243,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
               activities: typeof l.activities === 'string' ? JSON.parse(l.activities) : l.activities || [],
               observations: l.observations || '',
               narrativeReport: l.narrative_report || '',
+              familyReport: l.family_report || '',
               updatedAt: l.updated_at || new Date().toISOString()
             };
           });
@@ -302,14 +304,14 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         // Only process if the booking belongs to the user
         const bookingIds = (bookingsData || []).map(b => b.id);
         if (bookingIds.includes(l.booking_id)) {
-          setCareLogs(prev => ({ ...prev, [l.booking_id]: { bookingId: l.booking_id, serviceType: l.service_type || 'clinical', arrivalTime: l.arrival_time || '', departureTime: l.departure_time || '', patientConditionOnArrival: l.patient_condition_on_arrival || 'Bien', patientConditionOnDeparture: l.patient_condition_on_departure || 'Igual', activities: typeof l.activities === 'string' ? JSON.parse(l.activities) : l.activities || [], observations: l.observations || '', narrativeReport: l.narrative_report || '', updatedAt: l.updated_at || new Date().toISOString() } }));
+          setCareLogs(prev => ({ ...prev, [l.booking_id]: { bookingId: l.booking_id, serviceType: l.service_type || 'clinical', arrivalTime: l.arrival_time || '', departureTime: l.departure_time || '', patientConditionOnArrival: l.patient_condition_on_arrival || 'Bien', patientConditionOnDeparture: l.patient_condition_on_departure || 'Igual', activities: typeof l.activities === 'string' ? JSON.parse(l.activities) : l.activities || [], observations: l.observations || '', narrativeReport: l.narrative_report || '', familyReport: l.family_report || '', updatedAt: l.updated_at || new Date().toISOString() } }));
         }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'care_logs' }, (payload) => {
         const l = payload.new as any;
         const bookingIds = (bookingsData || []).map(b => b.id);
         if (bookingIds.includes(l.booking_id)) {
-          setCareLogs(prev => ({ ...prev, [l.booking_id]: { bookingId: l.booking_id, serviceType: l.service_type || 'clinical', arrivalTime: l.arrival_time || '', departureTime: l.departure_time || '', patientConditionOnArrival: l.patient_condition_on_arrival || 'Bien', patientConditionOnDeparture: l.patient_condition_on_departure || 'Igual', activities: typeof l.activities === 'string' ? JSON.parse(l.activities) : l.activities || [], observations: l.observations || '', narrativeReport: l.narrative_report || '', updatedAt: l.updated_at || new Date().toISOString() } }));
+          setCareLogs(prev => ({ ...prev, [l.booking_id]: { bookingId: l.booking_id, serviceType: l.service_type || 'clinical', arrivalTime: l.arrival_time || '', departureTime: l.departure_time || '', patientConditionOnArrival: l.patient_condition_on_arrival || 'Bien', patientConditionOnDeparture: l.patient_condition_on_departure || 'Igual', activities: typeof l.activities === 'string' ? JSON.parse(l.activities) : l.activities || [], observations: l.observations || '', narrativeReport: l.narrative_report || '', familyReport: l.family_report || '', updatedAt: l.updated_at || new Date().toISOString() } }));
         }
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'nurse_reviews' }, (payload) => {
@@ -352,6 +354,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       activities: JSON.stringify(log.activities),
       observations: log.observations,
       narrative_report: log.narrativeReport,
+      family_report: log.familyReport,
       updated_at: updatedLog.updatedAt
     }, { onConflict: 'booking_id' }).then(({ error }) => {
       if (error) console.warn('Failed to save care log to Supabase:', error.message);

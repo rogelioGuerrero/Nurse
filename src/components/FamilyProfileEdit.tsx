@@ -229,7 +229,7 @@ export const FamilyProfileEdit: FC = () => {
                         <FileText className="h-3 w-3 text-amber-600" />
                         <span className="text-[9px] font-bold text-slate-600 uppercase">Reporte</span>
                       </div>
-                      <p className="text-[10px] text-slate-600 leading-relaxed line-clamp-3">{log.narrativeReport || `La enfermera llegó a las ${log.arrivalTime} y encontró a ${b.patient_name} en estado ${log.patientConditionOnArrival.toLowerCase()}.`}</p>
+                      <p className="text-[10px] text-slate-600 leading-relaxed line-clamp-3">{log.familyReport || log.narrativeReport || `${b.patient_name} fue atendido de ${log.arrivalTime} a ${log.departureTime}.`}</p>
                     </div>
                   )}
 

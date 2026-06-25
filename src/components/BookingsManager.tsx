@@ -203,6 +203,7 @@ export const BookingsManager: FC = () => {
 - Observaciones de la enfermera: ${observationsStr}`;
 
     let narrativeReport = '';
+    let familyReport = '';
     try {
       narrativeReport = await groqChat(
         [
@@ -211,9 +212,26 @@ export const BookingsManager: FC = () => {
         ],
         { temperature: 0.3, maxTokens: 200 }
       );
+      // Generar versión simplificada para la familia
+      const familyPrompt = 'Eres un redactor que traduce reportes de enfermería a lenguaje sencillo para familias no médicas. REGLAS: (1) Usa SOLO los datos proporcionados. (2) Lenguaje cálido pero claro, sin jerga médica. (3) Máximo 60 palabras. (4) Empieza con el nombre del paciente. (5) No des consejos ni recomendaciones. (6) No saludes ni te despides.';
+      const familyContent = `Redacta un mensaje sencillo para la familia sobre la visita de hoy:
+- Paciente: ${patientName}
+- Horario: ${formArrivalTime} a ${formDepartureTime}
+- Estado al llegar: ${formConditionArrival}
+- Estado al retirarse: ${formConditionDeparture}
+- Actividades: ${activitiesStr}
+- Observaciones: ${observationsStr}`;
+      familyReport = await groqChat(
+        [
+          { role: 'system', content: familyPrompt },
+          { role: 'user', content: familyContent }
+        ],
+        { temperature: 0.4, maxTokens: 150 }
+      );
     } catch {
       // Si Groq falla, usar template simple sin alucinación
       narrativeReport = `La enfermera llegó a las ${formArrivalTime} y encontró a ${patientName} en estado ${formConditionArrival.toLowerCase()}. Durante el servicio ${formActivities.length > 0 ? 'realizó ' + formActivities.map(a => a.toLowerCase()).join(', ') : 'brindó atención general'}. Al retirarse a las ${formDepartureTime}, ${patientName} ${formConditionDeparture.toLowerCase()}.${formObservations.trim() ? ' ' + formObservations.trim() : ''}`;
+      familyReport = `${patientName} fue atendido de ${formArrivalTime} a ${formDepartureTime}. Al llegar se encontraba ${formConditionArrival.toLowerCase()} y al retirarse ${formConditionDeparture.toLowerCase()}. ${formActivities.length > 0 ? 'Se le brindó ' + formActivities.map(a => a.toLowerCase()).join(', ') + '.' : ''}${formObservations.trim() ? ' ' + formObservations.trim() : ''}`;
     }
 
     saveCareLog(bookingId, {
@@ -224,7 +242,8 @@ export const BookingsManager: FC = () => {
       patientConditionOnDeparture: formConditionDeparture,
       activities: formActivities,
       observations: formObservations,
-      narrativeReport
+      narrativeReport,
+      familyReport
     });
     setSavingReport(false);
     setEditingBookingId(null);
@@ -446,19 +465,25 @@ export const BookingsManager: FC = () => {
 
                 {/* Patient info */}
                 <div className="px-3 py-2 bg-slate-50/70 text-xs">
-                  <div className="flex items-center gap-1.5 text-slate-700">
-                    <User className="h-3 w-3 text-indigo-500" />
-                    <span className="font-bold">{b.patient_name}</span>
-                  </div>
-                  <p className="text-slate-500 mt-0.5 pl-4 truncate">{b.patient_condition}</p>
-                  {isNurseView && b.patient_age && (
-                    <p className="text-slate-400 mt-0.5 pl-4 text-[10px]">{b.patient_age} años</p>
-                  )}
-                  {isNurseView && b.location_name && (
-                    <p className="text-slate-400 mt-0.5 pl-4 truncate flex items-center gap-1">
-                      <MapPin className="h-3 w-3 text-slate-400" />
-                      {b.location_name}
-                    </p>
+                  {isNurseView ? (
+                    <>
+                      <div className="flex items-center gap-1.5 text-slate-700">
+                        <User className="h-3 w-3 text-indigo-500" />
+                        <span className="font-bold">{b.patient_name}</span>
+                        {b.patient_age && <span className="text-slate-400 text-[10px]">· {b.patient_age} años</span>}
+                      </div>
+                      <p className="text-slate-500 mt-0.5 pl-4 text-[10px] truncate">
+                        {b.patient_condition}{b.location_name ? ` · ${b.location_name}` : ''}{b.wants_invoice ? ' · Con factura' : ''}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-1.5 text-slate-700">
+                        <User className="h-3 w-3 text-indigo-500" />
+                        <span className="font-bold">{b.patient_name}</span>
+                      </div>
+                      <p className="text-slate-500 mt-0.5 pl-4 truncate">{b.patient_condition}</p>
+                    </>
                   )}
                   {isNurseView && b.emergency_contact && (
                     <a
@@ -593,7 +618,10 @@ export const BookingsManager: FC = () => {
                       /* MOSTRAR REPORTE NARRATIVO */
                       <div className="space-y-2">
                         <div className="bg-indigo-50/40 border border-indigo-100/40 rounded-xl p-3 text-[11px] text-slate-700 leading-relaxed">
-                          {log.narrativeReport || `La enfermera llegó a las ${log.arrivalTime} y encontró a ${b.patient_name} en estado ${log.patientConditionOnArrival.toLowerCase()}. Durante el servicio ${log.activities.length > 0 ? 'realizó ' + log.activities.map(a => a.toLowerCase()).join(', ') : 'brindó atención general'}. Al retirarse a las ${log.departureTime}, ${b.patient_name} ${log.patientConditionOnDeparture.toLowerCase()}.`}
+                          {isNurseView
+                            ? (log.narrativeReport || `La enfermera llegó a las ${log.arrivalTime} y encontró a ${b.patient_name} en estado ${log.patientConditionOnArrival.toLowerCase()}. Durante el servicio ${log.activities.length > 0 ? 'realizó ' + log.activities.map(a => a.toLowerCase()).join(', ') : 'brindó atención general'}. Al retirarse a las ${log.departureTime}, ${b.patient_name} ${log.patientConditionOnDeparture.toLowerCase()}.`)
+                            : (log.familyReport || log.narrativeReport || `${b.patient_name} fue atendido de ${log.arrivalTime} a ${log.departureTime}. Al llegar se encontraba ${log.patientConditionOnArrival.toLowerCase()} y al retirarse ${log.patientConditionOnDeparture.toLowerCase()}.`)
+                          }
                         </div>
 
                         {/* Botones */}
