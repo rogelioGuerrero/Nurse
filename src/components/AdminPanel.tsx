@@ -6,7 +6,7 @@ import { groqChat } from '../lib/groq';
 
 export const AdminPanel: FC = () => {
   const { currentUser, careRequests, careOffers, profiles, nurses, bookings, confirmPayment } = useApp();
-  const [section, setSection] = useState<'summary' | 'notifications' | 'cssp' | 'packages'>('summary');
+  const [section, setSection] = useState<'summary' | 'notifications' | 'cssp' | 'packages' | 'nurses'>('summary');
   const [dailySummary, setDailySummary] = useState('');
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryDate, setSummaryDate] = useState('');
@@ -236,6 +236,15 @@ Mensaje para avisarle que revise los detalles en la app.`;
               {pendingCSSP.length}
             </span>
           )}
+        </button>
+        <button
+          onClick={() => setSection('nurses')}
+          className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+            section === 'nurses' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Users className="h-3.5 w-3.5 inline mr-1" />
+          Enfermeras
         </button>
       </div>
 
@@ -734,6 +743,64 @@ Mensaje para avisarle que revise los detalles en la app.`;
 
       {section === 'cssp' && (
         <CSSPReviewPanel />
+      )}
+
+      {section === 'nurses' && (
+        <div className="space-y-4">
+          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+            <div className="px-4 py-3 bg-indigo-50 border-b border-indigo-100">
+              <h3 className="text-xs font-bold text-indigo-800 uppercase tracking-wide flex items-center gap-1.5">
+                <Users className="h-4 w-4" />
+                Directorio de Enfermeras ({nurses.length})
+              </h3>
+              <p className="text-[10px] text-slate-500 mt-0.5">Datos completos de cada enfermera registrada.</p>
+            </div>
+            <div className="divide-y divide-slate-100 max-h-[600px] overflow-y-auto">
+              {nurses.map(nurse => {
+                const profile = profileMap.get(nurse.user_id);
+                const csspStatus = nurse.cssp_verification_status || 'unverified';
+                const csspBadge = csspStatus === 'auto_verified' || csspStatus === 'manual_verified'
+                  ? { label: 'CSSP ✓', color: 'bg-blue-50 text-blue-700' }
+                  : csspStatus === 'pending'
+                  ? { label: 'CSSP ⏳', color: 'bg-amber-50 text-amber-700' }
+                  : { label: 'CSSP ✗', color: 'bg-rose-50 text-rose-700' };
+                return (
+                  <div key={nurse.id} className="px-4 py-3 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-700">{profile?.full_name || 'Sin nombre'}</p>
+                        <p className="text-[10px] text-slate-500">{profile?.email}</p>
+                      </div>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${csspBadge.color}`}>
+                        {csspBadge.label}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px] text-slate-600">
+                      <div className="flex items-center gap-1"><Phone className="h-2.5 w-2.5 text-slate-400" />{profile?.phone || 'Sin teléfono'}</div>
+                      <div className="flex items-center gap-1"><MapPin className="h-2.5 w-2.5 text-slate-400" />{profile?.location_name || 'Sin ubicación'}</div>
+                      <div className="flex items-center gap-1"><DollarSign className="h-2.5 w-2.5 text-slate-400" />${nurse.shift_rate}/turno</div>
+                      <div className="flex items-center gap-1"><ShieldCheck className="h-2.5 w-2.5 text-slate-400" />{nurse.cssp_registration || 'Sin CSSP'}</div>
+                      <div><span className="text-slate-400">Nivel:</span> {nurse.cssp_level || 'N/A'}</div>
+                      <div><span className="text-slate-400">DUI:</span> {nurse.dui || 'N/A'}</div>
+                      <div><span className="text-slate-400">Pago:</span> {PAY_LABELS[nurse.payment_preference || 'per_shift']}</div>
+                      <div><span className="text-slate-400">Disponibilidad:</span> {AVAIL_LABELS[nurse.assignment_availability || 'shifts_only']}</div>
+                    </div>
+                    {nurse.specialization && nurse.specialization.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {nurse.specialization.map((s: string) => (
+                          <span key={s} className="text-[9px] font-bold bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded">{s}</span>
+                        ))}
+                      </div>
+                    )}
+                    {nurse.bio && (
+                      <p className="text-[10px] text-slate-500 italic line-clamp-2">{nurse.bio}</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
