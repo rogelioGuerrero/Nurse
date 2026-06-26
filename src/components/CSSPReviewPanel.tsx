@@ -142,8 +142,8 @@ export const CSSPReviewPanel: FC = () => {
         failed++;
       }
 
-      // Small delay to avoid overwhelming the API
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Delay between verifications to avoid rate limiting (3 seconds per request)
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
 
     setBulkVerifyResult({ success, failed });
