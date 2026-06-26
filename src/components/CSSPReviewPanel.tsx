@@ -7,7 +7,7 @@ import type { Nurse, CSSPVerificationStatus } from '../types';
 export const CSSPReviewPanel: FC = () => {
   const { nurses, profiles, currentUser } = useApp();
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'pending' | 'unverified' | 'verified'>('pending');
+  const [filter, setFilter] = useState<'all' | 'unverified' | 'pending' | 'verified' | 'rejected'>('unverified');
   const [loading, setLoading] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
 
@@ -24,16 +24,18 @@ export const CSSPReviewPanel: FC = () => {
   // Count nurses by CSSP verification status
   const statusCounts = useMemo(() => {
     const counts = {
-      pending: 0,
       unverified: 0,
+      pending: 0,
       verified: 0,
+      rejected: 0,
       all: nurses.length,
     };
     nurses.forEach(n => {
       const status = n.cssp_verification_status || 'unverified';
-      if (status === 'pending') counts.pending++;
-      else if (status === 'unverified') counts.unverified++;
-      else if (n.cssp_verified) counts.verified++;
+      if (status === 'unverified') counts.unverified++;
+      else if (status === 'pending') counts.pending++;
+      else if (status === 'auto_verified' || status === 'manual_verified') counts.verified++;
+      else if (status === 'rejected') counts.rejected++;
     });
     return counts;
   }, [nurses]);
@@ -41,10 +43,14 @@ export const CSSPReviewPanel: FC = () => {
   const filteredNurses = useMemo(() => {
     let list = nurses;
 
-    if (filter === 'pending') {
-      list = list.filter(n => n.cssp_verification_status === 'pending' || n.cssp_verification_status === 'unverified');
+    if (filter === 'unverified') {
+      list = list.filter(n => (n.cssp_verification_status || 'unverified') === 'unverified');
+    } else if (filter === 'pending') {
+      list = list.filter(n => n.cssp_verification_status === 'pending');
     } else if (filter === 'verified') {
-      list = list.filter(n => n.cssp_verified === true);
+      list = list.filter(n => n.cssp_verification_status === 'auto_verified' || n.cssp_verification_status === 'manual_verified');
+    } else if (filter === 'rejected') {
+      list = list.filter(n => n.cssp_verification_status === 'rejected');
     }
 
     if (search.trim()) {
@@ -114,9 +120,14 @@ export const CSSPReviewPanel: FC = () => {
               className="w-full pl-10 pr-3 py-2.5 text-xs font-medium bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
             />
           </div>
-          <div className="flex gap-1.5">
-            {(['pending', 'unverified', 'verified', 'all'] as const).map(f => {
+          <div className="flex gap-1.5 flex-wrap">
+            {(['unverified', 'pending', 'verified', 'rejected', 'all'] as const).map(f => {
               const count = statusCounts[f];
+              const label = f === 'unverified' ? 'Sin verificar' 
+                           : f === 'pending' ? 'En proceso' 
+                           : f === 'verified' ? 'Verificados' 
+                           : f === 'rejected' ? 'Rechazados' 
+                           : 'Todos';
               return (
                 <button
                   key={f}
@@ -127,7 +138,7 @@ export const CSSPReviewPanel: FC = () => {
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  {f === 'pending' ? 'Pendientes' : f === 'unverified' ? 'No verif.' : f === 'verified' ? 'Verificados' : 'Todos'}
+                  {label}
                   <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${filter === f ? 'bg-indigo-500' : 'bg-slate-200'}`}>
                     {count}
                   </span>
