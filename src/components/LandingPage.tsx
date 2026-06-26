@@ -1,5 +1,5 @@
 import { type FC, useState, useRef } from 'react';
-import { Stethoscope, Search, ShieldCheck, Calendar, DollarSign, ChevronDown, ChevronUp, UserCheck, Clock, MapPin, FileText, CheckCircle2, MessageCircle, Heart } from 'lucide-react';
+import { Stethoscope, Search, ShieldCheck, Calendar, DollarSign, ChevronDown, ChevronUp, UserCheck, Clock, MapPin, FileText, CheckCircle2, MessageCircle, Heart, LogIn } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SupportChat } from './SupportChat';
 
@@ -7,9 +7,10 @@ interface LandingPageProps {
   onFamily: () => void;
   onNurse: () => void;
   onAdminAccess?: () => void;
+  onLogin?: () => void;
 }
 
-export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAccess }) => {
+export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAccess, onLogin }) => {
   const [demoLoading, setDemoLoading] = useState(false);
   const [showFaq, setShowFaq] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<'nurse' | 'family'>('nurse');
@@ -99,6 +100,16 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
 
   return (
     <div className="min-h-[100vh] bg-gradient-to-b from-slate-50 to-slate-100">
+      {/* Floating login button */}
+      {onLogin && (
+        <button
+          onClick={onLogin}
+          className="fixed top-4 right-4 z-50 flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-lg active:scale-95 transition cursor-pointer"
+        >
+          <LogIn className="h-4 w-4" />
+          Iniciar sesión
+        </button>
+      )}
       <div className="max-w-md mx-auto px-5 py-8 space-y-10">
 
         {/* Logo - 5 clicks to reveal admin login */}
