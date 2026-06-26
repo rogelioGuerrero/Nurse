@@ -1,4 +1,4 @@
-import { supabaseUrl, supabaseAnonKey, supabase } from './supabase';
+import { supabaseUrl, supabaseAnonKey } from './supabase';
 
 const EDGE_FUNCTION_PATH = '/functions/v1/verify-cssp';
 
@@ -24,14 +24,11 @@ export async function verifyCSSP(
   nurseLevel?: string
 ): Promise<CSSPVerifyResponse> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    const accessToken = session?.access_token || supabaseAnonKey;
-
     const response = await fetch(`${supabaseUrl}${EDGE_FUNCTION_PATH}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
+        Authorization: `Bearer ${supabaseAnonKey}`,
       },
       body: JSON.stringify({
         nurse_id: nurseId,
@@ -48,6 +45,7 @@ export async function verifyCSSP(
     return await response.json();
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Error desconocido';
+    console.error('[csspVerify] Error:', message);
     return {
       status: 'pending',
       message: 'No se pudo verificar automáticamente',
