@@ -1,10 +1,11 @@
 import { useState, useEffect, type FC } from 'react';
-import { Stethoscope, User, Mail, Lock, ArrowLeft, CheckCircle2, AlertCircle, FileText, ShieldAlert, BadgeCheck, Phone, MapPin } from 'lucide-react';
+import { Stethoscope, User, Mail, Lock, ArrowLeft, CheckCircle2, AlertCircle, FileText, ShieldAlert, BadgeCheck, Phone, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Nurse, AssignmentAvailability, PaymentPreference } from '../types';
 import { supabase } from '../lib/supabase';
 import { TermsAndConditions } from './TermsAndConditions';
 import { validateCSSPRegistration } from '../lib/csspValidation';
 import { verifyCSSP } from '../lib/csspVerify';
+import { DEPARTMENTS, DEPARTMENTS_WITH_MUNICIPALITIES } from '../data/districts';
 
 interface AuthFormProps {
   mode: 'login' | 'register';
@@ -35,6 +36,8 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
   const [assignmentAvailability, setAssignmentAvailability] = useState<AssignmentAvailability>('shifts_only');
   const [paymentPreference, setPaymentPreference] = useState<PaymentPreference>('per_shift');
   const [locationName, setLocationName] = useState('');
+  const [selectedMunicipalities, setSelectedMunicipalities] = useState<string[]>([]);
+  const [showMunicipalities, setShowMunicipalities] = useState(false);
 
   const validateEmail = (value: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -86,6 +89,10 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
       setError('Selecciona el departamento donde prefieres trabajar');
       return;
     }
+    if (selectedMunicipalities.length === 0) {
+      setError('Selecciona al menos un municipio/distrito donde prefieres trabajar');
+      return;
+    }
 
     if (role === 'nurse') {
       const csspCheck = validateCSSPRegistration(csspRegistration);
@@ -116,7 +123,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
             full_name: fullName,
             role: role === 'nurse' ? 'nurse' : 'user',
             phone: phone.trim(),
-            location_name: locationName.trim()
+            location_name: `${locationName.trim()}, ${selectedMunicipalities.join(', ')}`
           }
         }
       });
@@ -142,7 +149,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
           full_name: fullName,
           role: role === 'nurse' ? 'nurse' : 'user',
           phone: phone.trim(),
-          location_name: locationName.trim()
+          location_name: `${locationName.trim()}, ${selectedMunicipalities.join(', ')}`
         }, { onConflict: 'id' });
 
       if (profileError) {
@@ -448,37 +455,87 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
           )}
 
           {authMode === 'register' && (
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-                {role === 'nurse' ? 'Departamento donde prefieres trabajar *' : 'Departamento *'}
-              </label>
-              <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
-                <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
-                  <MapPin className="h-4 w-4" />
+            <>
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                  {role === 'nurse' ? 'Departamento donde prefieres trabajar *' : 'Departamento *'}
+                </label>
+                <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                  <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
+                    <MapPin className="h-4 w-4" />
+                  </div>
+                  <select
+                    value={locationName}
+                    onChange={(e) => {
+                      setLocationName(e.target.value);
+                      setSelectedMunicipalities([]);
+                    }}
+                    className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm appearance-none"
+                  >
+                    <option value="">Selecciona un departamento</option>
+                    {DEPARTMENTS.map((dep) => (
+                      <option key={dep} value={dep}>{dep}</option>
+                    ))}
+                  </select>
                 </div>
-                <select
-                  value={locationName}
-                  onChange={(e) => setLocationName(e.target.value)}
-                  className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm appearance-none"
-                >
-                  <option value="">Selecciona un departamento</option>
-                  <option value="San Salvador">San Salvador</option>
-                  <option value="La Libertad">La Libertad</option>
-                  <option value="Santa Ana">Santa Ana</option>
-                  <option value="San Miguel">San Miguel</option>
-                  <option value="Sonsonate">Sonsonate</option>
-                  <option value="Usulután">Usulután</option>
-                  <option value="Ahuachapán">Ahuachapán</option>
-                  <option value="La Unión">La Unión</option>
-                  <option value="Cuscatlán">Cuscatlán</option>
-                  <option value="Chalatenango">Chalatenango</option>
-                  <option value="Cabañas">Cabañas</option>
-                  <option value="La Paz">La Paz</option>
-                  <option value="San Vicente">San Vicente</option>
-                  <option value="Morazán">Morazán</option>
-                </select>
               </div>
-            </div>
+
+              {locationName && (
+                <div className="space-y-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowMunicipalities(!showMunicipalities)}
+                    className="w-full flex items-center justify-between px-3 py-2.5 bg-slate-100/60 border border-slate-200 rounded-xl text-left cursor-pointer"
+                  >
+                    <span className="text-xs font-bold text-slate-600">
+                      {selectedMunicipalities.length > 0
+                        ? `${selectedMunicipalities.length} municipio(s) seleccionado(s)`
+                        : 'Selecciona municipios/distritos *'}
+                    </span>
+                    {showMunicipalities ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                  </button>
+
+                  {showMunicipalities && (
+                    <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-2 max-h-48 overflow-y-auto">
+                      {DEPARTMENTS_WITH_MUNICIPALITIES[locationName]?.map((muni) => (
+                        <label key={muni} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedMunicipalities.includes(muni)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedMunicipalities([...selectedMunicipalities, muni]);
+                              } else {
+                                setSelectedMunicipalities(selectedMunicipalities.filter((m) => m !== muni));
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          />
+                          <span className="text-xs text-slate-700">{muni}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  {selectedMunicipalities.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {selectedMunicipalities.map((m) => (
+                        <span key={m} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-lg">
+                          {m}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedMunicipalities(selectedMunicipalities.filter((m2) => m2 !== m))}
+                            className="text-indigo-400 hover:text-indigo-600 cursor-pointer"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           )}
 
           {authMode === 'register' && role === 'nurse' && (
