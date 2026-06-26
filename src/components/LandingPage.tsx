@@ -1,7 +1,7 @@
 import { type FC, useState, useRef } from 'react';
 import { Stethoscope, Search, ShieldCheck, Calendar, DollarSign, ChevronDown, ChevronUp, UserCheck, Clock, MapPin, FileText, CheckCircle2, MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { openSupport } from '../lib/support';
+import { SupportChat } from './SupportChat';
 
 interface LandingPageProps {
   onFamily: () => void;
@@ -214,14 +214,8 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
 
       </div>
 
-      {/* Floating WhatsApp support button */}
-      <button
-        onClick={() => openSupport('Hola, tengo una duda sobre BienCuidar')}
-        className="fixed bottom-5 right-5 w-14 h-14 bg-green-500 hover:bg-green-600 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition z-50 cursor-pointer"
-        aria-label="Soporte por WhatsApp"
-      >
-        <MessageCircle className="h-7 w-7 text-white" />
-      </button>
+      {/* Support chat widget for visitors */}
+      <SupportChat userRole="visitor" />
     </div>
   );
 };

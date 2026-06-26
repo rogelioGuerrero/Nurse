@@ -6,7 +6,7 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { AppContextProvider, useApp } from './context/AppContext';
 import { supabase } from './lib/supabase';
-import { openSupport } from './lib/support';
+import { SupportChat } from './components/SupportChat';
 import { MapComponent } from './components/MapComponent';
 import { SearchFilters } from './components/SearchFilters';
 import { ToastProvider } from './components/Toast';
@@ -785,15 +785,9 @@ function MarketplaceApp() {
         </nav>
       )}
 
-      {/* Floating WhatsApp support button - visible on all screens when logged in */}
+      {/* Support chat widget - visible when logged in */}
       {currentUser && (
-        <button
-          onClick={() => openSupport(currentUser.role === 'nurse' ? 'Hola, soy enfermera en BienCuidar y necesito ayuda' : 'Hola, necesito ayuda con BienCuidar')}
-          className="fixed bottom-20 right-4 w-12 h-12 bg-green-500 hover:bg-green-600 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition z-40 cursor-pointer"
-          aria-label="Soporte por WhatsApp"
-        >
-          <MessageCircle className="h-6 w-6 text-white" />
-        </button>
+        <SupportChat userRole={currentUser.role} />
       )}
 
     </div>
