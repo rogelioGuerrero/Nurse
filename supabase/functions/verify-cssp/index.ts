@@ -51,7 +51,6 @@ async function verifyCSSPRegistration(registration: string): Promise<CSSPResult>
     const cookies = setCookie || (jsessionId ? `JSESSIONID=${jsessionId}` : "");
 
     // Extraer javax.faces.ViewState del HTML
-    // El HTML real tiene: name="javax.faces.ViewState" id="..." value="..."
     const viewStateMatch = html.match(/name="javax\.faces\.ViewState"[^>]*value="([^"]+)"/i);
     const viewState = viewStateMatch ? viewStateMatch[1] : "";
 
@@ -59,7 +58,7 @@ async function verifyCSSPRegistration(registration: string): Promise<CSSPResult>
       return { found: false, error: "No se pudo obtener el token de sesión del CSSP" };
     }
 
-    // Extraer el form ID — buscar frm1 específicamente (hay múltiples forms en la página)
+    // Extraer el form ID — buscar frm1 específicamente
     const formIdMatch = html.match(/<form[^>]+id="(frm1)"/i);
     const formId = formIdMatch ? formIdMatch[1] : "frm1";
 
@@ -111,22 +110,18 @@ async function verifyCSSPRegistration(registration: string): Promise<CSSPResult>
     const resultHtml = await postResponse.text();
 
     // PrimeFaces AJAX returns XML partial responses
-    // Check for "No se encontraron" in the XML
     if (resultHtml.includes("No se encontraron registros") || resultHtml.includes("No se encontraron resultados")) {
       return { found: false };
     }
 
     // Extraer datos del profesional del XML partial response
-    // PrimeFaces DataTable: <td role="gridcell">VALUE</td> after header span
     const cells = resultHtml.match(/role="gridcell"[^>]*>([^<]*)<\/td>/gi) || [];
-    // cells[0] = Nombres value, [1] = Apellidos, [2] = N° Junta, [3] = Junta Vigilancia, [4] = Carrera
     const cellValues = cells.map(c => c.replace(/role="gridcell"[^>]*>/i, "").replace(/<\/td>/i, "").trim()).filter(v => v.length > 0);
     const name = cellValues[0] || undefined;
     const lastName = cellValues[1] || undefined;
     const board = cellValues[2] || undefined;
     const profession = cellValues[4] || undefined;
 
-    // Si hay resultados con datos del profesional
     const hasResults = resultHtml.includes("Pagina 1 (1-") || 
                        (resultHtml.includes("Profesionales") && !resultHtml.includes("No se encontraron") && !resultHtml.includes("de 0 Profesionales"));
 
@@ -145,6 +140,94 @@ async function verifyCSSPRegistration(registration: string): Promise<CSSPResult>
     const message = err instanceof Error ? err.message : "Error desconocido";
     return { found: false, error: `Error de conexión con CSSP: ${message}` };
   }
+}
+
+/**
+ * Ejecuta verifyCSSPRegistration con reintentos.
+ * Si hay un mismatch, reintenta hasta 3 veces para descartar falsos positivos
+ * causados por errores transitorios del scraping (sesión JSF, parseo, etc).
+ * Solo retorna un mismatch si todas las tentativas concuerdan en que hay discrepancia.
+ */
+async function verifyWithRetries(
+  registration: string,
+  nurseName?: string,
+  nurseLevel?: string
+): Promise<{ result: CSSPResult; mismatches: string[]; attempts: number }> {
+  const MAX_ATTEMPTS = 3;
+  let lastResult: CSSPResult = { found: false };
+  let lastMismatches: string[] = [];
+
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const result = await verifyCSSPRegistration(registration);
+    lastResult = result;
+
+    // Si hay error de conexión, reintentar
+    if (result.error) {
+      if (attempt < MAX_ATTEMPTS) {
+        await new Promise(r => setTimeout(r, 1500 * attempt));
+        continue;
+      }
+      return { result, mismatches: [], attempts: attempt };
+    }
+
+    // Si no se encontró, reintentar (puede ser sesión expirada)
+    if (!result.found) {
+      if (attempt < MAX_ATTEMPTS) {
+        await new Promise(r => setTimeout(r, 1500 * attempt));
+        continue;
+      }
+      return { result, mismatches: [], attempts: attempt };
+    }
+
+    // Se encontró — verificar mismatches
+    const mismatches: string[] = [];
+
+    if (nurseName && result.name) {
+      const normalize = (s: string) => s.toUpperCase().trim()
+        .replace(/[ÁÀ]/g, "A").replace(/[ÉÈ]/g, "E").replace(/[ÍÌ]/g, "I")
+        .replace(/[ÓÒ]/g, "O").replace(/[ÚÙ]/g, "U")
+        .replace(/\s+(DE|DEL|LA|LAS|LOS|Y)\s+/g, " ")
+        .replace(/\s+/g, " ").trim();
+      const csspName = normalize(result.name);
+      const givenName = normalize(nurseName);
+      const csspParts = csspName.split(" ").filter(p => p.length > 2);
+      const givenParts = givenName.split(" ").filter(p => p.length > 2);
+      const matchedParts = givenParts.filter(p => csspParts.includes(p));
+      result.name_match = matchedParts.length >= Math.ceil(givenParts.length * 0.5);
+      if (!result.name_match) {
+        mismatches.push(`Nombre no coincide (registrado: "${nurseName}", CSSP: "${result.name}")`);
+      }
+    }
+
+    if (nurseLevel && result.profession) {
+      const profMap: Record<string, string[]> = {
+        "Licenciada": ["LIC. EN ENFERMERIA", "LICENCIADA"],
+        "Tecnóloga": ["TECNOLOGO", "TECNOLOGA"],
+        "Técnica": ["TECNICO", "TECNICA"],
+        "Auxiliar": ["AUXILIAR"],
+      };
+      const expected = profMap[nurseLevel] || [];
+      const csspProfUpper = result.profession.toUpperCase();
+      result.profession_match = expected.some(e => csspProfUpper.includes(e));
+      if (!result.profession_match) {
+        mismatches.push(`Profesión no coincide (registrada como: "${nurseLevel}", CSSP: "${result.profession}")`);
+      }
+    }
+
+    // Si no hay mismatches, retornar inmediatamente (verificado)
+    if (mismatches.length === 0) {
+      return { result, mismatches: [], attempts: attempt };
+    }
+
+    // Hay mismatches — si no es el último intento, reintentar
+    lastMismatches = mismatches;
+    if (attempt < MAX_ATTEMPTS) {
+      await new Promise(r => setTimeout(r, 1500 * attempt));
+      continue;
+    }
+  }
+
+  return { result: lastResult, mismatches: lastMismatches, attempts: MAX_ATTEMPTS };
 }
 
 Deno.serve(async (req: Request) => {
@@ -181,8 +264,8 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Ejecutar verificación
-    const result = await verifyCSSPRegistration(cssp_registration);
+    // Ejecutar verificación con reintentos
+    const { result, mismatches, attempts } = await verifyWithRetries(cssp_registration, nurse_name, nurse_level);
 
     const now = new Date().toISOString();
 
@@ -194,7 +277,7 @@ Deno.serve(async (req: Request) => {
           cssp_verification_status: "pending",
           cssp_verified: false,
           cssp_verification_date: now,
-          cssp_verification_notes: `Verificación automática falló: ${result.error}. Requiere revisión manual.`,
+          cssp_verification_notes: `Verificación automática falló (${attempts} intentos): ${result.error}. Requiere revisión manual.`,
         })
         .eq("id", nurse_id);
 
@@ -203,48 +286,15 @@ Deno.serve(async (req: Request) => {
           status: "pending",
           message: "No se pudo verificar automáticamente. Se requiere revisión manual.",
           error: result.error,
+          attempts,
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
     }
 
     if (result.found) {
-      const mismatches: string[] = [];
-
-      if (nurse_name && result.name) {
-        const normalize = (s: string) => s.toUpperCase().trim()
-          .replace(/[ÁÀ]/g, "A").replace(/[ÉÈ]/g, "E").replace(/[ÍÌ]/g, "I")
-          .replace(/[ÓÒ]/g, "O").replace(/[ÚÙ]/g, "U")
-          .replace(/\s+(DE|DEL|LA|LAS|LOS|Y)\s+/g, " ")
-          .replace(/\s+/g, " ").trim();
-        const csspName = normalize(result.name);
-        const givenName = normalize(nurse_name);
-        const csspParts = csspName.split(" ").filter(p => p.length > 2);
-        const givenParts = givenName.split(" ").filter(p => p.length > 2);
-        const matchedParts = givenParts.filter(p => csspParts.includes(p));
-        result.name_match = matchedParts.length >= Math.ceil(givenParts.length * 0.5);
-        if (!result.name_match) {
-          mismatches.push(`Nombre no coincide (registrado: "${nurse_name}", CSSP: "${result.name}")`);
-        }
-      }
-
-      if (nurse_level && result.profession) {
-        const profMap: Record<string, string[]> = {
-          "Licenciada": ["LIC. EN ENFERMERIA", "LICENCIADA"],
-          "Tecnóloga": ["TECNOLOGO", "TECNOLOGA"],
-          "Técnica": ["TECNICO", "TECNICA"],
-          "Auxiliar": ["AUXILIAR"],
-        };
-        const expected = profMap[nurse_level] || [];
-        const csspProfUpper = result.profession.toUpperCase();
-        result.profession_match = expected.some(e => csspProfUpper.includes(e));
-        if (!result.profession_match) {
-          mismatches.push(`Profesión no coincide (registrada como: "${nurse_level}", CSSP: "${result.profession}")`);
-        }
-      }
-
       if (mismatches.length > 0) {
-        const notes = `Verificación CSSP con discrepancias: ${mismatches.join("; ")}`;
+        const notes = `Verificación CSSP con discrepancias (${attempts} intentos): ${mismatches.join("; ")}`;
         await supabase
           .from("nurses")
           .update({
@@ -261,6 +311,7 @@ Deno.serve(async (req: Request) => {
             message: "Registro encontrado pero con discrepancias. Requiere revisión manual.",
             data: result,
             mismatches,
+            attempts,
           }),
           { status: 200, headers: { "Content-Type": "application/json" } }
         );
@@ -272,7 +323,7 @@ Deno.serve(async (req: Request) => {
           cssp_verification_status: "auto_verified",
           cssp_verified: true,
           cssp_verification_date: now,
-          cssp_verification_notes: `Verificado automáticamente. Nombre: ${result.name || "N/A"}, Profesión: ${result.profession || "N/A"}`,
+          cssp_verification_notes: `Verificado automáticamente (${attempts} intento${attempts > 1 ? "s" : ""}). Nombre: ${result.name || "N/A"}, Profesión: ${result.profession || "N/A"}`,
         })
         .eq("id", nurse_id);
 
@@ -281,6 +332,7 @@ Deno.serve(async (req: Request) => {
           status: "auto_verified",
           message: "Registro CSSP verificado automáticamente",
           data: result,
+          attempts,
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );
@@ -293,7 +345,7 @@ Deno.serve(async (req: Request) => {
         cssp_verification_status: "unverified",
         cssp_verified: false,
         cssp_verification_date: now,
-        cssp_verification_notes: "Número no encontrado en portal CSSP. Requiere revisión manual.",
+        cssp_verification_notes: `Número no encontrado en portal CSSP (${attempts} intentos). Requiere revisión manual.`,
       })
       .eq("id", nurse_id);
 
@@ -301,6 +353,7 @@ Deno.serve(async (req: Request) => {
       JSON.stringify({
         status: "unverified",
         message: "No se encontró el número en el portal CSSP. Se sugiere verificación manual.",
+        attempts,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
     );
