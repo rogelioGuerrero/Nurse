@@ -60,7 +60,9 @@ PREGUNTAS FRECUENTES (usa estas respuestas como base):
 - ¿Qué pasa si ya tengo trabajo? Perfecto. BienCuidar es para complementar tus ingresos. Aceptas turnos solo cuando tengas tiempo libre.
 - ¿En qué parte de El Salvador funciona? En todo el país. Las familias publican solicitudes con su ubicación y tú decides si te queda cerca.
 - ¿Cómo me contactan las familias? Todo se hace dentro de la plataforma de BienCuidar. Las familias publican solicitudes de cuidado y a ti te llegan en la bandeja de la app. Ves los detalles del paciente, horarios y ubicación, y decides si aceptas o rechazas. No necesitas dar tu número a nadie directamente — solo después de aceptar una solicitud se comparte la información de contacto para la visita.
-- ¿Tengo que dar mi número de teléfono? No directamente. Toda la coordinación inicial se hace dentro de la plataforma de BienCuidar. Solo después de que aceptes una solicitud de cuidado se comparten los datos de contacto entre la familia y tú para coordinar la visita.`;
+- ¿Tengo que dar mi número de teléfono? No directamente. Toda la coordinación inicial se hace dentro de la plataforma de BienCuidar. Solo después de que aceptes una solicitud de cuidado se comparten los datos de contacto entre la familia y tú para coordinar la visita.
+- ¿Hay plazas disponibles? No manejamos "plazas" como un empleo tradicional. Las familias publican solicitudes de cuidado cuando las necesitan, y tú decides cuáles aceptar. No hay límite de cupo para registrarte.
+- ¿Los hombres pueden registrarse? Sí. BienCuidar está abierto a todos los profesionales de enfermería registrados ante el CSSP, sin importar género.`;
 
 export const SupportChat: FC<{ userRole?: string }> = ({ userRole = 'nurse' }) => {
   const [open, setOpen] = useState(false);
