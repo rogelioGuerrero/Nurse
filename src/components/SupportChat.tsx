@@ -162,11 +162,14 @@ export const SupportChat: FC<{ userRole?: string; userEmail?: string }> = ({ use
         .insert({ user_role: userRole, message_count: 0 })
         .select('id')
         .single();
-      if (!error && data) {
+      if (error) {
+        console.error('[SupportChat] createSession error:', error.message);
+      } else if (data) {
         sessionIdRef.current = data.id;
+        console.log('[SupportChat] Session created:', data.id);
       }
-    } catch {
-      // Silent fail — tracking is non-critical
+    } catch (e) {
+      console.error('[SupportChat] createSession exception:', e);
     }
   };
 
@@ -231,7 +234,7 @@ export const SupportChat: FC<{ userRole?: string; userEmail?: string }> = ({ use
     if (!input.trim() || loading) return;
 
     if (!sessionIdRef.current) {
-      createSession();
+      await createSession();
     }
 
     const userMessage = input.trim();
@@ -340,7 +343,7 @@ export const SupportChat: FC<{ userRole?: string; userEmail?: string }> = ({ use
   if (!open) {
     return (
       <button
-        onClick={() => { setOpen(true); createSession(); }}
+        onClick={() => { setOpen(true); }}
         className={`fixed ${userRole === 'visitor' ? 'bottom-5 right-5 w-14 h-14' : 'bottom-20 right-4 w-12 h-12'} bg-indigo-600 hover:bg-indigo-500 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition z-40 cursor-pointer`}
         aria-label="Soporte BienCuidar"
       >
