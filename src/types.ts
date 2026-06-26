@@ -20,6 +20,7 @@ export interface Profile {
   phone?: string;
   location_name?: string;
   updated_at: string;
+  is_demo?: boolean;
 }
 
 export type ShiftType = 'day' | 'night' | 'full_day';

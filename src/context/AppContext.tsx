@@ -155,14 +155,23 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       const isAdmin = currentUser.role === 'admin';
       const isNurse = currentUser.role === 'nurse';
 
+      // For admin: get demo user IDs to exclude demo data from all views
+      let demoUserIds: string[] = [];
+      if (isAdmin) {
+        const { data: demoProfiles } = await supabase.from('profiles').select('id').eq('is_demo', true);
+        demoUserIds = (demoProfiles || []).map((p: any) => p.id);
+      }
+
       // Nurses list is public to authenticated users (for marketplace)
       const { data: nursesResult } = await supabase.from('nurses').select('*');
-      nursesData = nursesResult;
+      nursesData = isAdmin && demoUserIds.length > 0
+        ? (nursesResult || []).filter((n: any) => !demoUserIds.includes(n.user_id))
+        : nursesResult;
       if (nursesData) setNurses(nursesData);
 
       // Profiles: admin needs all; nurses need profiles of families they have bookings with (loaded after bookings below)
       if (isAdmin) {
-        const { data: profilesData } = await supabase.from('profiles').select('*');
+        const { data: profilesData } = await supabase.from('profiles').select('*').neq('is_demo', true);
         if (profilesData) setProfiles(profilesData);
       }
 
@@ -181,7 +190,9 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         }
       }
       const { data: bookingsResult } = await bookingsQuery;
-      bookingsData = bookingsResult;
+      bookingsData = isAdmin && demoUserIds.length > 0
+        ? (bookingsResult || []).filter((b: any) => !demoUserIds.includes(b.user_id))
+        : bookingsResult;
       if (bookingsData) {
         setBookings(bookingsData.map((b: any) => ({ ...b, wants_invoice: b.wants_invoice ?? false })));
       }
@@ -207,7 +218,10 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         }
       }
       const { data: requestsData } = await requestsQuery;
-      if (requestsData) setCareRequests(requestsData.map((r: any) => ({
+      const filteredRequests = isAdmin && demoUserIds.length > 0
+        ? (requestsData || []).filter((r: any) => !demoUserIds.includes(r.user_id))
+        : requestsData;
+      if (filteredRequests) setCareRequests(filteredRequests.map((r: any) => ({
         ...r,
         wants_invoice: r.wants_invoice ?? false,
         slots: typeof r.slots === 'string' ? JSON.parse(r.slots) : r.slots || []
@@ -232,7 +246,12 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         }
       }
       const { data: offersData } = await offersQuery;
-      if (offersData) setCareOffers(offersData.map((o: any) => ({
+      const validRequestIds = new Set((filteredRequests || requestsData || []).map((r: any) => r.id));
+      const validNurseIds = new Set((nursesData || []).map((n: any) => n.id));
+      const filteredOffers = isAdmin && demoUserIds.length > 0
+        ? (offersData || []).filter((o: any) => validRequestIds.has(o.request_id) && validNurseIds.has(o.nurse_id))
+        : offersData;
+      if (filteredOffers) setCareOffers(filteredOffers.map((o: any) => ({
         ...o,
         message: o.notes || o.message || ''
       })));
