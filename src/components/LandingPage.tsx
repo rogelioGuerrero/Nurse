@@ -1,5 +1,5 @@
 import { type FC, useState, useRef } from 'react';
-import { Stethoscope, Search, ShieldCheck, Calendar, DollarSign, ChevronDown, ChevronUp, UserCheck, Clock, MapPin, FileText, CheckCircle2, MessageCircle } from 'lucide-react';
+import { Stethoscope, Search, ShieldCheck, Calendar, DollarSign, ChevronDown, ChevronUp, UserCheck, Clock, MapPin, FileText, CheckCircle2, MessageCircle, Heart } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SupportChat } from './SupportChat';
 
@@ -12,6 +12,7 @@ interface LandingPageProps {
 export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAccess }) => {
   const [demoLoading, setDemoLoading] = useState(false);
   const [showFaq, setShowFaq] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<'nurse' | 'family'>('nurse');
   const logoClicks = useRef(0);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -37,7 +38,7 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
     } catch (err) { console.error('Demo login error:', err); setDemoLoading(false); }
   };
 
-  const faqs = [
+  const faqs = viewMode === 'nurse' ? [
     { q: '¿BienCuidar es una agencia de enfermería?', a: 'No. Somos una plataforma que conecta enfermeras con familias. Tú eres independiente, decides tus turnos y tu tarifa.' },
     { q: '¿Necesito tener CSSP?', a: 'Sí. El registro CSSP es obligatorio por ley. Nosotros lo verificamos para que las familias confíen en ti.' },
     { q: '¿Cuánto cobro por mi servicio?', a: 'Tú defines tu tarifa por turno. Nosotros no te decimos cuánto cobrar.' },
@@ -50,21 +51,50 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
     { q: '¿Tengo que dar mi número de teléfono?', a: 'No directamente. Toda la coordinación inicial se hace dentro de la plataforma de BienCuidar. Solo después de que aceptes una solicitud de cuidado se comparten los datos de contacto entre la familia y tú para coordinar la visita.' },
     { q: '¿Hay plazas disponibles?', a: 'No manejamos "plazas" como un empleo tradicional. Las familias publican solicitudes de cuidado cuando las necesitan, y tú decides cuáles aceptar. No hay límite de cupo para registrarte — siempre hay nuevas solicitudes llegando.' },
     { q: '¿Los hombres pueden registrarse?', a: 'Sí. BienCuidar está abierto a todos los profesionales de enfermería registrados ante el CSSP, sin importar género. Lo que importa es tu registro vigente y tu disposición para cuidar.' },
+  ] : [
+    { q: '¿Qué es BienCuidar?', a: 'Una plataforma que conecta familias con enfermeras profesionales verificadas en El Salvador. Nosotros verificamos las credenciales, tú eliges a la enfermera.' },
+    { q: '¿Las enfermeras están verificadas?', a: 'Sí. Verificamos el registro CSSP de cada enfermera ante el portal oficial del Ministerio de Salud. Nadie cuida a tu ser querido sin pasar por nuestra verificación.' },
+    { q: '¿Cuánto cuesta?', a: 'La tarifa la define cada enfermera según su especialidad y experiencia. Tú ves el precio antes de aceptar cualquier oferta. Sin sorpresas.' },
+    { q: '¿Tengo que pagar para publicar mi necesidad?', a: 'No. Publicar es gratis. Solo pagas a la enfermera cuando aceptas una oferta que te convenza.' },
+    { q: '¿Cómo funciona?', a: 'Publicas la necesidad de cuidado (condición, fechas, ubicación), las enfermeras verificadas te envían ofertas con su tarifa, y tú eliges la que prefieras.' },
+    { q: '¿Puedo ver el perfil de la enfermera antes de aceptar?', a: 'Sí. Ves su especialidad, años de experiencia, calificaciones de otras familias y tarifa por turno. Todo transparente antes de decidir.' },
+    { q: '¿Y si no me gusta ninguna oferta?', a: 'Puedes rechazar todas sin compromiso. Publicas de nuevo cuando quieras, las veces que necesites. No hay contratos forzados.' },
+    { q: '¿Cómo pago a la enfermera?', a: 'Dos opciones: pago directo (efectivo o transferencia a la enfermera) o pago con factura a través de BienCuidar, donde actuamos como agente de retención.' },
+    { q: '¿Puedo cancelar?', a: 'Sí, sin costo hasta 24 horas antes del turno. Menos de 24 horas tiene un cargo del 50% del turno (solo en modalidad con factura).' },
+    { q: '¿Qué tipo de cuidados puedo solicitar?', a: 'Geriatría, postoperatorio, cuidados paliativos, heridas crónicas, sondaje, oxígeno permanente, acompañamiento y más. Cualquier necesidad de cuidado en casa.' },
+    { q: '¿Mis datos están seguros?', a: 'Sí. Tu información solo se comparte con la enfermera cuya oferta aceptes. Nadie más ve tus datos de contacto hasta que tú decidas.' },
+    { q: '¿En qué parte de El Salvador funciona?', a: 'En todo el país. Publicas con tu ubicación y las enfermeras deciden si les queda cerca para ofrecer sus servicios.' },
+    { q: '¿Quién es responsable del servicio?', a: 'La enfermera es única responsable de sus actos clínicos. BienCuidar es una plataforma de intermediación y no es parte del contrato entre tú y la enfermera.' },
+    { q: '¿Qué pasa si tengo un problema con la enfermera?', a: 'Cualquier disputa se resuelve directamente con la enfermera. BienCuidar puede mediar a solicitud tuya, pero no tiene obligación de hacerlo.' },
+    { q: '¿Puedo cambiar de enfermera?', a: 'Sí. Si aún no has aceptado una oferta, puedes rechazar todas y publicar de nuevo. Si ya aceptaste, puedes cancelar sin costo hasta 24 horas antes del turno.' },
+    { q: '¿BienCuidar me cobra algo?', a: 'No. Publicar es gratis. Si eliges pagar con factura, hay un cobro por gestión fiscal de US$ 5 por turno. Si pagas directo a la enfermera, no hay ningún cobro.' },
+    { q: '¿Qué pasa si la enfermera no llega?', a: 'La coordinación de la visita es directamente entre tú y la enfermera. Si hay problemas, puedes contactarnos por WhatsApp y podemos mediar, pero la responsabilidad es de la enfermera.' },
   ];
 
-  const benefits = [
+  const benefits = viewMode === 'nurse' ? [
     { icon: Calendar, title: 'Flexibilidad total', desc: 'Elige turnos, días y duración. Desde 1 turno hasta 1 mes.' },
     { icon: ShieldCheck, title: 'CSSP verificado', desc: 'Tu registro verificado = más confianza de las familias = más ofertas.' },
     { icon: DollarSign, title: 'Tú defines tu tarifa', desc: 'Nadie te dice cuánto cobrar. Tú pones tu precio por turno.' },
     { icon: MapPin, title: 'Sabes a quién cuidas', desc: 'Ves la información de la familia y el paciente antes de aceptar.' },
     { icon: FileText, title: 'Formalidad opcional', desc: '¿Factura y FSEE? Te gestionamos todo. ¿Prefieres cobrar directo? También.' },
     { icon: Clock, title: 'Sin renunciar a nada', desc: 'Complementa tus ingresos. Aceptas turnos solo cuando tengas tiempo.' },
+  ] : [
+    { icon: ShieldCheck, title: 'Verificadas de verdad', desc: 'Verificamos el registro CSSP de cada enfermera ante el Ministerio de Salud. Nadie cuida a tu ser querido sin pasar por nuestra verificación.' },
+    { icon: CheckCircle2, title: 'Tú decides', desc: 'Ves perfiles, tarifas y experiencia antes de aceptar. Nadie te impone una enfermera. Tú comparas y eliges.' },
+    { icon: DollarSign, title: 'Transparencia total', desc: 'Cada enfermera pone su precio por turno. Tú ves la tarifa antes de aceptar. Sin sorpresas, sin costos ocultos.' },
+    { icon: Heart, title: 'Para cualquier necesidad', desc: 'Geriatría, postoperatorio, paliativos, heridas crónicas, acompañamiento. Cualquier cuidado que tu familia necesite en casa.' },
+    { icon: MapPin, title: 'En todo El Salvador', desc: 'Desde San Salvador hasta el oriente. Publicas con tu ubicación y llegan ofertas de enfermeras cercanas.' },
+    { icon: FileText, title: 'Sin compromiso', desc: 'Publicas gratis, rechazas las ofertas que no te convenzan. Sin contratos forzados, sin letra pequeña.' },
   ];
 
-  const steps = [
+  const steps = viewMode === 'nurse' ? [
     { icon: UserCheck, title: 'Regístrate', desc: 'Crea tu cuenta con tus datos profesionales y número de CSSP.' },
     { icon: ShieldCheck, title: 'Verificamos tu CSSP', desc: 'Confirmamos tu registro ante el CSSP. Las familias ven tu sello de verificación.' },
     { icon: Stethoscope, title: 'Recibe solicitudes', desc: 'Las familias publican solicitudes. Tú ves los detalles y decides cuáles aceptar.' },
+  ] : [
+    { icon: Search, title: 'Publica tu necesidad', desc: 'Describe el caso, los días y la ubicación. Toma menos de 2 minutos y es gratis.' },
+    { icon: MessageCircle, title: 'Recibe ofertas', desc: 'Enfermeras verificadas te envían su tarifa y disponibilidad. Tú comparas perfiles.' },
+    { icon: UserCheck, title: 'Elige y coordina', desc: 'Aceptas la oferta que prefieras. Los datos de contacto se comparten para coordinar la visita.' },
   ];
 
   return (
@@ -82,33 +112,87 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
           </div>
         </div>
 
-        {/* Hero - Nurse first */}
+        {/* View toggle */}
+        <div className="flex bg-slate-200 rounded-full p-1">
+          <button
+            onClick={() => setViewMode('nurse')}
+            className={`flex-1 py-2.5 rounded-full text-xs font-bold transition cursor-pointer ${
+              viewMode === 'nurse' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'
+            }`}
+          >
+            Soy Enfermera
+          </button>
+          <button
+            onClick={() => setViewMode('family')}
+            className={`flex-1 py-2.5 rounded-full text-xs font-bold transition cursor-pointer ${
+              viewMode === 'family' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'
+            }`}
+          >
+            Soy Familia
+          </button>
+        </div>
+
+        {/* Hero - dynamic by view */}
         <div className="text-center space-y-4">
-          <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1">
-            <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-            <p className="text-[10px] font-bold text-emerald-700">Registro gratis para enfermeras</p>
-          </div>
+          {viewMode === 'nurse' ? (
+            <div className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1">
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+              <p className="text-[10px] font-bold text-emerald-700">Registro gratis para enfermeras</p>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-1.5 bg-rose-50 border border-rose-200 rounded-full px-3 py-1">
+              <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
+              <p className="text-[10px] font-bold text-rose-700">Enfermeras verificadas para tu ser querido</p>
+            </div>
+          )}
           <h2 className="text-2xl font-bold text-slate-900 leading-tight">
-            Tú eliges cuándo.<br />Nosotros conseguimos los pacientes.
+            {viewMode === 'nurse' ? (
+              <>Tú eliges cuándo.<br />Nosotros conseguimos los pacientes.</>
+            ) : (
+              <>¿Necesitas una enfermera<br />de confianza en casa?<br />Publicas, ellas te contactan. Tú eliges.</>
+            )}
           </h2>
           <p className="text-sm text-slate-600 leading-relaxed">
-            BienCuidar conecta enfermeras profesionales con familias que necesitan cuidado a domicilio en El Salvador.
+            {viewMode === 'nurse'
+              ? 'BienCuidar conecta enfermeras profesionales con familias que necesitan cuidado a domicilio en El Salvador.'
+              : 'Publica la necesidad de cuidado de tu ser querido. Enfermeras profesionales verificadas te contactan con su tarifa. Tú comparas perfiles y eliges. Sin compromiso.'}
           </p>
           <div className="space-y-2.5 pt-2">
-            <button
-              onClick={onNurse}
-              className="w-full bg-indigo-600 text-white rounded-2xl py-4 font-bold text-sm shadow-sm active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Stethoscope className="h-5 w-5" />
-              Soy enfermera - Regístrate gratis
-            </button>
-            <button
-              onClick={onFamily}
-              className="w-full bg-white text-slate-700 border border-slate-200 rounded-2xl py-3.5 font-bold text-sm shadow-sm active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Search className="h-5 w-5 text-indigo-600" />
-              Buscar enfermera para mi familia
-            </button>
+            {viewMode === 'nurse' ? (
+              <>
+                <button
+                  onClick={onNurse}
+                  className="w-full bg-indigo-600 text-white rounded-2xl py-4 font-bold text-sm shadow-sm active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Stethoscope className="h-5 w-5" />
+                  Soy enfermera - Regístrate gratis
+                </button>
+                <button
+                  onClick={onFamily}
+                  className="w-full bg-white text-slate-700 border border-slate-200 rounded-2xl py-3.5 font-bold text-sm shadow-sm active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Search className="h-5 w-5 text-indigo-600" />
+                  Buscar enfermera para mi familia
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={onFamily}
+                  className="w-full bg-indigo-600 text-white rounded-2xl py-4 font-bold text-sm shadow-sm active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Search className="h-5 w-5" />
+                  Buscar enfermera para mi familia
+                </button>
+                <button
+                  onClick={onNurse}
+                  className="w-full bg-white text-slate-700 border border-slate-200 rounded-2xl py-3.5 font-bold text-sm shadow-sm active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Stethoscope className="h-5 w-5 text-indigo-600" />
+                  Soy enfermera - Regístrate gratis
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -135,12 +219,14 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
 
         {/* Benefits */}
         <div className="space-y-4">
-          <h3 className="text-center text-sm font-bold text-slate-800 uppercase tracking-wide">Por qué unirte a BienCuidar</h3>
+          <h3 className="text-center text-sm font-bold text-slate-800 uppercase tracking-wide">
+            {viewMode === 'nurse' ? 'Por qué unirte a BienCuidar' : 'Por qué elegir BienCuidar'}
+          </h3>
           <div className="grid grid-cols-1 gap-3">
             {benefits.map((b, i) => (
               <div key={i} className="flex items-start gap-3 bg-white border border-slate-200 rounded-xl p-3.5">
-                <div className="w-8 h-8 bg-emerald-50 rounded-lg flex items-center justify-center shrink-0">
-                  <b.icon className="h-4.5 w-4.5 text-emerald-600" style={{ width: 18, height: 18 }} />
+                <div className={`w-8 h-8 ${viewMode === 'nurse' ? 'bg-emerald-50' : 'bg-indigo-50'} rounded-lg flex items-center justify-center shrink-0`}>
+                  <b.icon className={`h-4.5 w-4.5 ${viewMode === 'nurse' ? 'text-emerald-600' : 'text-indigo-600'}`} style={{ width: 18, height: 18 }} />
                 </div>
                 <div>
                   <p className="text-sm font-bold text-slate-800">{b.title}</p>
@@ -177,13 +263,19 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
         {/* Final CTA */}
         <div className="bg-indigo-600 rounded-2xl p-6 text-center space-y-3">
           <CheckCircle2 className="h-8 w-8 text-white mx-auto" />
-          <p className="text-lg font-bold text-white">¿Lista para empezar?</p>
-          <p className="text-xs text-indigo-100">Regístrate gratis y recibe solicitudes de familias en tu área.</p>
+          <p className="text-lg font-bold text-white">
+            {viewMode === 'nurse' ? '¿Lista para empezar?' : '¿Necesitas una enfermera?'}
+          </p>
+          <p className="text-xs text-indigo-100">
+            {viewMode === 'nurse'
+              ? 'Regístrate gratis y recibe solicitudes de familias en tu área.'
+              : 'Publica tu necesidad gratis y recibe ofertas de enfermeras verificadas.'}
+          </p>
           <button
-            onClick={onNurse}
+            onClick={viewMode === 'nurse' ? onNurse : onFamily}
             className="w-full bg-white text-indigo-600 rounded-xl py-3.5 font-bold text-sm active:scale-[0.98] transition cursor-pointer"
           >
-            Regístrate gratis
+            {viewMode === 'nurse' ? 'Regístrate gratis' : 'Publicar mi necesidad'}
           </button>
         </div>
 
