@@ -255,12 +255,16 @@ export const SupportChat: FC<{ userRole?: string; userEmail?: string }> = ({ use
           if (stored) clientMemory = JSON.parse(stored);
         } catch {}
 
+        // Get user's JWT token for authenticated call
+        const { data: sessionData } = await supabase.auth.getSession();
+        const userToken = sessionData?.session?.access_token || supabaseAnonKey;
+
         // Usar ai-agent con tools (usuario logueado)
         const response = await fetch(`${supabaseUrl}/functions/v1/ai-agent`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${supabaseAnonKey}`,
+            Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
             message: userMessage,
