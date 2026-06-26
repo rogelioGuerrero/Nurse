@@ -1,13 +1,13 @@
 import { useState, useMemo, useEffect, type FC } from 'react';
 import { useApp } from '../context/AppContext';
-import { MessageCircle, ShieldCheck, Users, FileText, Clock, MapPin, Phone, DollarSign, CheckCircle2, TrendingUp, RefreshCw, Loader2, Calendar, BarChart3 } from 'lucide-react';
+import { MessageCircle, ShieldCheck, Users, FileText, Clock, MapPin, Phone, DollarSign, CheckCircle2, TrendingUp, RefreshCw, Loader2, Calendar, BarChart3, Mail } from 'lucide-react';
 import { CSSPReviewPanel } from './CSSPReviewPanel';
 import { groqChat } from '../lib/groq';
 import { supabase } from '../lib/supabase';
 
 export const AdminPanel: FC = () => {
   const { currentUser, careRequests, careOffers, profiles, nurses, bookings, confirmPayment } = useApp();
-  const [section, setSection] = useState<'summary' | 'notifications' | 'cssp' | 'packages' | 'nurses' | 'chat'>('summary');
+  const [section, setSection] = useState<'summary' | 'notifications' | 'cssp' | 'packages' | 'nurses' | 'chat' | 'support'>('summary');
   const [dailySummary, setDailySummary] = useState('');
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryDate, setSummaryDate] = useState('');
@@ -22,6 +22,19 @@ export const AdminPanel: FC = () => {
     last7Days: Array<{ date: string; count: number }>;
   } | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
+  const [supportEmails, setSupportEmails] = useState<Array<{
+    id: string;
+    from_email: string;
+    subject: string;
+    body: string;
+    classification: string;
+    auto_replied: boolean;
+    auto_reply_body: string | null;
+    needs_human: boolean;
+    created_at: string;
+  }>>([]);
+  const [supportLoading, setSupportLoading] = useState(false);
+  const [supportFilter, setSupportFilter] = useState<'needs_human' | 'all' | 'auto_replied'>('needs_human');
 
   if (!currentUser || currentUser.role !== 'admin') {
     return (
@@ -112,7 +125,27 @@ export const AdminPanel: FC = () => {
     if (section === 'chat' && !chatStats && !chatLoading) {
       loadChatStats();
     }
+    if (section === 'support') {
+      loadSupportEmails();
+    }
   }, [section]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadSupportEmails = async () => {
+    setSupportLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('support_emails')
+        .select('id, from_email, subject, body, classification, auto_replied, auto_reply_body, needs_human, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (!error && data) {
+        setSupportEmails(data as any);
+      }
+    } catch {
+      // silent
+    }
+    setSupportLoading(false);
+  };
 
   const loadChatStats = async () => {
     setChatLoading(true);
@@ -330,6 +363,18 @@ Mensaje para avisarle que revise los detalles en la app.`;
         >
           <BarChart3 className="h-3.5 w-3.5 inline mr-1" />
           Chat
+        </button>
+        <button
+          onClick={() => setSection('support')}
+          className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+            section === 'support' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Mail className="h-3.5 w-3.5 inline mr-1" />
+          Correo
+          {supportEmails.filter(e => e.needs_human).length > 0 && (
+            <span className="ml-1 bg-red-500 text-white text-[9px] rounded-full px-1.5 py-0.5">{supportEmails.filter(e => e.needs_human).length}</span>
+          )}
         </button>
       </div>
 
@@ -1009,6 +1054,99 @@ Mensaje para avisarle que revise los detalles en la app.`;
           )}
         </div>
       )}
+      {section === 'support' && (
+        <div className="space-y-4">
+          {/* Filter buttons */}
+          <div className="flex gap-2">
+            {[
+              { key: 'needs_human' as const, label: 'Necesitan respuesta' },
+              { key: 'auto_replied' as const, label: 'Auto-respondidos' },
+              { key: 'all' as const, label: 'Todos' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                onClick={() => setSupportFilter(key)}
+                className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+                  supportFilter === key ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {label}
+                {key === 'needs_human' && supportEmails.filter(e => e.needs_human).length > 0 && (
+                  <span className="ml-1 bg-red-500 text-white text-[9px] rounded-full px-1.5 py-0.5">{supportEmails.filter(e => e.needs_human).length}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {supportLoading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 text-indigo-400 animate-spin" />
+            </div>
+          )}
+
+          {!supportLoading && (() => {
+            const filtered = supportEmails.filter(e => {
+              if (supportFilter === 'needs_human') return e.needs_human;
+              if (supportFilter === 'auto_replied') return e.auto_replied;
+              return true;
+            });
+
+            if (filtered.length === 0) {
+              return (
+                <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
+                  <Mail className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm text-slate-500">
+                    {supportFilter === 'needs_human' ? 'No hay correos pendientes de respuesta.' : 'No hay correos registrados.'}
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="space-y-2">
+                {filtered.map((email) => (
+                  <div key={email.id} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-xs font-bold text-slate-800 truncate">{email.subject || '(sin asunto)'}</p>
+                          {email.needs_human && (
+                            <span className="bg-red-100 text-red-600 text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0">Requiere atención</span>
+                          )}
+                          {email.auto_replied && (
+                            <span className="bg-emerald-100 text-emerald-600 text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0">Auto-respondido</span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-slate-400">De: {email.from_email} · {new Date(email.created_at).toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'short' })}</p>
+                      </div>
+                      <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full shrink-0 capitalize">{email.classification}</span>
+                    </div>
+                    {email.body && (
+                      <p className="text-[11px] text-slate-600 line-clamp-3">{email.body.substring(0, 300)}</p>
+                    )}
+                    {email.auto_reply_body && (
+                      <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-2">
+                        <p className="text-[9px] font-bold text-emerald-600 uppercase mb-1">Respuesta enviada:</p>
+                        <p className="text-[11px] text-slate-600 line-clamp-3">{email.auto_reply_body.replace(/<[^>]*>/g, '').substring(0, 200)}</p>
+                      </div>
+                    )}
+                    {email.needs_human && (
+                      <a
+                        href={`mailto:${email.from_email}?subject=Re: ${encodeURIComponent(email.subject || '')}&body=${encodeURIComponent('Hola,\n\nGracias por escribir a BienCuidar. ')}`}
+                        className="inline-flex items-center gap-1.5 text-[10px] font-bold text-white bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg transition cursor-pointer"
+                      >
+                        <Mail className="h-3 w-3" />
+                        Responder
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
     </div>
   );
 };
