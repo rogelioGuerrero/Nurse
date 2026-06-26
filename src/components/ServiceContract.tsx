@@ -1,5 +1,5 @@
-import { type FC } from 'react';
-import { FileText, Printer, X } from 'lucide-react';
+import { type FC, useState } from 'react';
+import { FileText, Download, X, Share2, CheckCircle2 } from 'lucide-react';
 import { SHIFTS, type ShiftType } from '../types';
 import { calculateFamilyPrice, calculateNurseNet, PLATFORM_COMMISSION, IVA_RATE, RETENTION_RATE } from '../data/standardRates';
 
@@ -23,8 +23,23 @@ export const ServiceContract: FC<ServiceContractProps> = ({
   if (!open) return null;
 
   const today = new Date().toLocaleDateString('es-SV', { day: 'numeric', month: 'long', year: 'numeric' });
+  const [saved, setSaved] = useState(false);
 
-  const handlePrint = () => window.print();
+  const handleDownload = () => {
+    window.print();
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleShare = () => {
+    const text = `Contrato de Servicios de Enfermería - BienCuidar\n\nFamilia: ${familyName}\nPaciente: ${patientName}\nTurnos: ${totalShifts}\nTotal: US$ ${totalPrice.toFixed(2)}\n\nVer contrato completo en https://biencuidar.agtisa.com`;
+    if (navigator.share) {
+      navigator.share({ title: 'Contrato BienCuidar', text });
+    } else {
+      const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+      window.open(url, '_blank');
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4 print:bg-white print:p-0 print:block">
@@ -191,11 +206,18 @@ export const ServiceContract: FC<ServiceContractProps> = ({
             Cerrar
           </button>
           <button
-            onClick={handlePrint}
+            onClick={handleShare}
+            className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <Share2 className="h-4 w-4" />
+            Compartir
+          </button>
+          <button
+            onClick={handleDownload}
             className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-1.5 cursor-pointer"
           >
-            <Printer className="h-4 w-4" />
-            Imprimir / PDF
+            {saved ? <CheckCircle2 className="h-4 w-4" /> : <Download className="h-4 w-4" />}
+            {saved ? 'Guardado' : 'PDF'}
           </button>
         </div>
       </div>

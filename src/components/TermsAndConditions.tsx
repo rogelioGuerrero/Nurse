@@ -1,5 +1,5 @@
 import { type FC } from 'react';
-import { X, ShieldCheck, FileText, Scale, UserCheck } from 'lucide-react';
+import { X, ShieldCheck, FileText, Scale, UserCheck, CreditCard, CalendarClock, Lock } from 'lucide-react';
 
 interface TermsAndConditionsProps {
   open: boolean;
@@ -96,19 +96,71 @@ export const TermsAndConditions: FC<TermsAndConditionsProps> = ({ open, onClose,
               <h3 className="text-sm font-bold text-slate-800">4. Verificaciones y Antecedentes</h3>
             </div>
             <p>
-              BienCuidar solicita a las enfermeras su número de registro CSSP y lo muestra
-              públicamente para que las familias puedan verificarlo en el portal oficial
-              <span className="text-indigo-600"> cssp.gob.sv</span>. Sin embargo, BienCuidar
-              <strong> no garantiza la vigencia ni autenticidad</strong> de dichos registros,
-              siendo responsabilidad de la familia verificar antes de contratar.
+              BienCuidar <strong>verifica automáticamente</strong> cada número de registro CSSP
+              contra el portal oficial <span className="text-indigo-600">cssp.gob.sv</span> al
+              momento del registro. Solo las enfermeras con verificación exitosa (nombre y
+              profesión coincidentes) aparecen en la plataforma. La familia puede verificar
+              adicionalmente en <span className="text-indigo-600">cssp.gob.sv</span> antes de
+              contratar. BienCuidar no es empleador ni garantiza la calidad del servicio prestado.
             </p>
           </section>
 
-          {/* Cláusula 5: Limitación de responsabilidad */}
+          {/* Cláusula 5: Modalidades de pago */}
+          <section className="space-y-2">
+            <div className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-indigo-600 shrink-0" />
+              <h3 className="text-sm font-bold text-slate-800">5. Modalidades de Pago</h3>
+            </div>
+            <p>
+              Existen dos modalidades de pago: <strong>pago directo</strong> (la familia paga
+              directamente a la enfermera, sin intervención de BienCuidar) y <strong>pago con
+              factura</strong> (BienCuidar actúa como agente de retención, aplica la comisión de
+              US$ 5.00 + IVA y retiene el 10% de ISR). La modalidad se acuerda entre familia y
+              enfermera al momento de aceptar la oferta.
+            </p>
+          </section>
+
+          {/* Cláusula 6: Política de cancelación */}
+          <section className="space-y-2">
+            <div className="flex items-center gap-2">
+              <CalendarClock className="h-4 w-4 text-indigo-600 shrink-0" />
+              <h3 className="text-sm font-bold text-slate-800">6. Política de Cancelación</h3>
+            </div>
+            <p>
+              La cancelación de un turno <strong>sin costo</strong> procede hasta 24 horas antes
+              de la hora de inicio. Cancelaciones con menos de 24 horas de anticipación generan
+              una penalización equivalente al <strong>50% del valor del turno</strong>, aplicable
+              únicamente en la modalidad de pago con factura. En la modalidad de pago directo, la
+              cancelación se coordina directamente entre familia y enfermera.
+            </p>
+          </section>
+
+          {/* Cláusula 7: Privacidad y datos personales */}
+          <section className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Lock className="h-4 w-4 text-indigo-600 shrink-0" />
+              <h3 className="text-sm font-bold text-slate-800">7. Privacidad y Datos Personales</h3>
+            </div>
+            <p>
+              BienCuidar recopila datos personales (nombre, DUI, número CSSP, información de
+              contacto y datos clínicos del paciente) con fines exclusivos de intermediación y
+              verificación profesional. Los datos se almacenan de forma segura y no se comparten
+              con terceros, excepto con la contraparte (familia o enfermera) una vez aceptada una
+              oferta. El tratamiento de datos cumple con la legislación salvadoreña vigente en
+              materia de protección de datos personales.
+            </p>
+            <p>
+              Los datos clínicos del paciente ingresados en la plataforma son visibles únicamente
+              para la enfermera asignada y la familia responsable. BienCuidar no accede ni utiliza
+              dicha información clínica para ningún otro fin.
+            </p>
+          </section>
+
+          {/* Cláusula 8: Limitación de responsabilidad */}
           <section className="space-y-2">
             <div className="flex items-center gap-2">
               <Scale className="h-4 w-4 text-indigo-600 shrink-0" />
-              <h3 className="text-sm font-bold text-slate-800">5. Limitación de Responsabilidad</h3>
+              <h3 className="text-sm font-bold text-slate-800">8. Limitación de Responsabilidad</h3>
             </div>
             <p>
               En ningún caso BienCuidar será responsable por daños directos, indirectos,
@@ -126,9 +178,9 @@ export const TermsAndConditions: FC<TermsAndConditionsProps> = ({ open, onClose,
             )}
           </section>
 
-          {/* Cláusula 6: Resolución de disputas */}
+          {/* Cláusula 9: Resolución de disputas */}
           <section className="space-y-2">
-            <h3 className="text-sm font-bold text-slate-800">6. Resolución de Disputas</h3>
+            <h3 className="text-sm font-bold text-slate-800">9. Resolución de Disputas</h3>
             <p>
               Cualquier disputa entre familia y enfermera debe resolverse directamente entre
               ambas partes. BienCuidar podrá mediar a solicitud de las partes, pero no tiene
