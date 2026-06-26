@@ -108,7 +108,8 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
         options: {
           data: {
             full_name: fullName,
-            role: role === 'nurse' ? 'nurse' : 'user'
+            role: role === 'nurse' ? 'nurse' : 'user',
+            phone: phone.trim()
           }
         }
       });
@@ -125,17 +126,17 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
         return;
       }
 
-      // Create profile in profiles table
+      // Upsert profile (trigger may have already created it)
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert({
+        .upsert({
           id: authData.user.id,
           email: email,
           full_name: fullName,
           role: role === 'nurse' ? 'nurse' : 'user',
           phone: phone.trim(),
           location_name: ''
-        });
+        }, { onConflict: 'id' });
 
       if (profileError) {
         setError('Error al crear perfil: ' + profileError.message);
@@ -147,7 +148,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
       if (role === 'nurse') {
         const { data: nurseData, error: nurseError } = await supabase
           .from('nurses')
-          .insert({
+          .upsert({
             user_id: authData.user.id,
             specialization: [],
             shift_rate: 15,
@@ -168,7 +169,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
             cssp_verified: false,
             assignment_availability: assignmentAvailability,
             payment_preference: paymentPreference
-          })
+          }, { onConflict: 'user_id' })
           .select('id')
           .single();
 
