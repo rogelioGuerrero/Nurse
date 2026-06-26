@@ -1,4 +1,4 @@
-import { supabaseUrl, supabaseAnonKey } from './supabase';
+import { supabaseUrl, supabaseAnonKey, supabase } from './supabase';
 
 const EDGE_FUNCTION_PATH = '/functions/v1/verify-cssp';
 
@@ -24,11 +24,14 @@ export async function verifyCSSP(
   nurseLevel?: string
 ): Promise<CSSPVerifyResponse> {
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const accessToken = session?.access_token || supabaseAnonKey;
+
     const response = await fetch(`${supabaseUrl}${EDGE_FUNCTION_PATH}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${supabaseAnonKey}`,
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
         nurse_id: nurseId,
