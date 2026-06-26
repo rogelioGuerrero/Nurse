@@ -193,10 +193,23 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
           return;
         }
 
-        // Disparar verificación CSSP automática en background
+        // Disparar verificación CSSP automática con reintentos
         if (nurseData?.id) {
-          verifyCSSP(nurseData.id, csspRegistration, fullName, csspLevel)
-            .catch(() => {});
+          const retryVerify = async (attemptsLeft: number) => {
+            try {
+              const result = await verifyCSSP(nurseData.id, csspRegistration, fullName, csspLevel);
+              console.log('[AuthForm] CSSP verify result:', result.status, result.message);
+              if (result.status === 'pending' && attemptsLeft > 0) {
+                setTimeout(() => retryVerify(attemptsLeft - 1), 3000);
+              }
+            } catch (err) {
+              console.error('[AuthForm] CSSP verify failed:', err);
+              if (attemptsLeft > 0) {
+                setTimeout(() => retryVerify(attemptsLeft - 1), 3000);
+              }
+            }
+          };
+          retryVerify(2);
         }
       }
       

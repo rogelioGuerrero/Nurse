@@ -187,7 +187,8 @@ export const NurseProfileEdit: FC = () => {
     // Re-disparar verificación CSSP si cambió el registro o nivel
     if (csspChanged && currentNurse?.id) {
       verifyCSSP(currentNurse.id, csspReg.trim(), currentUser?.full_name, csspLevel)
-        .catch(() => {});
+        .then(result => console.log('[NurseProfileEdit] CSSP verify result:', result.status, result.message))
+        .catch(err => console.error('[NurseProfileEdit] CSSP verify failed:', err));
     }
 
     setShowNotify(true);
