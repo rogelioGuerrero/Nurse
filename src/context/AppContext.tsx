@@ -662,6 +662,11 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           lng: updated.lng,
           certifications: updated.certifications,
           experience_years: updated.experience_years,
+          cssp_registration: updated.cssp_registration,
+          cssp_level: updated.cssp_level,
+          assignment_availability: updated.assignment_availability,
+          payment_preference: updated.payment_preference,
+          verifications: updated.verifications || {},
         })
         .eq('id', updated.id);
       if (error) console.warn('Failed to sync nurse profile to Supabase:', error.message);

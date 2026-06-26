@@ -12,6 +12,7 @@ const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 10;
 
 const ALLOWED_ORIGINS = [
+  "https://biencuidar.agtisa.com",
   "https://localnurse.netlify.app",
   "https://zqgtkrqfyhcvgagjhbnv.supabase.co",
 ];

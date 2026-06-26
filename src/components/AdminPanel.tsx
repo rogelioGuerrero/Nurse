@@ -1,16 +1,27 @@
 import { useState, useMemo, useEffect, type FC } from 'react';
 import { useApp } from '../context/AppContext';
-import { MessageCircle, ShieldCheck, Users, FileText, Clock, MapPin, Phone, DollarSign, CheckCircle2, TrendingUp, RefreshCw, Loader2, Calendar } from 'lucide-react';
+import { MessageCircle, ShieldCheck, Users, FileText, Clock, MapPin, Phone, DollarSign, CheckCircle2, TrendingUp, RefreshCw, Loader2, Calendar, BarChart3 } from 'lucide-react';
 import { CSSPReviewPanel } from './CSSPReviewPanel';
 import { groqChat } from '../lib/groq';
+import { supabase } from '../lib/supabase';
 
 export const AdminPanel: FC = () => {
   const { currentUser, careRequests, careOffers, profiles, nurses, bookings, confirmPayment } = useApp();
-  const [section, setSection] = useState<'summary' | 'notifications' | 'cssp' | 'packages' | 'nurses'>('summary');
+  const [section, setSection] = useState<'summary' | 'notifications' | 'cssp' | 'packages' | 'nurses' | 'chat'>('summary');
   const [dailySummary, setDailySummary] = useState('');
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryDate, setSummaryDate] = useState('');
   const [waLoading, setWaLoading] = useState<string | null>(null);
+  const [chatStats, setChatStats] = useState<{
+    total: number;
+    byRole: Record<string, number>;
+    resolved: number;
+    whatsapp: number;
+    avgMessages: number;
+    topTopics: Array<{ topic: string; count: number }>;
+    last7Days: Array<{ date: string; count: number }>;
+  } | null>(null);
+  const [chatLoading, setChatLoading] = useState(false);
 
   if (!currentUser || currentUser.role !== 'admin') {
     return (
@@ -98,7 +109,72 @@ export const AdminPanel: FC = () => {
     if (section === 'summary' && !dailySummary && !summaryLoading) {
       generateSummary();
     }
+    if (section === 'chat' && !chatStats && !chatLoading) {
+      loadChatStats();
+    }
   }, [section]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadChatStats = async () => {
+    setChatLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .select('user_role, summary, topics, resolved, message_count, created_at')
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      if (error || !data) {
+        setChatLoading(false);
+        return;
+      }
+
+      const total = data.length;
+      const byRole: Record<string, number> = {};
+      let resolved = 0;
+      let whatsapp = 0;
+      let totalMessages = 0;
+      const topicCount: Record<string, number> = {};
+      const dayCount: Record<string, number> = {};
+
+      for (const s of data) {
+        byRole[s.user_role] = (byRole[s.user_role] || 0) + 1;
+        if (s.resolved) resolved++;
+        if (s.summary && s.summary.toLowerCase().includes('whatsapp')) whatsapp++;
+        totalMessages += s.message_count || 0;
+        if (s.topics && Array.isArray(s.topics)) {
+          for (const t of s.topics) {
+            const tc = t.toLowerCase().trim();
+            if (tc) topicCount[tc] = (topicCount[tc] || 0) + 1;
+          }
+        }
+        const day = new Date(s.created_at).toISOString().split('T')[0];
+        dayCount[day] = (dayCount[day] || 0) + 1;
+      }
+
+      const topTopics = Object.entries(topicCount)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 8)
+        .map(([topic, count]) => ({ topic, count }));
+
+      const last7Days = Object.entries(dayCount)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .slice(-7)
+        .map(([date, count]) => ({ date, count }));
+
+      setChatStats({
+        total,
+        byRole,
+        resolved,
+        whatsapp,
+        avgMessages: total > 0 ? Math.round(totalMessages / total) : 0,
+        topTopics,
+        last7Days,
+      });
+    } catch {
+      // Silent fail
+    }
+    setChatLoading(false);
+  };
 
   const waLink = (phone: string | undefined, message: string) => {
     const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
@@ -245,6 +321,15 @@ Mensaje para avisarle que revise los detalles en la app.`;
         >
           <Users className="h-3.5 w-3.5 inline mr-1" />
           Enfermeras
+        </button>
+        <button
+          onClick={() => setSection('chat')}
+          className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+            section === 'chat' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <BarChart3 className="h-3.5 w-3.5 inline mr-1" />
+          Chat
         </button>
       </div>
 
@@ -800,6 +885,128 @@ Mensaje para avisarle que revise los detalles en la app.`;
               })}
             </div>
           </div>
+        </div>
+      )}
+
+      {section === 'chat' && (
+        <div className="space-y-4">
+          {chatLoading && (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 text-indigo-400 animate-spin" />
+            </div>
+          )}
+
+          {!chatLoading && !chatStats && (
+            <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
+              <p className="text-sm text-slate-500">No hay datos de chat disponibles.</p>
+            </div>
+          )}
+
+          {!chatLoading && chatStats && (
+            <>
+              {/* Overview cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="bg-white border border-slate-200 rounded-xl p-4">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <MessageCircle className="h-4 w-4 text-indigo-500" />
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Total sesiones</p>
+                  </div>
+                  <p className="text-2xl font-bold text-slate-800">{chatStats.total}</p>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-xl p-4">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Resueltas</p>
+                  </div>
+                  <p className="text-2xl font-bold text-emerald-600">
+                    {chatStats.total > 0 ? Math.round((chatStats.resolved / chatStats.total) * 100) : 0}%
+                  </p>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-xl p-4">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <MessageCircle className="h-4 w-4 text-green-500" />
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">A WhatsApp</p>
+                  </div>
+                  <p className="text-2xl font-bold text-green-600">{chatStats.whatsapp}</p>
+                </div>
+                <div className="bg-white border border-slate-200 rounded-xl p-4">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <TrendingUp className="h-4 w-4 text-amber-500" />
+                    <p className="text-[10px] font-bold text-slate-400 uppercase">Msg promedio</p>
+                  </div>
+                  <p className="text-2xl font-bold text-amber-600">{chatStats.avgMessages}</p>
+                </div>
+              </div>
+
+              {/* By role */}
+              <div className="bg-white border border-slate-200 rounded-2xl p-4">
+                <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-3">Sesiones por rol</h3>
+                <div className="space-y-2">
+                  {Object.entries(chatStats.byRole).map(([role, count]) => {
+                    const pct = chatStats.total > 0 ? Math.round((count / chatStats.total) * 100) : 0;
+                    const label = role === 'nurse' ? 'Enfermeras' : role === 'family' ? 'Familias' : 'Visitantes';
+                    const color = role === 'nurse' ? 'bg-emerald-500' : role === 'family' ? 'bg-indigo-500' : 'bg-slate-400';
+                    return (
+                      <div key={role} className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-slate-600 w-20">{label}</span>
+                        <div className="flex-1 bg-slate-100 rounded-full h-6 overflow-hidden">
+                          <div className={`${color} h-full rounded-full flex items-center justify-end px-2`} style={{ width: `${Math.max(pct, 8)}%` }}>
+                            <span className="text-[10px] font-bold text-white">{count}</span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-slate-400 w-8 text-right">{pct}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Top topics */}
+              {chatStats.topTopics.length > 0 && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-4">
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-3">Temas más consultados</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {chatStats.topTopics.map((t, i) => (
+                      <div key={t.topic} className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-1.5">
+                        <span className="text-[10px] font-bold text-indigo-400">#{i + 1}</span>
+                        <span className="text-xs font-bold text-indigo-700 capitalize">{t.topic}</span>
+                        <span className="text-[10px] text-indigo-400 bg-indigo-100 rounded-full px-1.5 py-0.5">{t.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Last 7 days */}
+              {chatStats.last7Days.length > 0 && (
+                <div className="bg-white border border-slate-200 rounded-2xl p-4">
+                  <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wide mb-3">Actividad (últimos 7 días)</h3>
+                  <div className="flex items-end justify-between gap-2 h-32">
+                    {chatStats.last7Days.map((d) => {
+                      const maxCount = Math.max(...chatStats.last7Days.map(x => x.count), 1);
+                      const heightPct = Math.max((d.count / maxCount) * 100, 5);
+                      const dateLabel = new Date(d.date + 'T00:00:00').toLocaleDateString('es-SV', { weekday: 'short', day: 'numeric' });
+                      return (
+                        <div key={d.date} className="flex-1 flex flex-col items-center gap-1">
+                          <span className="text-[10px] font-bold text-slate-600">{d.count}</span>
+                          <div className="w-full bg-indigo-100 rounded-t-lg" style={{ height: `${heightPct}%` }}>
+                            <div className="w-full h-full bg-indigo-500 rounded-t-lg" />
+                          </div>
+                          <span className="text-[9px] text-slate-400 capitalize">{dateLabel}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {chatStats.total === 0 && (
+                <div className="text-center py-8 bg-white rounded-2xl border border-slate-200">
+                  <p className="text-sm text-slate-500">Aún no hay sesiones de chat registradas.</p>
+                </div>
+              )}
+            </>
+          )}
         </div>
       )}
     </div>

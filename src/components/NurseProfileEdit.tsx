@@ -49,6 +49,7 @@ export const NurseProfileEdit: FC = () => {
   const [selectedSpecs, setSelectedSpecs] = useState<string[]>(currentNurse?.specialization || []);
   const [customSpec, setCustomSpec] = useState<string>('');
   const [showNotify, setShowNotify] = useState(false);
+  const [csspError, setCsspError] = useState<string>('');
 
   // CSSP obligatorio + verificaciones opcionales
   const [csspReg, setCsspReg] = useState<string>(currentNurse?.cssp_registration || '');
@@ -154,9 +155,11 @@ export const NurseProfileEdit: FC = () => {
 
     const csspValidation = validateCSSPRegistration(csspReg);
     if (!csspValidation.valid) {
+      setCsspError(csspValidation.message);
       setStep(3);
       return;
     }
+    setCsspError('');
 
     const csspChanged = currentNurse?.cssp_registration !== csspReg.trim() || currentNurse?.cssp_level !== csspLevel;
 
@@ -500,6 +503,9 @@ export const NurseProfileEdit: FC = () => {
                   placeholder="Ej: CSSP-ENF-2024-0456"
                   className={`w-full text-xs font-medium bg-slate-50 border outline-none rounded-xl px-3 py-2.5 focus:bg-white focus:ring-1 transition ${csspReg.trim() ? 'border-slate-200 focus:border-indigo-500 focus:ring-indigo-500' : 'border-red-300 focus:border-red-500 focus:ring-red-500'}`}
                 />
+                {csspError && !csspReg.trim() && (
+                  <p className="text-[10px] text-rose-600 font-medium mt-1">{csspError}</p>
+                )}
                 {csspReg.trim() && !validateCSSPRegistration(csspReg).valid && (
                   <p className="text-[10px] text-rose-600 font-medium mt-1">{validateCSSPRegistration(csspReg).message}</p>
                 )}

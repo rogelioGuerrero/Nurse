@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, type FC } from 'react';
 import { MessageCircle, X, Send, Loader2 } from 'lucide-react';
-import { supabaseUrl, supabaseAnonKey } from '../lib/supabase';
+import { supabaseUrl, supabaseAnonKey, supabase } from '../lib/supabase';
 import { openSupport } from '../lib/support';
 
 interface Message {
@@ -187,6 +187,78 @@ export const SupportChat: FC<{ userRole?: string }> = ({ userRole = 'nurse' }) =
   const [loading, setLoading] = useState(false);
   const [showWhatsApp, setShowWhatsApp] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  const userMessagesRef = useRef<Array<{ role: string; content: string }>>([]);
+  const sessionLoggedRef = useRef(false);
+
+  const createSession = async () => {
+    if (sessionIdRef.current) return;
+    try {
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .insert({ user_role: userRole, message_count: 0 })
+        .select('id')
+        .single();
+      if (!error && data) {
+        sessionIdRef.current = data.id;
+      }
+    } catch {
+      // Silent fail — tracking is non-critical
+    }
+  };
+
+  const closeAndSummarize = async () => {
+    if (sessionLoggedRef.current || !sessionIdRef.current) return;
+    sessionLoggedRef.current = true;
+
+    const allMessages = [
+      ...userMessagesRef.current,
+      ...messages.filter(m => m.role === 'assistant').map(m => ({ role: m.role, content: m.content })),
+    ];
+
+    if (allMessages.length === 0) return;
+
+    try {
+      const response = await fetch(`${supabaseUrl}/functions/v1/chat-summary`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${supabaseAnonKey}`,
+        },
+        body: JSON.stringify({ messages: allMessages }),
+      });
+
+      let summary = 'Sesión cerrada';
+      let topics: string[] = [];
+      let resolved = false;
+
+      if (response.ok) {
+        const data = await response.json();
+        summary = data.summary || summary;
+        topics = data.topics || [];
+        resolved = data.resolved ?? false;
+      }
+
+      await supabase
+        .from('chat_sessions')
+        .update({
+          summary,
+          topics,
+          resolved,
+          message_count: userMessagesRef.current.length,
+          closed_at: new Date().toISOString(),
+        })
+        .eq('id', sessionIdRef.current);
+    } catch {
+      // Silent fail
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      closeAndSummarize();
+    };
+  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -195,10 +267,16 @@ export const SupportChat: FC<{ userRole?: string }> = ({ userRole = 'nurse' }) =
   const handleSend = async () => {
     if (!input.trim() || loading) return;
 
+    if (!sessionIdRef.current) {
+      createSession();
+    }
+
     const userMessage = input.trim();
     setInput('');
     setLoading(true);
     setShowWhatsApp(false);
+
+    userMessagesRef.current.push({ role: 'user', content: userMessage });
 
     const newMessages = [...messages, { role: 'user' as const, content: userMessage }];
     setMessages(newMessages);
@@ -252,7 +330,7 @@ export const SupportChat: FC<{ userRole?: string }> = ({ userRole = 'nurse' }) =
   if (!open) {
     return (
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => { setOpen(true); createSession(); }}
         className={`fixed ${userRole === 'visitor' ? 'bottom-5 right-5 w-14 h-14' : 'bottom-20 right-4 w-12 h-12'} bg-indigo-600 hover:bg-indigo-500 rounded-full shadow-lg flex items-center justify-center active:scale-95 transition z-40 cursor-pointer`}
         aria-label="Soporte BienCuidar"
       >
@@ -275,7 +353,7 @@ export const SupportChat: FC<{ userRole?: string }> = ({ userRole = 'nurse' }) =
           </div>
         </div>
         <button
-          onClick={() => setOpen(false)}
+          onClick={() => { closeAndSummarize(); setOpen(false); }}
           className="text-white/80 hover:text-white bg-white/10 hover:bg-white/20 w-7 h-7 rounded-full flex items-center justify-center transition cursor-pointer"
         >
           <X className="h-4 w-4" />
