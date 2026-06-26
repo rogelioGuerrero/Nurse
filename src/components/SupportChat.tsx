@@ -104,7 +104,7 @@ export const SupportChat: FC<{ userRole?: string }> = ({ userRole = 'nurse' }) =
         body: JSON.stringify({
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
-            ...newMessages.map(m => ({ role: m.role, content: m.content })),
+            ...newMessages.filter(m => m.role === 'user').map(m => ({ role: m.role, content: m.content })),
           ],
           temperature: 0.3,
           maxTokens: 300,
