@@ -1131,13 +1131,7 @@ Mensaje para avisarle que revise los detalles en la app.`;
                       </div>
                     )}
                     {email.needs_human && (
-                      <a
-                        href={`mailto:${email.from_email}?subject=Re: ${encodeURIComponent(email.subject || '')}&body=${encodeURIComponent('Hola,\n\nGracias por escribir a BienCuidar. ')}`}
-                        className="inline-flex items-center gap-1.5 text-[10px] font-bold text-white bg-indigo-600 hover:bg-indigo-500 px-3 py-1.5 rounded-lg transition cursor-pointer"
-                      >
-                        <Mail className="h-3 w-3" />
-                        Responder
-                      </a>
+                      <p className="text-[10px] text-slate-400">Respondé desde Hostinger → info@agtisa.com</p>
                     )}
                   </div>
                 ))}
