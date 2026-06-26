@@ -787,7 +787,7 @@ function MarketplaceApp() {
 
       {/* Support chat widget - visible when logged in */}
       {currentUser && (
-        <SupportChat userRole={currentUser.role} />
+        <SupportChat userRole={currentUser.role} userEmail={currentUser.email} />
       )}
 
     </div>

@@ -134,7 +134,7 @@ function getSystemPrompt(role: string): string {
   return NURSE_PROMPT;
 }
 
-export const SupportChat: FC<{ userRole?: string }> = ({ userRole = 'nurse' }) => {
+export const SupportChat: FC<{ userRole?: string; userEmail?: string }> = ({ userRole = 'nurse', userEmail }) => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -245,26 +245,51 @@ export const SupportChat: FC<{ userRole?: string }> = ({ userRole = 'nurse' }) =
     setMessages(newMessages);
 
     try {
-      const response = await fetch(`${supabaseUrl}/functions/v1/ai-chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${supabaseAnonKey}`,
-        },
-        body: JSON.stringify({
-          messages: [
-            { role: 'system', content: getSystemPrompt(userRole) },
-            ...newMessages.filter(m => m.role === 'user').map(m => ({ role: m.role, content: m.content })),
-          ],
-          temperature: 0.3,
-          maxTokens: 300,
-        }),
-      });
+      let assistantReply: string;
 
-      if (!response.ok) throw new Error('Error en el servicio');
+      if (userEmail) {
+        // Usar ai-agent con tools (usuario logueado)
+        const response = await fetch(`${supabaseUrl}/functions/v1/ai-agent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${supabaseAnonKey}`,
+          },
+          body: JSON.stringify({
+            message: userMessage,
+            user_email: userEmail,
+            channel: 'chat',
+            history: userMessagesRef.current.slice(-6).map(m => ({ role: m.role, content: m.content })),
+          }),
+        });
 
-      const data = await response.json();
-      const assistantReply = data.content || 'No pude procesar tu consulta. Escribinos a info@agtisa.com.';
+        if (!response.ok) throw new Error('Error en el servicio');
+
+        const data = await response.json();
+        assistantReply = data.reply || 'No pude procesar tu consulta. Escribinos a info@agtisa.com.';
+      } else {
+        // Usar ai-chat sin tools (visitante)
+        const response = await fetch(`${supabaseUrl}/functions/v1/ai-chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${supabaseAnonKey}`,
+          },
+          body: JSON.stringify({
+            messages: [
+              { role: 'system', content: getSystemPrompt(userRole) },
+              ...newMessages.filter(m => m.role === 'user').map(m => ({ role: m.role, content: m.content })),
+            ],
+            temperature: 0.3,
+            maxTokens: 300,
+          }),
+        });
+
+        if (!response.ok) throw new Error('Error en el servicio');
+
+        const data = await response.json();
+        assistantReply = data.content || 'No pude procesar tu consulta. Escribinos a info@agtisa.com.';
+      }
 
       // Check if the bot suggests email
       if (assistantReply.toLowerCase().includes('info@agtisa.com') || assistantReply.toLowerCase().includes('no tengo esa')) {
