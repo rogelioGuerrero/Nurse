@@ -100,16 +100,6 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
 
   return (
     <div className="min-h-[100vh] bg-gradient-to-b from-slate-50 to-slate-100">
-      {/* Floating login button */}
-      {onLogin && (
-        <button
-          onClick={onLogin}
-          className="fixed top-4 right-4 z-50 flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow-lg active:scale-95 transition cursor-pointer"
-        >
-          <LogIn className="h-4 w-4" />
-          Iniciar sesión
-        </button>
-      )}
       <div className="max-w-md mx-auto px-5 py-8 space-y-10">
 
         {/* Logo - 5 clicks to reveal admin login */}
@@ -206,6 +196,19 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
             )}
           </div>
         </div>
+
+        {/* Login link */}
+        {onLogin && (
+          <div className="text-center">
+            <button
+              onClick={onLogin}
+              className="inline-flex items-center gap-1.5 text-indigo-600 hover:text-indigo-500 text-xs font-bold transition cursor-pointer"
+            >
+              <LogIn className="h-3.5 w-3.5" />
+              ¿Ya tenés cuenta? Iniciar sesión
+            </button>
+          </div>
+        )}
 
         {/* How it works */}
         <div className="space-y-4">
