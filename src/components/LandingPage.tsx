@@ -46,6 +46,8 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
     { q: '¿Puedo cobrar directo sin factura?', a: 'Sí. Si prefieres cobrar directo a la familia, también se puede. La factura y FSEE son opcionales.' },
     { q: '¿Qué pasa si ya tengo trabajo?', a: 'Perfecto. BienCuidar es para complementar tus ingresos. Aceptas turnos solo cuando tengas tiempo libre.' },
     { q: '¿En qué parte de El Salvador funciona?', a: 'En todo el país. Las familias publican solicitudes con su ubicación y tú decides si te queda cerca.' },
+    { q: '¿Cómo me contactan las familias?', a: 'Todo se hace dentro de la plataforma de BienCuidar. Las familias publican solicitudes de cuidado y a ti te llegan en la bandeja de la app. Ves los detalles del paciente, horarios y ubicación, y decides si aceptas o rechazas. No necesitas dar tu número a nadie directamente — solo después de aceptar una solicitud se comparte la información de contacto para la visita.' },
+    { q: '¿Tengo que dar mi número de teléfono?', a: 'No directamente. Toda la coordinación inicial se hace dentro de la plataforma de BienCuidar. Solo después de que aceptes una solicitud de cuidado se comparten los datos de contacto entre la familia y tú para coordinar la visita.' },
   ];
 
   const benefits = [
