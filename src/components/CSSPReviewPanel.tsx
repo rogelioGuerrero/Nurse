@@ -21,6 +21,23 @@ export const CSSPReviewPanel: FC = () => {
 
   const profileMap = useMemo(() => new Map(profiles.map(p => [p.id, p])), [profiles]);
 
+  // Count nurses by CSSP verification status
+  const statusCounts = useMemo(() => {
+    const counts = {
+      pending: 0,
+      unverified: 0,
+      verified: 0,
+      all: nurses.length,
+    };
+    nurses.forEach(n => {
+      const status = n.cssp_verification_status || 'unverified';
+      if (status === 'pending') counts.pending++;
+      else if (status === 'unverified') counts.unverified++;
+      else if (n.cssp_verified) counts.verified++;
+    });
+    return counts;
+  }, [nurses]);
+
   const filteredNurses = useMemo(() => {
     let list = nurses;
 
@@ -98,19 +115,25 @@ export const CSSPReviewPanel: FC = () => {
             />
           </div>
           <div className="flex gap-1.5">
-            {(['pending', 'unverified', 'verified', 'all'] as const).map(f => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`px-3 py-2 rounded-lg text-[11px] font-bold transition cursor-pointer ${
-                  filter === f
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                {f === 'pending' ? 'Pendientes' : f === 'unverified' ? 'No verif.' : f === 'verified' ? 'Verificados' : 'Todos'}
-              </button>
-            ))}
+            {(['pending', 'unverified', 'verified', 'all'] as const).map(f => {
+              const count = statusCounts[f];
+              return (
+                <button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  className={`px-3 py-2 rounded-lg text-[11px] font-bold transition cursor-pointer flex items-center gap-1.5 ${
+                    filter === f
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {f === 'pending' ? 'Pendientes' : f === 'unverified' ? 'No verif.' : f === 'verified' ? 'Verificados' : 'Todos'}
+                  <span className={`px-1.5 py-0.5 rounded-full text-[9px] ${filter === f ? 'bg-indigo-500' : 'bg-slate-200'}`}>
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
