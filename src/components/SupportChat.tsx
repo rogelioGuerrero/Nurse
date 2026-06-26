@@ -248,6 +248,13 @@ export const SupportChat: FC<{ userRole?: string; userEmail?: string }> = ({ use
       let assistantReply: string;
 
       if (userEmail) {
+        // Load client-side memory from localStorage
+        let clientMemory: Record<string, any> = {};
+        try {
+          const stored = localStorage.getItem(`bc_agent_memory_${userEmail}`);
+          if (stored) clientMemory = JSON.parse(stored);
+        } catch {}
+
         // Usar ai-agent con tools (usuario logueado)
         const response = await fetch(`${supabaseUrl}/functions/v1/ai-agent`, {
           method: 'POST',
@@ -259,7 +266,8 @@ export const SupportChat: FC<{ userRole?: string; userEmail?: string }> = ({ use
             message: userMessage,
             user_email: userEmail,
             channel: 'chat',
-            history: userMessagesRef.current.slice(-6).map(m => ({ role: m.role, content: m.content })),
+            history: userMessagesRef.current.slice(-12).map(m => ({ role: m.role, content: m.content })),
+            client_memory: clientMemory,
           }),
         });
 
@@ -267,6 +275,16 @@ export const SupportChat: FC<{ userRole?: string; userEmail?: string }> = ({ use
 
         const data = await response.json();
         assistantReply = data.reply || 'No pude procesar tu consulta. Escribinos a info@agtisa.com.';
+
+        // Save conversation context to localStorage
+        try {
+          const mem = {
+            last_topic: userMessage.slice(0, 100),
+            last_visit: new Date().toISOString(),
+            visit_count: (clientMemory.visit_count || 0) + 1,
+          };
+          localStorage.setItem(`bc_agent_memory_${userEmail}`, JSON.stringify(mem));
+        } catch {}
       } else {
         // Usar ai-chat sin tools (visitante)
         const response = await fetch(`${supabaseUrl}/functions/v1/ai-chat`, {
