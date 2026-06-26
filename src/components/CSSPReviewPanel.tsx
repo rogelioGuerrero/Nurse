@@ -1,7 +1,8 @@
 import { useState, useMemo, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { supabase } from '../lib/supabase';
-import { ShieldCheck, ShieldX, Clock, ExternalLink, Search, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { verifyCSSP } from '../lib/csspVerify';
+import { ShieldCheck, ShieldX, Clock, ExternalLink, Search, CheckCircle2, XCircle, Loader2, RefreshCw } from 'lucide-react';
 import type { Nurse, CSSPVerificationStatus } from '../types';
 
 export const CSSPReviewPanel: FC = () => {
@@ -10,6 +11,8 @@ export const CSSPReviewPanel: FC = () => {
   const [filter, setFilter] = useState<'all' | 'unverified' | 'pending' | 'verified' | 'rejected'>('unverified');
   const [loading, setLoading] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [bulkVerifying, setBulkVerifying] = useState(false);
+  const [bulkVerifyResult, setBulkVerifyResult] = useState<{ success: number; failed: number } | null>(null);
 
   if (!currentUser || currentUser.role !== 'admin') {
     return (
@@ -92,6 +95,61 @@ export const CSSPReviewPanel: FC = () => {
     }
   };
 
+  const bulkVerifyAll = async () => {
+    setBulkVerifying(true);
+    setBulkVerifyResult(null);
+
+    const unverifiedWithCSSP = nurses.filter(
+      n => (n.cssp_verification_status || 'unverified') === 'unverified' && n.cssp_registration
+    );
+
+    let success = 0;
+    let failed = 0;
+
+    for (const nurse of unverifiedWithCSSP) {
+      const profile = profileMap.get(nurse.user_id);
+      try {
+        const result = await verifyCSSP(
+          nurse.id,
+          nurse.cssp_registration!,
+          profile?.full_name,
+          nurse.cssp_level
+        );
+
+        if (result.status === 'auto_verified') {
+          await supabase
+            .from('nurses')
+            .update({
+              cssp_verification_status: 'auto_verified',
+              cssp_verified: true,
+              cssp_verification_date: new Date().toISOString(),
+            })
+            .eq('id', nurse.id);
+          success++;
+        } else if (result.status === 'pending') {
+          await supabase
+            .from('nurses')
+            .update({
+              cssp_verification_status: 'pending',
+            })
+            .eq('id', nurse.id);
+          failed++;
+        } else {
+          failed++;
+        }
+      } catch (err) {
+        console.error('Error verifying nurse:', nurse.id, err);
+        failed++;
+      }
+
+      // Small delay to avoid overwhelming the API
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    setBulkVerifyResult({ success, failed });
+    setBulkVerifying(false);
+  };
+
   const statusConfig: Record<CSSPVerificationStatus, { label: string; color: string; icon: typeof ShieldCheck }> = {
     auto_verified: { label: 'Auto verificado', color: 'text-emerald-600 bg-emerald-50', icon: ShieldCheck },
     manual_verified: { label: 'Verificado manual', color: 'text-blue-600 bg-blue-50', icon: ShieldCheck },
@@ -107,6 +165,30 @@ export const CSSPReviewPanel: FC = () => {
           <ShieldCheck className="h-5 w-5 text-indigo-600" />
           <h2 className="text-base font-bold text-slate-800">Revisión manual de registros CSSP</h2>
         </div>
+
+        {/* Bulk verify button */}
+        {filter === 'unverified' && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={bulkVerifyAll}
+              disabled={bulkVerifying}
+              className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition cursor-pointer disabled:opacity-50"
+            >
+              {bulkVerifying ? (
+                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Verificando...</>
+              ) : (
+                <><RefreshCw className="h-3.5 w-3.5" /> Re-verificar todas con CSSP</>
+              )}
+            </button>
+            {bulkVerifyResult && (
+              <span className="text-[10px] font-medium">
+                <span className="text-emerald-600">{bulkVerifyResult.success} verificadas</span>
+                {' · '}
+                <span className="text-amber-600">{bulkVerifyResult.failed} fallaron</span>
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Filtros */}
         <div className="flex flex-col sm:flex-row gap-3">
