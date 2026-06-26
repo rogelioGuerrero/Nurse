@@ -91,7 +91,7 @@ export const FamilyProfileEdit: FC = () => {
             className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
             placeholder="7777-7777"
           />
-          <p className="text-[10px] text-slate-400">El administrador usará este número para contactarte por WhatsApp.</p>
+          <p className="text-[10px] text-slate-400">Este número se comparte con la enfermera cuando aceptas una oferta.</p>
         </div>
 
         {/* Location */}

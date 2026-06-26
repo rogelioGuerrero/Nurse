@@ -252,7 +252,7 @@ export const CareRequestForm: FC = () => {
           <div className="space-y-2">
             <h2 className="text-xl font-bold text-slate-900">Ya estamos buscando a la persona ideal</h2>
             <p className="text-sm text-slate-500 leading-relaxed">
-              Estamos conectando con enfermeras que puedan cuidar a tu ser querido. Recibirás una notificación cuando haya ofertas. Si es necesario, te contactaremos por WhatsApp al <span className="font-bold text-slate-700">{phone}</span>.
+              Estamos conectando con enfermeras que puedan cuidar a tu ser querido. Recibirás una notificación cuando haya ofertas.
             </p>
           </div>
           <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-left space-y-2">
@@ -687,7 +687,7 @@ export const CareRequestForm: FC = () => {
                   className="w-full pl-9 pr-3 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
                 />
               </div>
-              <p className="text-[10px] text-slate-400 mt-1">Te avisaremos por notificación y WhatsApp cuando haya novedades.</p>
+              <p className="text-[10px] text-slate-400 mt-1">Te avisaremos por notificación cuando haya novedades.</p>
             </div>
           </div>
 

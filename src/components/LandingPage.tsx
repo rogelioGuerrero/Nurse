@@ -68,7 +68,7 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
     { q: '¿Qué pasa si tengo un problema con la enfermera?', a: 'Cualquier disputa se resuelve directamente con la enfermera. BienCuidar puede mediar a solicitud tuya, pero no tiene obligación de hacerlo.' },
     { q: '¿Puedo cambiar de enfermera?', a: 'Sí. Si aún no has aceptado una oferta, puedes rechazar todas y publicar de nuevo. Si ya aceptaste, puedes cancelar sin costo hasta 24 horas antes del turno.' },
     { q: '¿BienCuidar me cobra algo?', a: 'No. Publicar es gratis. Si eliges pagar con factura, hay un cobro por gestión fiscal de US$ 5 por turno. Si pagas directo a la enfermera, no hay ningún cobro.' },
-    { q: '¿Qué pasa si la enfermera no llega?', a: 'La coordinación de la visita es directamente entre tú y la enfermera. Si hay problemas, puedes contactarnos por WhatsApp y podemos mediar, pero la responsabilidad es de la enfermera.' },
+    { q: '¿Qué pasa si la enfermera no llega?', a: 'La coordinación de la visita es directamente entre tú y la enfermera. Si hay problemas, puedes escribirnos a info@agtisa.com y podemos mediar, pero la responsabilidad es de la enfermera.' },
   ];
 
   const benefits = viewMode === 'nurse' ? [

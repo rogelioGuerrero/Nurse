@@ -99,14 +99,17 @@ export const CSSPReviewPanel: FC = () => {
     setBulkVerifying(true);
     setBulkVerifyResult(null);
 
-    const unverifiedWithCSSP = nurses.filter(
-      n => (n.cssp_verification_status || 'unverified') === 'unverified' && n.cssp_registration
+    // Solo re-verificar enfermeras con error de conexión (portal CSSP caído)
+    const connectionErrors = nurses.filter(
+      n => n.cssp_verification_status === 'pending' 
+        && n.cssp_registration
+        && n.cssp_verification_notes?.includes('Verificación automática falló')
     );
 
     let success = 0;
     let failed = 0;
 
-    for (const nurse of unverifiedWithCSSP) {
+    for (const nurse of connectionErrors) {
       const profile = profileMap.get(nurse.user_id);
       try {
         const result = await verifyCSSP(
@@ -117,23 +120,7 @@ export const CSSPReviewPanel: FC = () => {
         );
 
         if (result.status === 'auto_verified') {
-          await supabase
-            .from('nurses')
-            .update({
-              cssp_verification_status: 'auto_verified',
-              cssp_verified: true,
-              cssp_verification_date: new Date().toISOString(),
-            })
-            .eq('id', nurse.id);
           success++;
-        } else if (result.status === 'pending') {
-          await supabase
-            .from('nurses')
-            .update({
-              cssp_verification_status: 'pending',
-            })
-            .eq('id', nurse.id);
-          failed++;
         } else {
           failed++;
         }
@@ -142,7 +129,6 @@ export const CSSPReviewPanel: FC = () => {
         failed++;
       }
 
-      // Delay between verifications to avoid rate limiting (3 seconds per request)
       await new Promise(resolve => setTimeout(resolve, 3000));
     }
 
@@ -166,8 +152,8 @@ export const CSSPReviewPanel: FC = () => {
           <h2 className="text-base font-bold text-slate-800">Revisión manual de registros CSSP</h2>
         </div>
 
-        {/* Bulk verify button */}
-        {filter === 'unverified' && (
+        {/* Bulk verify button — only for connection errors */}
+        {filter === 'pending' && nurses.some(n => n.cssp_verification_notes?.includes('Verificación automática falló')) && (
           <div className="flex items-center gap-2">
             <button
               onClick={bulkVerifyAll}
@@ -175,16 +161,16 @@ export const CSSPReviewPanel: FC = () => {
               className="flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition cursor-pointer disabled:opacity-50"
             >
               {bulkVerifying ? (
-                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Verificando...</>
+                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Reintentando...</>
               ) : (
-                <><RefreshCw className="h-3.5 w-3.5" /> Re-verificar todas con CSSP</>
+                <><RefreshCw className="h-3.5 w-3.5" /> Reintentar verificaciones fallidas</>
               )}
             </button>
             {bulkVerifyResult && (
               <span className="text-[10px] font-medium">
                 <span className="text-emerald-600">{bulkVerifyResult.success} verificadas</span>
                 {' · '}
-                <span className="text-amber-600">{bulkVerifyResult.failed} fallaron</span>
+                <span className="text-amber-600">{bulkVerifyResult.failed} aún fallan</span>
               </span>
             )}
           </div>

@@ -230,6 +230,70 @@ async function verifyWithRetries(
   return { result: lastResult, mismatches: lastMismatches, attempts: MAX_ATTEMPTS };
 }
 
+/**
+ * Envía un correo electrónico a la enfermera notificando problemas con su CSSP.
+ * Llama a la Edge Function send-nurse-email.
+ */
+async function sendCsspEmail(
+  supabase: ReturnType<typeof createClient>,
+  nurseId: string,
+  problemType: string,
+  problemDetail: string
+): Promise<void> {
+  try {
+    // Obtener email y nombre de la enfermera desde profiles
+    const { data: nurse } = await supabase
+      .from("nurses")
+      .select("cssp_registration, cssp_level, user_id")
+      .eq("id", nurseId)
+      .single();
+
+    if (!nurse) return;
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", nurse.user_id)
+      .single();
+
+    if (!profile?.email) return;
+
+    // Llamar a send-nurse-email edge function
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const response = await fetch(`${supabaseUrl}/functions/v1/send-nurse-email`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: JSON.stringify({
+        nurse_name: profile.full_name,
+        nurse_email: profile.email,
+        cssp_registration: nurse.cssp_registration,
+        cssp_level: nurse.cssp_level || "",
+        problem_type: problemType,
+        problem_detail: problemDetail,
+      }),
+    });
+
+    if (response.ok) {
+      // Registrar que se envió el primer correo
+      await supabase
+        .from("nurses")
+        .update({
+          cssp_email_count: 1,
+          cssp_email_sent_at: new Date().toISOString(),
+        })
+        .eq("id", nurseId);
+      console.log(`Correo enviado a ${profile.email} por: ${problemType}`);
+    } else {
+      console.error(`Error enviando correo: ${await response.text()}`);
+    }
+  } catch (err) {
+    console.error("Error en sendCsspEmail:", err);
+  }
+}
+
 Deno.serve(async (req: Request) => {
   // CORS
   if (req.method === "OPTIONS") {
@@ -305,10 +369,18 @@ Deno.serve(async (req: Request) => {
           })
           .eq("id", nurse_id);
 
+        // Enviar correo inmediato a la enfermera
+        await sendCsspEmail(
+          supabase,
+          nurse_id,
+          "discrepancias en la verificación CSSP",
+          `Tu número de registro CSSP fue encontrado pero hay discrepancias: ${mismatches.join("; ")}. Por favor corrige tus datos en https://biencuidar.agtisa.com`
+        );
+
         return new Response(
           JSON.stringify({
             status: "pending",
-            message: "Registro encontrado pero con discrepancias. Requiere revisión manual.",
+            message: "Registro encontrado pero con discrepancias. Se envió correo a la enfermera.",
             data: result,
             mismatches,
             attempts,
@@ -349,10 +421,18 @@ Deno.serve(async (req: Request) => {
       })
       .eq("id", nurse_id);
 
+    // Enviar correo inmediato a la enfermera
+    await sendCsspEmail(
+      supabase,
+      nurse_id,
+      "número CSSP no encontrado en el portal",
+      `El número ${cssp_registration} no fue encontrado en el portal del CSSP. Verifica que el número sea correcto y actualízalo en https://biencuidar.agtisa.com`
+    );
+
     return new Response(
       JSON.stringify({
         status: "unverified",
-        message: "No se encontró el número en el portal CSSP. Se sugiere verificación manual.",
+        message: "No se encontró el número en el portal CSSP. Se envió correo a la enfermera.",
         attempts,
       }),
       { status: 200, headers: { "Content-Type": "application/json" } }
