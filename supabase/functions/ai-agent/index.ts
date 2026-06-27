@@ -1,9 +1,10 @@
-import { createClient } from "jsr:@supabase/supabase-js@2";
+﻿import { createClient } from "jsr:@supabase/supabase-js@2";
 import webPush from "https://esm.sh/web-push@3.6.7";
 
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
 const VAPID_SUBJECT = "mailto:admin@biencuidar.agtisa.com";
@@ -161,7 +162,7 @@ async function getPlatformStats(supabase: any) {
 async function sendPushNotification(supabase: any, userId: string, role: string, args: any) {
   const { target, title, body } = args;
   if (!target || !title || !body) {
-    return { error: 'Faltan parÃ¡metros: target, title, body' };
+    return { error: 'Faltan parámetros: target, title, body' };
   }
 
   let targetUserIds: string[] = [];
@@ -190,7 +191,7 @@ async function sendPushNotification(supabase: any, userId: string, role: string,
       .from('bookings').select('nurses(user_id)').eq('user_id', userId).in('status', ['confirmed', 'in_progress']).limit(5);
     targetUserIds = (bookings || []).map((b: any) => b.nurses?.user_id).filter(Boolean);
   } else {
-    return { error: 'Target no vÃ¡lido para tu rol' };
+    return { error: 'Target no válido para tu rol' };
   }
 
   if (targetUserIds.length === 0) {
@@ -225,28 +226,112 @@ async function sendPushNotification(supabase: any, userId: string, role: string,
   return { success: true, sent, total_targets: targetUserIds.length, target };
 }
 
+async function sendEmail(supabase: any, userId: string, role: string, args: any) {
+  const { to, subject, body } = args;
+  if (!to || !subject || !body) {
+    return { error: 'Faltan parámetros: to, subject, body' };
+  }
+
+  let recipients: string[] = [];
+
+  if (to === 'admin') {
+    const { data: admins } = await supabase
+      .from('profiles').select('email').eq('role', 'admin');
+    recipients = (admins || []).map((a: any) => a.email).filter(Boolean);
+  } else if (to === 'all_nurses' && role === 'admin') {
+    const { data: nurses } = await supabase
+      .from('nurses').select('user_id').eq('cssp_verified', true);
+    const userIds = (nurses || []).map((n: any) => n.user_id).filter(Boolean);
+    const { data: profiles } = await supabase
+      .from('profiles').select('email').in('id', userIds);
+    recipients = (profiles || []).map((p: any) => p.email).filter(Boolean);
+  } else if (to === 'all_families' && role === 'admin') {
+    const { data: families } = await supabase
+      .from('profiles').select('email').eq('role', 'user');
+    recipients = (families || []).map((f: any) => f.email).filter(Boolean);
+  } else if (to === 'family' && role === 'nurse') {
+    const { data: nurse } = await supabase
+      .from('nurses').select('id').eq('user_id', userId).single();
+    if (!nurse) return { error: 'No encontrada' };
+    const { data: bookings } = await supabase
+      .from('bookings').select('user_id').eq('nurse_id', nurse.id).in('status', ['confirmed', 'in_progress']).limit(5);
+    const familyIds = (bookings || []).map((b: any) => b.user_id).filter(Boolean);
+    const { data: profiles } = await supabase
+      .from('profiles').select('email').in('id', familyIds);
+    recipients = (profiles || []).map((p: any) => p.email).filter(Boolean);
+  } else if (to === 'nurse' && role === 'user') {
+    const { data: bookings } = await supabase
+      .from('bookings').select('nurses(user_id)').eq('user_id', userId).in('status', ['confirmed', 'in_progress']).limit(5);
+    const nurseIds = (bookings || []).map((b: any) => b.nurses?.user_id).filter(Boolean);
+    const { data: profiles } = await supabase
+      .from('profiles').select('email').in('id', nurseIds);
+    recipients = (profiles || []).map((p: any) => p.email).filter(Boolean);
+  } else {
+    return { error: 'Destinatario no válido para tu rol' };
+  }
+
+  if (recipients.length === 0) {
+    return { error: 'No hay destinatarios válidos' };
+  }
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"></head>
+<body>
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #1e293b;">
+<p>${body.replace(/\n/g, '<br>')}</p>
+<p style="font-size: 13px; color: #94a3b8; margin-top: 24px;">BienCuidar — Plataforma de enfermería en El Salvador<br>info@agtisa.com</p>
+</div>
+</body>
+</html>`;
+
+  let sent = 0;
+  for (const email of recipients) {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify({
+        from: "BienCuidar <info@agtisa.com>",
+        to: email,
+        subject,
+        html,
+      }),
+    });
+    if (res.ok) sent++;
+  }
+
+  console.log(`[ai-agent] sendEmail | to: ${to} | sent: ${sent}/${recipients.length}`);
+  return { success: true, sent, total_recipients: recipients.length, target: to };
+}
+
 // ===== TOOL DEFINITIONS =====
 
 const NURSE_TOOLS = [
-  { type: 'function', function: { name: 'get_my_profile', description: 'Ver el perfil de la enfermera: nombre, especializaciÃ³n, tarifa por turno, disponibilidad, estado CSSP, rating', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'get_my_profile', description: 'Ver el perfil de la enfermera: nombre, especialización, tarifa por turno, disponibilidad, estado CSSP, rating', parameters: { type: 'object', properties: {} } } },
   { type: 'function', function: { name: 'get_my_bookings', description: 'Ver los turnos asignados: fechas, horarios, estado, paciente, pago', parameters: { type: 'object', properties: {} } } },
   { type: 'function', function: { name: 'get_my_offers', description: 'Ver las ofertas que hice a solicitudes de cuidado: estado, tarifa ofrecida, mensaje', parameters: { type: 'object', properties: {} } } },
-  { type: 'function', function: { name: 'get_cssp_status', description: 'Ver el estado de verificaciÃ³n CSSP: nÃºmero, nivel, si estÃ¡ verificado, notas', parameters: { type: 'object', properties: {} } } },
-  { type: 'function', function: { name: 'update_my_rate', description: 'Cambiar mi tarifa por turno (en USD). Rango vÃ¡lido: 5 a 100', parameters: { type: 'object', properties: { new_rate: { type: 'number', description: 'Nueva tarifa por turno en USD (ej: 25)' } }, required: ['new_rate'] } } },
-  { type: 'function', function: { name: 'send_push_notification', description: 'Enviar una notificaciÃ³n push a una persona. Usar cuando el usuario pida avisar, notificar o alertar a alguien.', parameters: { type: 'object', properties: { target: { type: 'string', enum: ['admin', 'family'], description: 'A quiÃ©n: "admin" para el administrador, "family" para la familia del paciente' }, title: { type: 'string', description: 'TÃ­tulo corto (ej: "Voy a llegar tarde")' }, body: { type: 'string', description: 'Mensaje (ej: "Voy a llegar 15 minutos tarde por trÃ¡fico")' } }, required: ['target', 'title', 'body'] } } },
+  { type: 'function', function: { name: 'get_cssp_status', description: 'Ver el estado de verificación CSSP: número, nivel, si está verificado, notas', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'update_my_rate', description: 'Cambiar mi tarifa por turno (en USD). Rango válido: 5 a 100', parameters: { type: 'object', properties: { new_rate: { type: 'number', description: 'Nueva tarifa por turno en USD (ej: 25)' } }, required: ['new_rate'] } } },
+  { type: 'function', function: { name: 'send_push_notification', description: 'Enviar una notificación push a una persona. Usar cuando el usuario pida avisar, notificar o alertar a alguien.', parameters: { type: 'object', properties: { target: { type: 'string', enum: ['admin', 'family'], description: 'A quién: "admin" para el administrador, "family" para la familia del paciente' }, title: { type: 'string', description: 'Título corto (ej: "Voy a llegar tarde")' }, body: { type: 'string', description: 'Mensaje (ej: "Voy a llegar 15 minutos tarde por tráfico")' } }, required: ['target', 'title', 'body'] } } },
+  { type: 'function', function: { name: 'send_email', description: 'Enviar un correo electrónico a una persona o grupo. Usar cuando el usuario pida enviar un email, avisar por correo, o cuando notificaciones push no sean suficientes.', parameters: { type: 'object', properties: { to: { type: 'string', enum: ['admin', 'family'], description: 'A quién: "admin" para el administrador, "family" para la familia del paciente' }, subject: { type: 'string', description: 'Asunto del correo (ej: "Cambio de horario de mañana")' }, body: { type: 'string', description: 'Contenido del correo en texto plano (ej: "Necesito cambiar el turno de mañana a la tarde")' } }, required: ['to', 'subject', 'body'] } } },
 ];
 
 const FAMILY_TOOLS = [
-  { type: 'function', function: { name: 'get_my_profile', description: 'Ver mi perfil: nombre, telÃ©fono, ubicaciÃ³n', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'get_my_profile', description: 'Ver mi perfil: nombre, teléfono, ubicación', parameters: { type: 'object', properties: {} } } },
   { type: 'function', function: { name: 'get_my_bookings', description: 'Ver mis turnos contratados: fechas, horarios, estado, paciente, pago', parameters: { type: 'object', properties: {} } } },
-  { type: 'function', function: { name: 'get_my_offers', description: 'Ver las ofertas que recibÃ­ de enfermeras para mis solicitudes de cuidado', parameters: { type: 'object', properties: {} } } },
-  { type: 'function', function: { name: 'get_my_care_requests', description: 'Ver mis solicitudes de cuidado activas: paciente, especializaciÃ³n needed, estado', parameters: { type: 'object', properties: {} } } },
-  { type: 'function', function: { name: 'send_push_notification', description: 'Enviar una notificaciÃ³n push a una persona. Usar cuando el usuario pida avisar, notificar o alertar a alguien.', parameters: { type: 'object', properties: { target: { type: 'string', enum: ['admin', 'nurse'], description: 'A quiÃ©n: "admin" para el administrador, "nurse" para la enfermera asignada' }, title: { type: 'string', description: 'TÃ­tulo corto (ej: "Cambio de horario")' }, body: { type: 'string', description: 'Mensaje (ej: "Necesito cambiar el turno de maÃ±ana a tarde")' } }, required: ['target', 'title', 'body'] } } },
+  { type: 'function', function: { name: 'get_my_offers', description: 'Ver las ofertas que recibí de enfermeras para mis solicitudes de cuidado', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'get_my_care_requests', description: 'Ver mis solicitudes de cuidado activas: paciente, especialización needed, estado', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'send_push_notification', description: 'Enviar una notificación push a una persona. Usar cuando el usuario pida avisar, notificar o alertar a alguien.', parameters: { type: 'object', properties: { target: { type: 'string', enum: ['admin', 'nurse'], description: 'A quién: "admin" para el administrador, "nurse" para la enfermera asignada' }, title: { type: 'string', description: 'Título corto (ej: "Cambio de horario")' }, body: { type: 'string', description: 'Mensaje (ej: "Necesito cambiar el turno de mañana a tarde")' } }, required: ['target', 'title', 'body'] } } },
+  { type: 'function', function: { name: 'send_email', description: 'Enviar un correo electrónico a una persona o grupo. Usar cuando el usuario pida enviar un email, avisar por correo, o cuando notificaciones push no sean suficientes.', parameters: { type: 'object', properties: { to: { type: 'string', enum: ['admin', 'nurse'], description: 'A quién: "admin" para el administrador, "nurse" para la enfermera asignada' }, subject: { type: 'string', description: 'Asunto del correo (ej: "Cambio de horario de mañana")' }, body: { type: 'string', description: 'Contenido del correo en texto plano (ej: "Necesito cambiar el turno de mañana a la tarde")' } }, required: ['to', 'subject', 'body'] } } },
 ];
 
 const ADMIN_TOOLS = [
-  { type: 'function', function: { name: 'get_platform_stats', description: 'Ver estadÃ­sticas de la plataforma: total enfermeras, verificadas, pendientes, solicitudes abiertas, bookings activos, familias', parameters: { type: 'object', properties: {} } } },
-  { type: 'function', function: { name: 'send_push_notification', description: 'Enviar una notificaciÃ³n push a usuarios. Usar cuando el admin quiera avisar, notificar o alertar a un grupo.', parameters: { type: 'object', properties: { target: { type: 'string', enum: ['all_nurses', 'all_families', 'admin'], description: 'A quiÃ©n enviar: "all_nurses" para todas las enfermeras verificadas, "all_families" para todas las familias, "admin" para el admin' }, title: { type: 'string', description: 'TÃ­tulo corto (ej: "Recordatorio importante")' }, body: { type: 'string', description: 'Mensaje de la notificaciÃ³n (ej: "Recuerden hacer check-in al llegar al paciente")' } }, required: ['target', 'title', 'body'] } } },
+  { type: 'function', function: { name: 'get_platform_stats', description: 'Ver estadísticas de la plataforma: total enfermeras, verificadas, pendientes, solicitudes abiertas, bookings activos, familias', parameters: { type: 'object', properties: {} } } },
+  { type: 'function', function: { name: 'send_push_notification', description: 'Enviar una notificación push a usuarios. Usar cuando el admin quiera avisar, notificar o alertar a un grupo.', parameters: { type: 'object', properties: { target: { type: 'string', enum: ['all_nurses', 'all_families', 'admin'], description: 'A quién enviar: "all_nurses" para todas las enfermeras verificadas, "all_families" para todas las familias, "admin" para el admin' }, title: { type: 'string', description: 'Título corto (ej: "Recordatorio importante")' }, body: { type: 'string', description: 'Mensaje de la notificación (ej: "Recuerden hacer check-in al llegar al paciente")' } }, required: ['target', 'title', 'body'] } } },
+  { type: 'function', function: { name: 'send_email', description: 'Enviar un correo electrónico a usuarios. Usar cuando el admin quiera enviar un email a un grupo.', parameters: { type: 'object', properties: { to: { type: 'string', enum: ['all_nurses', 'all_families', 'admin'], description: 'A quién enviar: "all_nurses" para todas las enfermeras verificadas, "all_families" para todas las familias, "admin" para el admin' }, subject: { type: 'string', description: 'Asunto del correo (ej: "Recordatorio importante")' }, body: { type: 'string', description: 'Contenido del correo en texto plano (ej: "Recuerden hacer check-in al llegar al paciente")' } }, required: ['to', 'subject', 'body'] } } },
 ];
 
 const VISITOR_TOOLS: any[] = [];
@@ -266,7 +351,8 @@ async function executeTool(toolName: string, supabase: any, userId: string, role
     case 'get_cssp_status': result = await getCsspStatus(supabase, userId); break;
     case 'get_platform_stats': result = await getPlatformStats(supabase); break;
     case 'send_push_notification': result = await sendPushNotification(supabase, userId, role, args); break;
-    default: result = { error: 'FunciÃ³n no disponible' };
+    case 'send_email': result = await sendEmail(supabase, userId, role, args); break;
+    default: result = { error: 'Función no disponible' };
   }
   console.log(`[ai-agent] executeTool: ${toolName} | ${Date.now() - start}ms | result keys: ${Object.keys(result).join(',')}`);
   return result;
@@ -285,28 +371,34 @@ const corsHeaders = {
 function buildFallbackReply(toolResults: Array<{ name: string; result: any }>): string {
   for (const tr of toolResults) {
     if (tr.name === 'update_my_rate' && tr.result?.success) {
-      return `Tu tarifa por turno ha sido actualizada a $${tr.result.new_rate} dÃ³lares.`;
+      return `Tu tarifa por turno ha sido actualizada a $${tr.result.new_rate} dólares.`;
     }
     if (tr.name === 'update_my_rate' && tr.result?.error) {
       return tr.result.error;
     }
     if (tr.name === 'send_push_notification' && tr.result?.success) {
-      return `NotificaciÃ³n enviada a ${tr.result.target} (${tr.result.sent} de ${tr.result.total_targets} dispositivo(s) recibieron el push).`;
+      return `Notificación enviada a ${tr.result.target} (${tr.result.sent} de ${tr.result.total_targets} dispositivo(s) recibieron el push).`;
     }
     if (tr.name === 'send_push_notification' && tr.result?.error) {
-      return `No se pudo enviar la notificaciÃ³n: ${tr.result.error}`;
+      return `No se pudo enviar la notificación: ${tr.result.error}`;
     }
     if (tr.name === 'get_platform_stats' && tr.result) {
       const s = tr.result;
-      return `EstadÃ­sticas: ${s.nurses} enfermeras (${s.nurses_verified} verificadas, ${s.nurses_pending} pendientes), ${s.families} familias, ${s.care_requests_open} solicitudes abiertas, ${s.bookings_active} bookings activos.`;
+      return `Estadísticas: ${s.nurses} enfermeras (${s.nurses_verified} verificadas, ${s.nurses_pending} pendientes), ${s.families} familias, ${s.care_requests_open} solicitudes abiertas, ${s.bookings_active} bookings activos.`;
     }
     if (tr.name === 'get_cssp_status' && tr.result?.cssp) {
       const c = tr.result.cssp;
       const status = c.cssp_verified ? 'verificado' : c.cssp_verification_status;
       return `Tu registro CSSP es ${c.cssp_registration}, nivel ${c.cssp_level}. Estado: ${status}.${c.cssp_verification_notes ? ' Notas: ' + c.cssp_verification_notes : ''}`;
     }
+    if (tr.name === 'send_email' && tr.result?.success) {
+      return `Correo enviado a ${tr.result.target} (${tr.result.sent} de ${tr.result.total_recipients} destinatario(s)).`;
+    }
+    if (tr.name === 'send_email' && tr.result?.error) {
+      return `No se pudo enviar el correo: ${tr.result.error}`;
+    }
   }
-  return 'Listo. Â¿Algo mÃ¡s en lo que te pueda ayudar?';
+  return 'Listo. ¿Algo más en lo que te pueda ayudar?';
 }
 
 // ===== AUTHENTICATION =====
@@ -335,7 +427,7 @@ async function authenticateUser(req: Request, supabase: any, userEmail: string) 
 
 async function extractMemory(supabase: any, userId: string, existingMemory: any, userMessage: string, reply: string) {
   try {
-    const extractPrompt = `ExtraÃ© informaciÃ³n clave del mensaje del usuario (nombre del paciente, fechas, preferencias, quejas). RespondÃ© solo JSON. Mensaje: "${userMessage}". Memoria actual: ${JSON.stringify(existingMemory)}`;
+    const extractPrompt = `Extraé información clave del mensaje del usuario (nombre del paciente, fechas, preferencias, quejas). Respondé solo JSON. Mensaje: "${userMessage}". Memoria actual: ${JSON.stringify(existingMemory)}`;
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
@@ -352,38 +444,38 @@ async function extractMemory(supabase: any, userId: string, existingMemory: any,
 
 // ===== FAQ CONTEXT =====
 
-const FAQ_CONTEXT = `BienCuidar es una plataforma de enfermerÃ­a en El Salvador que conecta familias con enfermeras verificadas.
+const FAQ_CONTEXT = `BienCuidar es una plataforma de enfermería en El Salvador que conecta familias con enfermeras verificadas.
 
-REGISTRO Y VERIFICACIÃ“N:
+REGISTRO Y VERIFICACIÓN:
 - Las enfermeras deben tener registro CSSP vigente para recibir ofertas y bookings.
-- El registro CSSP se verifica automÃ¡ticamente al ingresar el nÃºmero.
+- El registro CSSP se verifica automáticamente al ingresar el número.
 - Sin CSSP vigente no se pueden recibir ofertas ni bookings.
 
-PAGOS Y FACTURACIÃ“N:
+PAGOS Y FACTURACIÓN:
 - Modelo: PAGO POR TURNO, no por hora
-- Tarifas sugeridas: US$ 20-35 por turno segÃºn especializaciÃ³n (GeriatrÃ­a $25, Cuidado general $20, Paliativos $35)
-- Dos modalidades: pago directo (familia paga a enfermera) o con factura (BienCuidar como agente de retenciÃ³n)
-- ComisiÃ³n BienCuidar: US$ 5 por turno + IVA 13% sobre la comisiÃ³n (no sobre servicio de salud, exento Art. 46 LIVA)
-- RetenciÃ³n ISR: 10% (Art. 156 CÃ³digo Tributario) â€” solo en modalidad con factura
-- BienCuidar NO es empleador. Es intermediaciÃ³n tecnolÃ³gica. La relaciÃ³n es directa entre familia y enfermera.
+- Tarifas sugeridas: US$ 20-35 por turno según especialización (Geriatría $25, Cuidado general $20, Paliativos $35)
+- Dos modalidades: pago directo (familia paga a enfermera) o con factura (BienCuidar como agente de retención)
+- Comisión BienCuidar: US$ 5 por turno + IVA 13% sobre la comisión (no sobre servicio de salud, exento Art. 46 LIVA)
+- Retención ISR: 10% (Art. 156 Código Tributario) — solo en modalidad con factura
+- BienCuidar NO es empleador. Es intermediación tecnológica. La relación es directa entre familia y enfermera.
 
 CANCELACIONES:
 - Sin costo hasta 24 horas antes del turno
 - Menos de 24 horas: 50% del valor del turno (solo modalidad con factura)
-- CancelaciÃ³n por parte de la familia: la enfermera recibe el 50% si fue con menos de 24h
+- Cancelación por parte de la familia: la enfermera recibe el 50% si fue con menos de 24h
 
 OFERTAS Y SOLICITUDES:
-- La familia publica una solicitud de cuidado (paciente, especializaciÃ³n, dÃ­as, ubicaciÃ³n)
-- Las enfermeras verificadas ven la solicitud y envÃ­an ofertas con su tarifa y mensaje
-- La familia compara perfiles (especializaciÃ³n, rating, tarifa) y elige
+- La familia publica una solicitud de cuidado (paciente, especialización, días, ubicación)
+- Las enfermeras verificadas ven la solicitud y envían ofertas con su tarifa y mensaje
+- La familia compara perfiles (especialización, rating, tarifa) y elige
 - Al aceptar una oferta, se comparten los datos de contacto para coordinar
 - La solicitud tiene un deadline de respuesta (default: 48 horas)
 
 BOOKINGS Y TURNOS:
-- Turnos: maÃ±ana, tarde, noche
+- Turnos: mañana, tarde, noche
 - El booking se confirma cuando la familia acepta la oferta
 - Check-in y check-out se registran en la app
-- El pago se coordina directamente (pago directo) o a travÃ©s de BienCuidar (con factura)`;
+- El pago se coordina directamente (pago directo) o a través de BienCuidar (con factura)`;
 
 // ===== MAIN AGENT =====
 
@@ -427,61 +519,61 @@ Deno.serve(async (req: Request) => {
     console.log(`[ai-agent] User: ${userName} | role: ${role} | tools: ${tools.length} | auth: ${authMethod} | history: ${history.length}`);
 
     const memoryContext = Object.keys(persistentMemory).length > 0 || Object.keys(client_memory).length > 0
-      ? `\n\nMEMORIA DEL USUARIO (usÃ¡ esto como contexto, no lo menciones directamente):\nPersistente: ${JSON.stringify(persistentMemory)}\nDispositivo: ${JSON.stringify(client_memory)}`
+      ? `\n\nMEMORIA DEL USUARIO (usá esto como contexto, no lo menciones directamente):\nPersistente: ${JSON.stringify(persistentMemory)}\nDispositivo: ${JSON.stringify(client_memory)}`
       : '';
 
     const systemPrompt = role === 'nurse'
-      ? `Sos el asistente de BienCuidar. EstÃ¡s hablando con ${userName}, una enfermera registrada.
+      ? `Sos el asistente de BienCuidar. Estás hablando con ${userName}, una enfermera registrada.
 
 ${FAQ_CONTEXT}
 
 REGLAS:
-- UsÃ¡ voseo salvadoreÃ±o.
-- RespondÃ© solo con datos reales de las herramientas. NO inventes.
-- Si no tenÃ©s la informaciÃ³n, decÃ­: "No tengo esa informaciÃ³n. Escribinos a info@agtisa.com".
-- SÃ© breve y directo. MÃ¡ximo 150 palabras.
-- Para preguntas sobre datos personales, usÃ¡ las herramientas disponibles.
+- Usá voseo salvadoreño.
+- Respondé solo con datos reales de las herramientas. NO inventes.
+- Si no tenés la información, decí: "No tengo esa información. Escribinos a info@agtisa.com".
+- Sé breve y directo. Máximo 150 palabras.
+- Para preguntas sobre datos personales, usá las herramientas disponibles.
 - NO reveles datos de otras enfermeras ni familias.
-- Si la enfermera quiere algo que no podÃ©s hacer con las herramientas, decÃ­ que escriba a info@agtisa.com.
-- Para preguntas generales (cÃ³mo funciona, CSSP, pagos, cancelaciones), respondÃ© con la informaciÃ³n de arriba SIN llamar herramientas.
-- Si la enfermera te pide avisar o notificar a alguien, usÃ¡ la herramienta send_push_notification.${memoryContext}`
+- Si la enfermera quiere algo que no podés hacer con las herramientas, decí que escriba a info@agtisa.com.
+- Para preguntas generales (cómo funciona, CSSP, pagos, cancelaciones), respondé con la información de arriba SIN llamar herramientas.
+- Si la enfermera te pide avisar o notificar a alguien, usá send_push_notification o send_email.${memoryContext}`
       : role === 'user'
-      ? `Sos el asistente de BienCuidar. EstÃ¡s hablando con ${userName}, una familia registrada.
+      ? `Sos el asistente de BienCuidar. Estás hablando con ${userName}, una familia registrada.
 
 ${FAQ_CONTEXT}
 
 REGLAS:
-- UsÃ¡ voseo salvadoreÃ±o.
-- RespondÃ© solo con datos reales de las herramientas. NO inventes.
-- Si no tenÃ©s la informaciÃ³n, decÃ­: "No tengo esa informaciÃ³n. Escribinos a info@agtisa.com".
-- SÃ© breve y directo. MÃ¡ximo 150 palabras.
-- Para preguntas sobre sus solicitudes u ofertas, usÃ¡ las herramientas.
-- NO reveles datos de otras familias ni enfermeras (excepto especializaciÃ³n y rating de ofertas recibidas).
-- Si la familia quiere algo que no podÃ©s hacer con las herramientas, decÃ­ que escriba a info@agtisa.com.
-- Para preguntas generales (cÃ³mo funciona, CSSP, pagos, cancelaciones), respondÃ© con la informaciÃ³n de arriba SIN llamar herramientas.
-- Si la familia te pide avisar o notificar a alguien, usÃ¡ la herramienta send_push_notification.${memoryContext}`
+- Usá voseo salvadoreño.
+- Respondé solo con datos reales de las herramientas. NO inventes.
+- Si no tenés la información, decí: "No tengo esa información. Escribinos a info@agtisa.com".
+- Sé breve y directo. Máximo 150 palabras.
+- Para preguntas sobre sus solicitudes u ofertas, usá las herramientas.
+- NO reveles datos de otras familias ni enfermeras (excepto especialización y rating de ofertas recibidas).
+- Si la familia quiere algo que no podés hacer con las herramientas, decí que escriba a info@agtisa.com.
+- Para preguntas generales (cómo funciona, CSSP, pagos, cancelaciones), respondé con la información de arriba SIN llamar herramientas.
+- Si la familia te pide avisar o notificar a alguien, usá send_push_notification o send_email.${memoryContext}`
       : role === 'admin'
-      ? `Sos el asistente de BienCuidar. EstÃ¡s hablando con ${userName}, el administrador de la plataforma.
+      ? `Sos el asistente de BienCuidar. Estás hablando con ${userName}, el administrador de la plataforma.
 
 ${FAQ_CONTEXT}
 
 REGLAS:
-- UsÃ¡ voseo salvadoreÃ±o.
-- SÃ© breve y directo. MÃ¡ximo 150 palabras.
-- UsÃ¡ las herramientas para ver estadÃ­sticas o enviar notificaciones push.
-- Si el admin te pide avisar, notificar, alertar o enviar un mensaje a las enfermeras o familias, usÃ¡ la herramienta send_push_notification con target "all_nurses" o "all_families".
-- Si el admin te pide ver el estado de la plataforma, usÃ¡ get_platform_stats.
-- Para preguntas generales, respondÃ© con la informaciÃ³n de arriba SIN llamar herramientas.${memoryContext}`
-      : `Sos el asistente de BienCuidar, plataforma de enfermerÃ­a en El Salvador.
+- Usá voseo salvadoreño.
+- Sé breve y directo. Máximo 150 palabras.
+- Usá las herramientas para ver estadísticas o enviar notificaciones push.
+- Si el admin te pide avisar, notificar, alertar o enviar un mensaje a las enfermeras o familias, usá send_push_notification o send_email con target "all_nurses" o "all_families".
+- Si el admin te pide ver el estado de la plataforma, usá get_platform_stats.
+- Para preguntas generales, respondé con la información de arriba SIN llamar herramientas.${memoryContext}`
+      : `Sos el asistente de BienCuidar, plataforma de enfermería en El Salvador.
 
 ${FAQ_CONTEXT}
 
 REGLAS:
-- UsÃ¡ voseo salvadoreÃ±o.
-- SÃ© breve y directo. MÃ¡ximo 100 palabras.
-- NO inventes informaciÃ³n.
-- Si no sabÃ©s, decÃ­: "No tengo esa informaciÃ³n. Escribinos a info@agtisa.com".
-- RespondÃ© preguntas generales con la informaciÃ³n de arriba.${memoryContext}`;
+- Usá voseo salvadoreño.
+- Sé breve y directo. Máximo 100 palabras.
+- NO inventes información.
+- Si no sabés, decí: "No tengo esa información. Escribinos a info@agtisa.com".
+- Respondé preguntas generales con la información de arriba.${memoryContext}`;
 
     const messages: any[] = [
       { role: 'system', content: systemPrompt },
