@@ -14,14 +14,24 @@ type NotifPayload = {
   pushUserId?: string;
 };
 
-let permissionRequested = false;
-
 export function requestNotificationPermission(): void {
-  if (permissionRequested) return;
-  permissionRequested = true;
-  if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission();
+  if (!('Notification' in window)) {
+    console.warn('[BienCuidar] Notification API not available in this browser');
+    return;
   }
+  if (Notification.permission === 'granted') {
+    console.log('[BienCuidar] Notification permission already granted');
+    return;
+  }
+  if (Notification.permission === 'denied') {
+    console.warn('[BienCuidar] Notification permission was denied — user must enable in browser settings');
+    return;
+  }
+  // permission === 'default' — ask
+  console.log('[BienCuidar] Requesting notification permission...');
+  Notification.requestPermission().then((result) => {
+    console.log('[BienCuidar] Notification permission result:', result);
+  });
 }
 
 export function hasNotificationPermission(): boolean {
