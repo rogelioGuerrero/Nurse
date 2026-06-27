@@ -12,8 +12,10 @@ import {
   Calendar, User, CheckCircle2,
   PlusCircle, FileText, AlertTriangle, AlertCircle,
   Phone, ChevronLeft, ChevronRight, MessageCircle,
-  MapPin, LogIn, LogOut, Star, DollarSign, X, Building2
+  MapPin, LogIn, LogOut, Star, DollarSign, X, Building2,
+  Inbox, RotateCcw, XCircle, Search as SearchIcon
 } from 'lucide-react';
+import { getTimeRemaining } from '../data/platformSettings';
 
 const DAY_SHORT = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
 const MONTH_FULL = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -35,10 +37,26 @@ export const BookingsManager: FC = () => {
     nurseReviews,
     submitReview,
     familyReviews,
-    submitFamilyReview
+    submitFamilyReview,
+    careRequests,
+    careOffers,
+    closeCareRequest,
+    republisheCareRequest,
+    setActiveTab
   } = useApp();
 
   const isNurseView = currentUser?.role === 'nurse';
+
+  // Care requests for family view
+  const myCareRequests = useMemo(() => {
+    if (!currentUser || isNurseView) return [];
+    return careRequests
+      .filter(r => r.user_id === currentUser.id)
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [careRequests, currentUser, isNurseView]);
+
+  const activeCareRequests = myCareRequests.filter(r => r.status === 'open');
+  const expiredCareRequests = myCareRequests.filter(r => r.status === 'expired' || r.status === 'closed');
 
   // Llegada/Salida state
   const [checkInBookingId, setCheckInBookingId] = useState<string | null>(null);
@@ -341,6 +359,113 @@ export const BookingsManager: FC = () => {
           <span className="text-sm font-black text-indigo-700">{filteredBookings.length}</span>
         </div>
       </div>
+
+      {/* Care requests section (family only) */}
+      {!isNurseView && (activeCareRequests.length > 0 || expiredCareRequests.length > 0) && (
+        <div className="space-y-3">
+          {activeCareRequests.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <Inbox className="h-3.5 w-3.5" />
+                <span>Solicitudes activas</span>
+              </div>
+              {activeCareRequests.map(req => {
+                const offersCount = careOffers.filter(o => o.request_id === req.id && o.status === 'pending').length;
+                const timeLeft = getTimeRemaining(req.created_at);
+                return (
+                  <div key={req.id} className="bg-white border border-indigo-200 rounded-2xl p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-800 truncate">{req.patient_condition}</p>
+                        <p className="text-[10px] text-slate-500">{req.slots.length} turno(s) · {req.location_name}</p>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                        timeLeft === 'Expirado' ? 'bg-rose-100 text-rose-700' : 'bg-indigo-100 text-indigo-700'
+                      }`}>
+                        {timeLeft}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <button
+                        onClick={() => setActiveTab('offers-review')}
+                        className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition cursor-pointer"
+                      >
+                        {offersCount > 0 ? `${offersCount} oferta(s) recibida(s) →` : 'Esperando ofertas...'}
+                      </button>
+                      <button
+                        onClick={() => closeCareRequest(req.id)}
+                        className="text-[10px] font-bold text-slate-400 hover:text-rose-600 transition flex items-center gap-1 cursor-pointer"
+                      >
+                        <XCircle className="h-3 w-3" />
+                        Cerrar
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {expiredCareRequests.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span>Finalizadas</span>
+              </div>
+              {expiredCareRequests.map(req => {
+                const isExpired = req.status === 'expired';
+                return (
+                  <div key={req.id} className={`bg-slate-50 border rounded-2xl p-3 space-y-2 ${isExpired ? 'border-slate-200' : 'border-slate-200'}`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold text-slate-600 truncate">{req.patient_condition}</p>
+                        <p className="text-[10px] text-slate-400">{req.slots.length} turno(s) · {req.location_name}</p>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+                        isExpired ? 'bg-rose-100 text-rose-600' : 'bg-slate-200 text-slate-500'
+                      }`}>
+                        {isExpired ? 'Expirada' : 'Cerrada'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400">
+                        {isExpired ? 'No decidiste a tiempo' : 'Cerrada manualmente'}
+                      </span>
+                      {isExpired && (
+                        <button
+                          onClick={() => republisheCareRequest(req.id)}
+                          className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          Republicar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Empty state: no care requests and no bookings */}
+      {!isNurseView && activeCareRequests.length === 0 && expiredCareRequests.length === 0 && filteredBookings.length === 0 && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center space-y-3">
+          <Inbox className="h-10 w-10 text-slate-300 mx-auto" />
+          <div>
+            <p className="font-semibold text-slate-700">No tienes solicitudes aún</p>
+            <p className="text-xs text-slate-400 mt-1">Crea una solicitud de cuidado y las enfermeras disponibles te responderán.</p>
+          </div>
+          <button
+            onClick={() => setActiveTab('care-request')}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition cursor-pointer inline-flex items-center gap-1.5"
+          >
+            <SearchIcon className="h-4 w-4" />
+            Buscar enfermera
+          </button>
+        </div>
+      )}
 
       {/* Calendario mensual */}
       {filteredBookings.length > 0 && (
