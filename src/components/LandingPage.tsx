@@ -14,6 +14,8 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
   const [demoLoading, setDemoLoading] = useState(false);
   const [showFaq, setShowFaq] = useState<number | null>(null);
   const [showFaqSection, setShowFaqSection] = useState(false);
+  const [showBenefit, setShowBenefit] = useState<number | null>(null);
+  const [showDemo, setShowDemo] = useState(false);
   const [viewMode, setViewMode] = useState<'nurse' | 'family'>('nurse');
   const logoClicks = useRef(0);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -236,20 +238,27 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
         </div>
 
         {/* Benefits */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           <h3 className="text-center text-sm font-bold text-slate-800 uppercase tracking-wide">
             {viewMode === 'nurse' ? 'Por qué unirte a BienCuidar' : 'Por qué elegir BienCuidar'}
           </h3>
-          <div className="grid grid-cols-1 gap-3">
+          <div className="bg-white border border-slate-200 rounded-xl divide-y divide-slate-100">
             {benefits.map((b, i) => (
-              <div key={i} className="flex items-start gap-3 bg-white border border-slate-200 rounded-xl p-3.5">
-                <div className={`w-8 h-8 ${viewMode === 'nurse' ? 'bg-emerald-50' : 'bg-indigo-50'} rounded-lg flex items-center justify-center shrink-0`}>
-                  <b.icon className={`h-4.5 w-4.5 ${viewMode === 'nurse' ? 'text-emerald-600' : 'text-indigo-600'}`} style={{ width: 18, height: 18 }} />
+              <div
+                key={i}
+                onClick={() => setShowBenefit(showBenefit === i ? null : i)}
+                className="p-3 cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-7 h-7 ${viewMode === 'nurse' ? 'bg-emerald-50' : 'bg-indigo-50'} rounded-lg flex items-center justify-center shrink-0`}>
+                    <b.icon className={`h-4 w-4 ${viewMode === 'nurse' ? 'text-emerald-600' : 'text-indigo-600'}`} />
+                  </div>
+                  <p className="text-xs font-bold text-slate-800 flex-1">{b.title}</p>
+                  {showBenefit === i ? <ChevronUp className="h-3.5 w-3.5 text-slate-400 shrink-0" /> : <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-800">{b.title}</p>
-                  <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{b.desc}</p>
-                </div>
+                {showBenefit === i && (
+                  <p className="text-xs text-slate-500 mt-2 leading-relaxed pl-9">{b.desc}</p>
+                )}
               </div>
             ))}
           </div>
@@ -289,49 +298,50 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
         </div>
 
         {/* Final CTA */}
-        <div className="bg-indigo-600 rounded-2xl p-6 text-center space-y-3">
-          <CheckCircle2 className="h-8 w-8 text-white mx-auto" />
-          <p className="text-lg font-bold text-white">
+        <div className="bg-indigo-600 rounded-xl px-4 py-3 flex items-center justify-between">
+          <p className="text-xs font-bold text-white leading-tight flex-1 pr-3">
             {viewMode === 'nurse' ? '¿Lista para empezar?' : '¿Necesitas una enfermera?'}
-          </p>
-          <p className="text-xs text-indigo-100">
-            {viewMode === 'nurse'
-              ? 'Regístrate gratis y recibe solicitudes de familias en tu área.'
-              : 'Publica tu necesidad gratis y recibe ofertas de enfermeras verificadas.'}
           </p>
           <button
             onClick={viewMode === 'nurse' ? onNurse : onFamily}
-            className="w-full bg-white text-indigo-600 rounded-xl py-3.5 font-bold text-sm active:scale-[0.98] transition cursor-pointer"
+            className="bg-white text-indigo-600 rounded-lg px-4 py-2 font-bold text-xs shrink-0 active:scale-[0.98] transition cursor-pointer"
           >
-            {viewMode === 'nurse' ? 'Regístrate gratis' : 'Publicar mi necesidad'}
+            {viewMode === 'nurse' ? 'Registrarme' : 'Publicar'}
           </button>
         </div>
 
-        {/* Demo Buttons */}
-        <div className="space-y-2">
-          <p className="text-center text-[10px] text-slate-400 uppercase font-bold tracking-wide">Demo (solo para pruebas)</p>
-          <div className="flex gap-2">
-            <button
-              onClick={() => handleDemoLogin('family')}
-              disabled={demoLoading}
-              className="flex-1 bg-slate-200 hover:bg-slate-300 disabled:bg-slate-200 disabled:cursor-not-allowed text-slate-600 font-bold py-2.5 rounded-xl transition text-[11px] cursor-pointer"
-            >
-              {demoLoading ? 'Cargando...' : 'Demo Paciente'}
-            </button>
-            <button
-              onClick={() => handleDemoLogin('nurse')}
-              disabled={demoLoading}
-              className="flex-1 bg-slate-200 hover:bg-slate-300 disabled:bg-slate-200 disabled:cursor-not-allowed text-slate-600 font-bold py-2.5 rounded-xl transition text-[11px] cursor-pointer"
-            >
-              {demoLoading ? 'Cargando...' : 'Demo Enfermera'}
-            </button>
+        {/* Trust badge & Demo */}
+        <div className="space-y-2 pb-6">
+          <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
+            <span>Profesionales registradas ante el Ministerio de Salud</span>
           </div>
-        </div>
-
-        {/* Trust badge */}
-        <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400 pb-6">
-          <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-          <span>Profesionales registradas ante el Ministerio de Salud</span>
+          <div className="text-center">
+            <button
+              onClick={() => setShowDemo(!showDemo)}
+              className="text-[10px] text-slate-300 hover:text-slate-400 font-bold transition cursor-pointer"
+            >
+              {showDemo ? 'Ocultar demo' : 'Demo'}
+            </button>
+            {showDemo && (
+              <div className="flex gap-2 mt-2 max-w-[200px] mx-auto">
+                <button
+                  onClick={() => handleDemoLogin('family')}
+                  disabled={demoLoading}
+                  className="flex-1 bg-slate-200 hover:bg-slate-300 disabled:bg-slate-200 disabled:cursor-not-allowed text-slate-600 font-bold py-2 rounded-lg transition text-[10px] cursor-pointer"
+                >
+                  {demoLoading ? '...' : 'Paciente'}
+                </button>
+                <button
+                  onClick={() => handleDemoLogin('nurse')}
+                  disabled={demoLoading}
+                  className="flex-1 bg-slate-200 hover:bg-slate-300 disabled:bg-slate-200 disabled:cursor-not-allowed text-slate-600 font-bold py-2 rounded-lg transition text-[10px] cursor-pointer"
+                >
+                  {demoLoading ? '...' : 'Enfermera'}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
       </div>
