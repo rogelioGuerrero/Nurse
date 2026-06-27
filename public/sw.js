@@ -37,6 +37,38 @@ self.addEventListener('message', (event) => {
   }
 });
 
+// --- Web Push support ---
+self.addEventListener('push', (event) => {
+  let data = { title: 'BienCuidar', body: '', tag: 'biencuidar' };
+  try {
+    if (event.data) data = event.data.json();
+  } catch {
+    if (event.data) data.body = event.data.text();
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      tag: data.tag || 'biencuidar',
+      icon: '/icon.svg',
+      badge: '/icon.svg',
+      data: { url: '/' },
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window' }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) return client.focus();
+      }
+      return self.clients.openWindow(targetUrl);
+    })
+  );
+});
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;

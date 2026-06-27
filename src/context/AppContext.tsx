@@ -3,12 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createContext, useContext, useState, useEffect, useCallback, type FC, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type FC, type ReactNode } from 'react';
 import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareRequestStatus, CareOffer, CareOfferStatus, ShiftType, NurseReview, FamilyReview } from '../types';
 import { INITIAL_NURSES } from '../data/nurses';
 import { supabase } from '../lib/supabase';
 import { getResponseDeadline } from '../data/platformSettings';
-import { requestNotificationPermission, notifyNewOffer, notifyOfferAccepted, notifyCheckIn, notifyCheckOut, notifyPaymentConfirmed } from '../lib/notifications';
+import { requestNotificationPermission, notifyNewOffer, notifyOfferAccepted, notifyCheckIn, notifyCheckOut, notifyPaymentConfirmed, notifyNewCareRequest } from '../lib/notifications';
+import { subscribeToPush, unsubscribeFromPush } from '../lib/push';
 import { calculateFamilyPrice } from '../data/standardRates';
 
 // Safe localStorage parser - prevents crash on corrupted data
@@ -110,6 +111,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           setCurrentUser(profile);
           setActiveTab(profile.role === 'nurse' ? 'nurse-inbox' : profile.role === 'admin' ? 'admin-panel' : 'care-request');
           requestNotificationPermission();
+          subscribeToPush(profile.id);
         }
       }
     };
@@ -135,6 +137,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           setActiveTab(profile.role === 'nurse' ? 'nurse-inbox' : profile.role === 'admin' ? 'admin-panel' : 'care-request');
         }
       } else if (event === 'SIGNED_OUT') {
+        if (currentUser) await unsubscribeFromPush(currentUser.id);
         setPasswordRecoveryMode(false);
         setCurrentUser(null);
         setActiveTab('landing');
@@ -298,6 +301,13 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         // Only add if user owns it or it's open (visible to them)
         if (r.user_id === currentUser.id || r.status === 'open' || currentUser.role === 'admin') {
           setCareRequests(prev => prev.find(x => x.id === r.id) ? prev : [{ ...r, slots: typeof r.slots === 'string' ? JSON.parse(r.slots) : r.slots || [] }, ...prev]);
+          // Notify nurse if request matches their specialization and they didn't create it
+          if (currentUser.role === 'nurse' && r.user_id !== currentUser.id && r.status === 'open') {
+            const myNurse = nursesData?.find(n => n.user_id === currentUser.id);
+            if (myNurse && myNurse.specialization?.includes(r.specialization_needed)) {
+              notifyNewCareRequest(r.specialization_needed, currentUser.id);
+            }
+          }
         }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'care_requests' }, (payload) => {
@@ -306,12 +316,20 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'care_offers' }, (payload) => {
         const o = payload.new as any;
-        // Only process if relevant to current user
+        // Use ref to avoid stale closure on careRequests
+        const currentRequests = careRequestsRef.current;
         const isRelevant = currentUser.role === 'admin' ||
           o.nurse_id === nursesData?.find(n => n.user_id === currentUser.id)?.id ||
-          careRequests.some(req => req.id === o.request_id && req.user_id === currentUser.id);
+          currentRequests.some(req => req.id === o.request_id && req.user_id === currentUser.id);
         if (isRelevant) {
           setCareOffers(prev => prev.find(x => x.id === o.id) ? prev : [{ ...o, message: o.notes || '' }, ...prev]);
+          // Notify family if they own the request and the offer came from another user
+          const request = currentRequests.find(req => req.id === o.request_id);
+          if (request && request.user_id === currentUser.id && o.nurse_id !== nursesData?.find(n => n.user_id === currentUser.id)?.id) {
+            const nurse = nursesData?.find(n => n.id === o.nurse_id);
+            const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
+            notifyNewOffer(nurseProfile?.full_name || 'Una enfermera', request.patient_name, currentUser.id);
+          }
         }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'care_offers' }, (payload) => {
@@ -327,8 +345,33 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         if (!isRelevant) return;
         if (payload.eventType === 'INSERT') {
           setBookings(prev => prev.find(x => x.id === b.id) ? prev : [b, ...prev]);
+          // Notify nurse: a new booking was created (family accepted their offer)
+          const isNurse = nursesData?.some(n => n.id === b.nurse_id && n.user_id === currentUser.id);
+          if (isNurse && b.user_id !== currentUser.id) {
+            notifyOfferAccepted(b.patient_name, currentUser.id);
+          }
         } else if (payload.eventType === 'UPDATE') {
+          const prevBooking = bookingsRef.current.find(x => x.id === b.id);
           setBookings(prev => prev.map(x => x.id === b.id ? b : x));
+          // Detect check-in: check_in_at went from null to a value
+          if (b.check_in_at && !prevBooking?.check_in_at && b.user_id === currentUser.id) {
+            const nurse = nursesData?.find(n => n.id === b.nurse_id);
+            const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
+            notifyCheckIn(nurseProfile?.full_name || 'La enfermera', currentUser.id);
+          }
+          // Detect check-out: check_out_at went from null to a value
+          if (b.check_out_at && !prevBooking?.check_out_at && b.user_id === currentUser.id) {
+            const nurse = nursesData?.find(n => n.id === b.nurse_id);
+            const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
+            notifyCheckOut(nurseProfile?.full_name || 'La enfermera', currentUser.id);
+          }
+          // Detect payment confirmation: payment_status went to 'paid'
+          if (b.payment_status === 'paid' && prevBooking?.payment_status !== 'paid') {
+            const isNurse = nursesData?.some(n => n.id === b.nurse_id && n.user_id === currentUser.id);
+            if (isNurse && b.user_id !== currentUser.id) {
+              notifyPaymentConfirmed(b.patient_name, currentUser.id);
+            }
+          }
         }
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'care_logs' }, (payload) => {
@@ -396,6 +439,17 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   // Care requests state (family posts what they need)
   const [careRequests, setCareRequests] = useState<CareRequest[]>([]);
   const [careOffers, setCareOffers] = useState<CareOffer[]>([]);
+
+  // Refs to avoid stale closures in realtime handlers
+  const careRequestsRef = useRef<CareRequest[]>([]);
+  const bookingsRef = useRef<Booking[]>([]);
+  const nursesRef = useRef<Nurse[]>([]);
+  const careOffersRef = useRef<CareOffer[]>([]);
+
+  useEffect(() => { careRequestsRef.current = careRequests; }, [careRequests]);
+  useEffect(() => { bookingsRef.current = bookings; }, [bookings]);
+  useEffect(() => { nursesRef.current = nurses; }, [nurses]);
+  useEffect(() => { careOffersRef.current = careOffers; }, [careOffers]);
 
   const createCareRequest = useCallback((data: Omit<CareRequest, 'id' | 'user_id' | 'created_at' | 'status' | 'response_deadline'>): CareRequest => {
     if (!currentUser) throw new Error('Debes iniciar sesión para publicar una solicitud.');
@@ -504,7 +558,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     if (request && currentUser?.id !== request.user_id) {
       const nurse = nurses.find(n => n.id === data.nurse_id);
       const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
-      notifyNewOffer(nurseProfile?.full_name || 'Una enfermera', request.patient_name);
+      notifyNewOffer(nurseProfile?.full_name || 'Una enfermera', request.patient_name, request.user_id);
     }
     return newOffer;
   }, [careRequests, currentUser, nurses, profiles]);
@@ -824,7 +878,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       // Notify nurse (if they're not the current user)
       const nurse = nurses.find(n => n.id === offer.nurse_id);
       if (nurse && currentUser?.id !== nurse.user_id) {
-        notifyOfferAccepted(request.patient_name);
+        notifyOfferAccepted(request.patient_name, nurse.user_id);
       }
     }
   }, [careOffers, careRequests, createBooking]);
@@ -906,7 +960,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       if (booking) {
         const nurse = nurses.find(n => n.id === booking.nurse_id);
         if (nurse && currentUser?.id !== nurse.user_id) {
-          notifyPaymentConfirmed(booking.patient_name);
+          notifyPaymentConfirmed(booking.patient_name, nurse.user_id);
         }
       }
     } catch (err) {
@@ -1039,7 +1093,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         const nurse = nurses.find(n => n.id === booking.nurse_id);
         const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
         if (currentUser?.id !== booking.user_id) {
-          notifyCheckIn(nurseProfile?.full_name || 'La enfermera');
+          notifyCheckIn(nurseProfile?.full_name || 'La enfermera', booking.user_id);
         }
       }
     } catch {
@@ -1069,7 +1123,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         const nurse = nurses.find(n => n.id === booking.nurse_id);
         const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
         if (currentUser?.id !== booking.user_id) {
-          notifyCheckOut(nurseProfile?.full_name || 'La enfermera');
+          notifyCheckOut(nurseProfile?.full_name || 'La enfermera', booking.user_id);
         }
       }
     } catch {
