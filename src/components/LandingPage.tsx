@@ -212,19 +212,22 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
         )}
 
         {/* How it works */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           <h3 className="text-center text-sm font-bold text-slate-800 uppercase tracking-wide">Cómo funciona</h3>
-          <div className="space-y-3">
+          <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
             {steps.map((step, i) => (
-              <div key={i} className="flex items-start gap-3 bg-white border border-slate-200 rounded-xl p-4">
-                <div className="w-9 h-9 bg-indigo-50 rounded-lg flex items-center justify-center shrink-0">
-                  <step.icon className="h-5 w-5 text-indigo-600" />
+              <div key={i} className="flex items-start gap-3">
+                <div className="flex flex-col items-center shrink-0">
+                  <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center">
+                    <step.icon className="h-4 w-4 text-indigo-600" />
+                  </div>
+                  {i < steps.length - 1 && <div className="w-px h-5 bg-slate-200 mt-1" />}
                 </div>
-                <div className="flex-1">
+                <div className="flex-1 pt-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold text-indigo-600">PASO {i + 1}</span>
+                    <p className="text-sm font-bold text-slate-800">{step.title}</p>
                   </div>
-                  <p className="text-sm font-bold text-slate-800 mt-0.5">{step.title}</p>
                   <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{step.desc}</p>
                 </div>
               </div>
