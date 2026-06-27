@@ -1,4 +1,4 @@
-const SW_VERSION = 'biencuidar-v7-push-20260626';
+const SW_VERSION = 'biencuidar-v8-push-20260626';
 const CACHE_NAME = `biencuidar-cache-${SW_VERSION}`;
 const STATIC_ASSETS = [
   '/',

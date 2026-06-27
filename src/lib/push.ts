@@ -27,51 +27,31 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
  * Stores the subscription in Supabase push_subscriptions table.
  */
 export async function subscribeToPush(userId: string): Promise<boolean> {
-  console.log('[BienCuidar Push] subscribeToPush started for user:', userId);
-
-  if (!('serviceWorker' in navigator)) {
-    console.error('[BienCuidar Push] serviceWorker not supported');
-    return false;
-  }
-  if (!('PushManager' in window)) {
-    console.error('[BienCuidar Push] PushManager not supported');
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     return false;
   }
   if (Notification.permission !== 'granted') {
-    console.error('[BienCuidar Push] Notification permission not granted:', Notification.permission);
     return false;
   }
 
   try {
-    console.log('[BienCuidar Push] Waiting for service worker ready...');
     const reg = await navigator.serviceWorker.ready;
-    console.log('[BienCuidar Push] SW ready, scope:', reg.scope);
 
-    // Check if already subscribed
     const existing = await reg.pushManager.getSubscription();
     if (existing) {
-      console.log('[BienCuidar Push] Already subscribed, syncing to server');
       await syncSubscriptionToServer(existing, userId);
       return true;
     }
 
-    console.log('[BienCuidar Push] Creating new subscription with VAPID key...');
-    const vapidKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
-    console.log('[BienCuidar Push] VAPID key bytes:', vapidKey.length, 'bytes');
-
     const subscription = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: vapidKey as BufferSource,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
     });
 
-    console.log('[BienCuidar Push] Subscription created! endpoint:', subscription.endpoint.substring(0, 60) + '...');
     await syncSubscriptionToServer(subscription, userId);
-    console.log('[BienCuidar Push] Synced to server successfully');
     return true;
   } catch (err) {
-    console.error('[BienCuidar Push] Subscription FAILED:', err);
-    console.error('[BienCuidar Push] Error name:', (err as Error).name);
-    console.error('[BienCuidar Push] Error message:', (err as Error).message);
+    console.warn('Push subscription failed:', err);
     return false;
   }
 }
@@ -84,13 +64,9 @@ async function syncSubscriptionToServer(
   userId: string
 ): Promise<void> {
   const sub = subscription.toJSON();
-  if (!sub.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) {
-    console.error('[BienCuidar Push] Missing subscription data:', { endpoint: !!sub.endpoint, p256dh: !!sub.keys?.p256dh, auth: !!sub.keys?.auth });
-    return;
-  }
+  if (!sub.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) return;
 
-  console.log('[BienCuidar Push] Syncing to Supabase...');
-  const { error } = await supabase
+  await supabase
     .from('push_subscriptions')
     .upsert({
       user_id: userId,
@@ -99,12 +75,6 @@ async function syncSubscriptionToServer(
       auth_key: sub.keys.auth,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'endpoint,user_id' });
-
-  if (error) {
-    console.error('[BienCuidar Push] Supabase sync error:', error.message);
-  } else {
-    console.log('[BienCuidar Push] Supabase sync OK');
-  }
 }
 
 /**
