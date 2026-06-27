@@ -1,9 +1,8 @@
-import { useState, useEffect, useMemo, type FC } from 'react';
+import { useState, useMemo, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { getAllSpecializations } from '../data/standardRates';
 import { SHIFTS, type ShiftType, type ExpectedDuration } from '../types';
-import { MapPin, Calendar, Trash2, Stethoscope, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Moon, Clock, X, FileText, AlertCircle, RotateCcw, XCircle, Inbox, Heart } from 'lucide-react';
-import { AuthForm } from './AuthForm';
+import { MapPin, Calendar, Trash2, Stethoscope, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Moon, Clock, FileText, AlertCircle, RotateCcw, XCircle, Inbox, Heart } from 'lucide-react';
 import { getTimeRemaining } from '../data/platformSettings';
 
 interface DaySelection {
@@ -45,37 +44,13 @@ export const CareRequestForm: FC = () => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
-  const [locationName, setLocationName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [locationName, setLocationName] = useState(currentUser?.location_name || '');
+  const [phone, setPhone] = useState(currentUser?.phone || '');
   const [locating, setLocating] = useState(false);
   const [gpsCoords, setGpsCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [published, setPublished] = useState(false);
   const [patientName, setPatientName] = useState('');
   const [wantsInvoice, setWantsInvoice] = useState(false);
-  const [showRegisterModal, setShowRegisterModal] = useState(false);
-
-  // Restore form data from localStorage if available
-  useEffect(() => {
-    const draft = localStorage.getItem('biencuidar_care_request_draft');
-    if (draft) {
-      try {
-        const formData = JSON.parse(draft);
-        setConditionTags(formData.conditionTags || []);
-        setConditionExtra(formData.conditionExtra || '');
-        setSpecializationNeeded(formData.specializationNeeded || '');
-        setOtherSpecialization(formData.otherSpecialization || '');
-        setNotes(formData.notes || '');
-        setSelectedDays(formData.selectedDays || []);
-        setLocationName(formData.locationName || '');
-        setPhone(formData.phone || '');
-        setPatientName(formData.patientName || '');
-        // Clear the draft after restoring
-        localStorage.removeItem('biencuidar_care_request_draft');
-      } catch (err) {
-        console.error('Error restoring form data:', err);
-      }
-    }
-  }, []);
 
   const toggleConditionTag = (tag: string) => {
     setConditionTags(prev =>
@@ -171,29 +146,11 @@ export const CareRequestForm: FC = () => {
 
   const canNextStep1 = (conditionTags.length > 0 || conditionExtra.trim().length > 0) && patientName.trim().length >= 3;
   const canNextStep2 = selectedDays.length > 0 && selectedDays.every(d => d.shifts.length > 0);
-  const canSubmit = phone.trim().length >= 8 && locationName.trim().length > 0;
+  const canSubmit = locationName.trim().length > 0;
 
   const handleSubmit = () => {
     if (!canSubmit) return;
-    
-    // Check if user is logged in
-    if (!currentUser) {
-      // Save form data to localStorage before showing registration modal
-      const formData = {
-        conditionTags,
-        conditionExtra,
-        specializationNeeded,
-        otherSpecialization,
-        notes,
-        selectedDays,
-        locationName,
-        phone,
-        patientName
-      };
-      localStorage.setItem('biencuidar_care_request_draft', JSON.stringify(formData));
-      setShowRegisterModal(true);
-      return;
-    }
+    if (!currentUser) return;
     
     const condition = [...conditionTags, conditionExtra.trim()].filter(Boolean).join('; ');
     const finalSpec = otherSpecialization.trim() || specializationNeeded || 'Geriatría';
@@ -646,8 +603,8 @@ export const CareRequestForm: FC = () => {
       {step === 3 && (
         <div className="flex-1 space-y-5 animate-fade-in">
           <div>
-            <h2 className="text-lg font-bold text-slate-900 mb-1">Lugar de atención y teléfono para contactarte</h2>
-            <p className="text-xs text-slate-500">Tu ubicación nos ayuda a encontrar enfermeras cercanas. Tu teléfono es para que el administrador te contacte si es necesario.</p>
+            <h2 className="text-lg font-bold text-slate-900 mb-1">¿Dónde se necesita la atención?</h2>
+            <p className="text-xs text-slate-500">Confirma el lugar de atención. Puedes ajustarlo si el paciente está en otra ubicación.</p>
           </div>
 
           <div className="space-y-4">
@@ -673,21 +630,17 @@ export const CareRequestForm: FC = () => {
                   {locating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
                 </button>
               </div>
+              {currentUser?.location_name && (
+                <p className="text-[10px] text-slate-400 mt-1.5">Dirección guardada de tu perfil. Ajústala si el paciente está en otro lugar.</p>
+              )}
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-slate-600 mb-1.5 block">Teléfono / WhatsApp</label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={e => setPhone(e.target.value)}
-                  placeholder="Ej: 7777 1234"
-                  className="w-full pl-9 pr-3 py-3 border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100"
-                />
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-3">
+              <Phone className="h-4 w-4 text-slate-400 shrink-0" />
+              <div className="flex-1">
+                <p className="text-[10px] text-slate-400 font-semibold uppercase">Teléfono de contacto</p>
+                <p className="text-sm text-slate-700 font-medium">{phone || 'No configurado'}</p>
               </div>
-              <p className="text-[10px] text-slate-400 mt-1">Te avisaremos por notificación cuando haya novedades.</p>
             </div>
           </div>
 
@@ -749,34 +702,6 @@ export const CareRequestForm: FC = () => {
               <Send className="h-5 w-5" />
               Enviar solicitud
             </button>
-          </div>
-        </div>
-      )}
-      
-      {/* Registration Modal */}
-      {showRegisterModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-4 border-b border-slate-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-800">Regístrate para enviar solicitud</h2>
-              <button
-                onClick={() => setShowRegisterModal(false)}
-                className="p-1 hover:bg-slate-100 rounded-lg cursor-pointer"
-              >
-                <X className="h-5 w-5 text-slate-500" />
-              </button>
-            </div>
-            <div className="p-4">
-              <AuthForm
-                mode="register"
-                role="family"
-                onBack={() => setShowRegisterModal(false)}
-                onSuccess={() => {
-                  setShowRegisterModal(false);
-                  window.location.reload();
-                }}
-              />
-            </div>
           </div>
         </div>
       )}

@@ -384,7 +384,14 @@ function MarketplaceApp() {
               </div>
             ) : authMode === 'landing' ? (
               <LandingPage
-                onFamily={() => { setActiveTab('care-request'); setAuthMode('landing'); }}
+                onFamily={() => { 
+                  if (!currentUser) {
+                    setAuthRole('family');
+                    setAuthMode('register');
+                  } else {
+                    setActiveTab('care-request');
+                  }
+                }}
                 onNurse={() => { setAuthRole('nurse'); setAuthMode('register'); }}
                 onAdminAccess={() => { setIsAdminAccess(true); setAuthMode('login'); }}
                 onLogin={() => { setAuthRole('family'); setAuthMode('login'); }}

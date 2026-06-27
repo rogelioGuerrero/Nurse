@@ -12,11 +12,13 @@ interface AuthFormProps {
   role: 'family' | 'nurse';
   onBack: () => void;
   onSuccess: () => void;
+  prefillPhone?: string;
+  prefillLocation?: string;
 }
 
 type AuthMode = 'login' | 'register' | 'forgot-password';
 
-export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) => {
+export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, prefillPhone, prefillLocation }) => {
   
   const [authMode, setAuthMode] = useState<AuthMode>(mode);
   
@@ -32,10 +34,10 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
   const [csspRegistration, setCsspRegistration] = useState('');
   const [csspLevel, setCsspLevel] = useState<'Licenciada' | 'Tecnóloga' | 'Técnica' | 'Auxiliar'>('Técnica');
   const [dui, setDui] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(prefillPhone || '');
   const [assignmentAvailability, setAssignmentAvailability] = useState<AssignmentAvailability>('shifts_only');
   const [paymentPreference, setPaymentPreference] = useState<PaymentPreference>('per_shift');
-  const [locationName, setLocationName] = useState('');
+  const [locationName, setLocationName] = useState(prefillLocation || '');
   const [selectedMunicipalities, setSelectedMunicipalities] = useState<string[]>([]);
   const [showMunicipalities, setShowMunicipalities] = useState(false);
 
@@ -85,13 +87,15 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
       return;
     }
 
-    if (!locationName.trim()) {
-      setError('Selecciona el departamento donde prefieres trabajar');
-      return;
-    }
-    if (selectedMunicipalities.length === 0) {
-      setError('Selecciona al menos un municipio/distrito donde prefieres trabajar');
-      return;
+    if (!prefillLocation) {
+      if (!locationName.trim()) {
+        setError('Selecciona el departamento donde prefieres trabajar');
+        return;
+      }
+      if (selectedMunicipalities.length === 0) {
+        setError('Selecciona al menos un municipio/distrito donde prefieres trabajar');
+        return;
+      }
     }
 
     if (role === 'nurse') {
@@ -123,7 +127,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
             full_name: fullName,
             role: role === 'nurse' ? 'nurse' : 'user',
             phone: phone.trim(),
-            location_name: `${locationName.trim()}, ${selectedMunicipalities.join(', ')}`
+            location_name: prefillLocation || `${locationName.trim()}, ${selectedMunicipalities.join(', ')}`
           }
         }
       });
@@ -149,7 +153,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
           full_name: fullName,
           role: role === 'nurse' ? 'nurse' : 'user',
           phone: phone.trim(),
-          location_name: `${locationName.trim()}, ${selectedMunicipalities.join(', ')}`
+          location_name: prefillLocation || `${locationName.trim()}, ${selectedMunicipalities.join(', ')}`
         }, { onConflict: 'id' });
 
       if (profileError) {
@@ -446,7 +450,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
             </div>
           )}
 
-          {authMode === 'register' && (
+          {authMode === 'register' && !prefillPhone && (
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
                 Teléfono / WhatsApp *
@@ -467,7 +471,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess }) =
             </div>
           )}
 
-          {authMode === 'register' && (
+          {authMode === 'register' && !prefillLocation && (
             <>
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">

@@ -246,7 +246,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           if (myRequestIds.length > 0) {
             offersQuery = offersQuery.in('request_id', myRequestIds);
           } else {
-            offersQuery = offersQuery.eq('request_id', 'none');
+            offersQuery = offersQuery.eq('request_id', '00000000-0000-0000-0000-000000000000');
           }
         }
       }
