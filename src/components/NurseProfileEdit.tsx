@@ -54,7 +54,6 @@ export const NurseProfileEdit: FC = () => {
   // CSSP obligatorio + verificaciones opcionales
   const [csspReg, setCsspReg] = useState<string>(currentNurse?.cssp_registration || '');
   const [csspLevel, setCsspLevel] = useState<string>(currentNurse?.cssp_level || 'Licenciada');
-  const [collegeReg, setCollegeReg] = useState<string>(currentNurse?.verifications?.college_registration || '');
   const [assignmentAvailability, setAssignmentAvailability] = useState<AssignmentAvailability>(currentNurse?.assignment_availability || 'shifts_only');
   const [paymentPreference, setPaymentPreference] = useState<PaymentPreference>(currentNurse?.payment_preference || 'per_shift');
 
@@ -175,7 +174,7 @@ export const NurseProfileEdit: FC = () => {
       assignment_availability: assignmentAvailability,
       payment_preference: paymentPreference,
       verifications: {
-        college_registration: collegeReg.trim() || undefined,
+        college_registration: currentNurse?.verifications?.college_registration || undefined,
       },
     });
 
@@ -563,17 +562,6 @@ export const NurseProfileEdit: FC = () => {
             {currentNurse && currentNurse.cssp_registration && (
               <CSSPVerificationBadge nurse={currentNurse} variant="full" />
             )}
-
-            <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Registro del Colegio/Asociación (opcional)</label>
-              <input
-                type="text"
-                value={collegeReg}
-                onChange={(e) => setCollegeReg(e.target.value)}
-                placeholder="Ej: ENF-2024-0123"
-                className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-3 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
-              />
-            </div>
 
             <div className="flex justify-between">
               <button
