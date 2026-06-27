@@ -385,7 +385,7 @@ function buildFallbackReply(toolResults: Array<{ name: string; result: any }>): 
     }
     if (tr.name === 'get_platform_stats' && tr.result) {
       const s = tr.result;
-      return `Estadísticas: ${s.nurses} enfermeras (${s.nurses_verified} verificadas, ${s.nurses_pending} pendientes), ${s.families} familias, ${s.care_requests_open} solicitudes abiertas, ${s.bookings_active} bookings activos.`;
+      return `## Estadísticas de BienCuidar\n\n| Métrica | Valor |\n|---|---|\n| **Enfermeras** | ${s.nurses} |\n| **Verificadas** | ${s.nurses_verified} |\n| **Pendientes** | ${s.nurses_pending} |\n| **Familias** | ${s.families} |\n| **Solicitudes abiertas** | ${s.care_requests_open} |\n| **Bookings activos** | ${s.bookings_active} |`;
     }
     if (tr.name === 'get_cssp_status' && tr.result?.cssp) {
       const c = tr.result.cssp;
@@ -576,7 +576,8 @@ REGLAS:
 - Usá las herramientas para ver estadísticas o enviar notificaciones push.
 - Si el admin te pide avisar, notificar, alertar o enviar un mensaje a las enfermeras o familias, usá send_push_notification o send_email con target "all_nurses" o "all_families".
 - Si el admin te pide ver el estado de la plataforma, usá get_platform_stats.
-- Para preguntas generales, respondé con la información de arriba SIN llamar herramientas.${memoryContext}`
+- Para preguntas generales, respondé con la información de arriba SIN llamar herramientas.
+- Podés usar formato Markdown: **negrita**, listas con viñetas, tablas markdown (| col1 | col2 |), y encabezados con ##. Esto se renderiza bonito en el chat.${memoryContext}`
       : `Sos el asistente de BienCuidar, plataforma de enfermería en El Salvador.
 
 ${FAQ_CONTEXT}

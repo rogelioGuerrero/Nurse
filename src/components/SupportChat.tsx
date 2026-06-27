@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, type FC } from 'react';
 import { MessageCircle, X, Send, Loader2, Mail } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { supabaseUrl, supabaseAnonKey, supabase } from '../lib/supabase';
 import { openSupport } from '../lib/support';
 
@@ -387,7 +388,28 @@ export const SupportChat: FC<{ userRole?: string; userEmail?: string }> = ({ use
                   : 'bg-white text-slate-700 border border-slate-200 rounded-bl-md'
               }`}
             >
-              {msg.content}
+              {msg.role === 'assistant'
+                ? <ReactMarkdown
+                    components={{
+                      p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                      strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                      em: ({ children }) => <em className="italic">{children}</em>,
+                      ul: ({ children }) => <ul className="list-disc pl-4 mb-1">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal pl-4 mb-1">{children}</ol>,
+                      li: ({ children }) => <li className="mb-0.5">{children}</li>,
+                      a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="underline">{children}</a>,
+                      code: ({ children }) => <code className="bg-slate-100 rounded px-1 py-0.5 text-[11px] font-mono">{children}</code>,
+                      pre: ({ children }) => <pre className="bg-slate-100 rounded-lg p-2 mb-1 overflow-x-auto text-[11px]">{children}</pre>,
+                      table: ({ children }) => <table className="border-collapse mb-1 text-[11px]">{children}</table>,
+                      th: ({ children }) => <th className="border border-slate-300 px-1.5 py-0.5 font-bold">{children}</th>,
+                      td: ({ children }) => <td className="border border-slate-300 px-1.5 py-0.5">{children}</td>,
+                      h1: ({ children }) => <h1 className="font-bold text-sm mb-1">{children}</h1>,
+                      h2: ({ children }) => <h2 className="font-bold text-sm mb-1">{children}</h2>,
+                      h3: ({ children }) => <h3 className="font-bold text-xs mb-1">{children}</h3>,
+                    }}
+                  >{msg.content}</ReactMarkdown>
+                : msg.content
+              }
             </div>
           </div>
         ))}

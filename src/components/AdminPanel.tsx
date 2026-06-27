@@ -1160,8 +1160,8 @@ Mensaje para avisarle que revise los detalles en la app.`;
                 <div className="space-y-2">
                   {Object.entries(chatStats.byRole).map(([role, count]) => {
                     const pct = chatStats.total > 0 ? Math.round((count / chatStats.total) * 100) : 0;
-                    const label = role === 'nurse' ? 'Enfermeras' : role === 'family' ? 'Familias' : 'Visitantes';
-                    const color = role === 'nurse' ? 'bg-emerald-500' : role === 'family' ? 'bg-indigo-500' : 'bg-slate-400';
+                    const label = role === 'nurse' ? 'Enfermeras' : role === 'family' ? 'Familias' : role === 'admin' ? 'Admin' : 'Visitantes';
+                    const color = role === 'nurse' ? 'bg-emerald-500' : role === 'family' ? 'bg-indigo-500' : role === 'admin' ? 'bg-amber-500' : 'bg-slate-400';
                     return (
                       <div key={role} className="flex items-center gap-3">
                         <span className="text-xs font-bold text-slate-600 w-20">{label}</span>
