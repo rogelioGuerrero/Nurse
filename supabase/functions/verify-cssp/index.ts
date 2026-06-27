@@ -143,6 +143,116 @@ async function verifyCSSPRegistration(registration: string): Promise<CSSPResult>
 }
 
 /**
+ * Normaliza un nombre para comparación: mayúsculas, sin acentos, sin conectores.
+ */
+function normalizeName(s: string): string {
+  return s.toUpperCase().trim()
+    .replace(/[ÁÀ]/g, "A").replace(/[ÉÈ]/g, "E").replace(/[ÍÌ]/g, "I")
+    .replace(/[ÓÒ]/g, "O").replace(/[ÚÙ]/g, "U")
+    .replace(/\s+(DE|DEL|LA|LAS|LOS|Y)\s+/g, " ")
+    .replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Calcula similitud entre dos nombres (0-1).
+ * Compara partes (palabras) y devuelve el porcentaje de coincidencia.
+ */
+function nameSimilarity(name1: string, name2: string): number {
+  const parts1 = normalizeName(name1).split(" ").filter(p => p.length > 2);
+  const parts2 = normalizeName(name2).split(" ").filter(p => p.length > 2);
+  if (parts1.length === 0 || parts2.length === 0) return 0;
+  const matched = parts1.filter(p => parts2.includes(p));
+  return matched.length / Math.max(parts1.length, parts2.length);
+}
+
+/**
+ * Verifica si el número CSSP ya existe en otra cuenta activa.
+ * Retorna los datos de la cuenta existente si hay duplicado, o null si no.
+ */
+async function checkDuplicateCssp(
+  supabase: ReturnType<typeof createClient>,
+  csspRegistration: string,
+  currentNurseId: string
+): Promise<{ nurse_id: string; full_name: string; email: string } | null> {
+  const { data: existing } = await supabase
+    .from("nurses")
+    .select("id, user_id, cssp_registration")
+    .eq("cssp_registration", csspRegistration)
+    .neq("id", currentNurseId);
+
+  if (!existing || existing.length === 0) return null;
+
+  const existingNurse = existing[0];
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, email")
+    .eq("id", existingNurse.user_id)
+    .single();
+
+  if (!profile) return null;
+
+  return {
+    nurse_id: existingNurse.id,
+    full_name: profile.full_name || "",
+    email: profile.email || "",
+  };
+}
+
+/**
+ * Notifica al admin sobre un posible CSSP duplicado.
+ */
+async function notifyAdminDuplicate(
+  supabase: ReturnType<typeof createClient>,
+  csspRegistration: string,
+  currentName: string,
+  currentEmail: string,
+  existingName: string,
+  existingEmail: string,
+  similarity: number,
+  isLikelySamePerson: boolean
+): Promise<void> {
+  const { data: admins } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("role", "admin");
+
+  if (!admins || admins.length === 0) return;
+
+  const title = isLikelySamePerson
+    ? "Cuenta duplicada detectada"
+    : "Posible uso de CSSP ajeno";
+
+  const body = isLikelySamePerson
+    ? `CSSP ${csspRegistration} registrado por dos cuentas con nombres similares (${Math.round(similarity * 100)}%). Cuenta 1: ${currentName} (${currentEmail}). Cuenta 2: ${existingName} (${existingEmail}). Probablemente es la misma persona.`
+    : `CSSP ${csspRegistration} registrado por dos cuentas con nombres diferentes (${Math.round(similarity * 100)}%). Cuenta 1: ${currentName} (${currentEmail}). Cuenta 2: ${existingName} (${existingEmail}). Posible fraude o suplantación.`;
+
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  for (const admin of admins) {
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/send-push`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceKey}`,
+        },
+        body: JSON.stringify({
+          user_id: admin.id,
+          title,
+          body,
+          tag: `cssp-duplicate-${csspRegistration}`,
+        }),
+      });
+    } catch {
+      // best-effort
+    }
+  }
+
+  console.log(`[verify-cssp] Duplicate CSSP ${csspRegistration} | similarity: ${Math.round(similarity * 100)}% | samePerson: ${isLikelySamePerson}`);
+}
+
+/**
  * Ejecuta verifyCSSPRegistration con reintentos.
  * Si hay un mismatch, reintenta hasta 3 veces para descartar falsos positivos
  * causados por errores transitorios del scraping (sesión JSF, parseo, etc).
@@ -327,6 +437,49 @@ Deno.serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // --- Verificación de CSSP duplicado ---
+    const duplicate = await checkDuplicateCssp(supabase, cssp_registration, nurse_id);
+    if (duplicate) {
+      const similarity = nurse_name ? nameSimilarity(nurse_name, duplicate.full_name) : 0;
+      const isLikelySamePerson = similarity >= 0.6;
+
+      // Obtener email de la cuenta actual
+      const { data: currentProfile } = await supabase
+        .from("profiles").select("email").eq("id", nurse_id).single();
+      const currentEmail = currentProfile?.email || "";
+
+      await notifyAdminDuplicate(
+        supabase, cssp_registration,
+        nurse_name || "", currentEmail,
+        duplicate.full_name, duplicate.email,
+        similarity, isLikelySamePerson
+      );
+
+      const now = new Date().toISOString();
+      const notes = isLikelySamePerson
+        ? `CSSP duplicado detectado. Cuenta existente: ${duplicate.full_name} (${duplicate.email}). Similitud ${Math.round(similarity * 100)}%. Probablemente misma persona. Requiere acción del admin.`
+        : `CSSP duplicado detectado. Cuenta existente: ${duplicate.full_name} (${duplicate.email}). Similitud ${Math.round(similarity * 100)}%. Posible fraude. Requiere acción del admin.`;
+
+      await supabase.from("nurses").update({
+        cssp_verification_status: "pending",
+        cssp_verified: false,
+        cssp_verification_date: now,
+        cssp_verification_notes: notes,
+      }).eq("id", nurse_id);
+
+      return new Response(
+        JSON.stringify({
+          status: "pending",
+          message: isLikelySamePerson
+            ? "Este CSSP ya está registrado con otra cuenta tuya. Un administrador revisará tu caso."
+            : "Este CSSP ya está registrado por otra persona. Un administrador revisará el caso.",
+          duplicate: { name: duplicate.full_name, email: duplicate.email, similarity: Math.round(similarity * 100) },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }
+    // --- Fin verificación duplicado ---
 
     // Ejecutar verificación con reintentos
     const { result, mismatches, attempts } = await verifyWithRetries(cssp_registration, nurse_name, nurse_level);
