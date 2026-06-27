@@ -13,6 +13,7 @@ interface LandingPageProps {
 export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAccess, onLogin }) => {
   const [demoLoading, setDemoLoading] = useState(false);
   const [showFaq, setShowFaq] = useState<number | null>(null);
+  const [showFaqSection, setShowFaqSection] = useState(false);
   const [viewMode, setViewMode] = useState<'nurse' | 'family'>('nurse');
   const logoClicks = useRef(0);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -252,25 +253,35 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
         </div>
 
         {/* FAQ */}
-        <div className="space-y-4">
-          <h3 className="text-center text-sm font-bold text-slate-800 uppercase tracking-wide">Preguntas frecuentes</h3>
-          <div className="space-y-2">
-            {faqs.map((faq, i) => (
-              <div key={i} className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-                <button
-                  onClick={() => setShowFaq(showFaq === i ? null : i)}
-                  className="w-full px-4 py-3 flex items-center justify-between text-left cursor-pointer"
-                >
-                  <span className="text-xs font-bold text-slate-700 pr-2">{faq.q}</span>
-                  {showFaq === i ? <ChevronUp className="h-4 w-4 text-slate-400 shrink-0" /> : <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />}
-                </button>
-                {showFaq === i && (
-                  <div className="px-4 pb-3">
-                    <p className="text-xs text-slate-500 leading-relaxed">{faq.a}</p>
+        <div className="space-y-2">
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <button
+              onClick={() => setShowFaqSection(!showFaqSection)}
+              className="w-full px-4 py-3 flex items-center justify-between text-left cursor-pointer"
+            >
+              <span className="text-sm font-bold text-slate-800 uppercase tracking-wide">Preguntas frecuentes</span>
+              {showFaqSection ? <ChevronUp className="h-4 w-4 text-slate-400 shrink-0" /> : <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />}
+            </button>
+            {showFaqSection && (
+              <div className="px-3 pb-3 space-y-2">
+                {faqs.map((faq, i) => (
+                  <div key={i} className="bg-slate-50 border border-slate-200 rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => setShowFaq(showFaq === i ? null : i)}
+                      className="w-full px-3 py-2.5 flex items-center justify-between text-left cursor-pointer"
+                    >
+                      <span className="text-xs font-bold text-slate-700 pr-2">{faq.q}</span>
+                      {showFaq === i ? <ChevronUp className="h-3.5 w-3.5 text-slate-400 shrink-0" /> : <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+                    </button>
+                    {showFaq === i && (
+                      <div className="px-3 pb-2.5">
+                        <p className="text-xs text-slate-500 leading-relaxed">{faq.a}</p>
+                      </div>
+                    )}
                   </div>
-                )}
+                ))}
               </div>
-            ))}
+            )}
           </div>
         </div>
 
