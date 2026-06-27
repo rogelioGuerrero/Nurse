@@ -759,7 +759,7 @@ export const NurseProfileEdit: FC = () => {
                 <div className="flex items-start gap-1.5">
                   <span className="text-[10px]">📜</span>
                   <p className="text-[10px] text-slate-600 leading-relaxed">
-                    <strong>Tu currículum de oro:</strong> Te emitimos constancias de tus horas trabajadas y calificaciones, sirviendo como currículum verificado para aplicar a hospitales o clínicas privadas.
+                    <strong>Tu currículum de oro:</strong> Te emitimos constancias de tus turnos completados y calificaciones, sirviendo como currículum verificado para aplicar a hospitales o clínicas privadas.
                   </p>
                 </div>
               </div>
@@ -795,8 +795,8 @@ export const NurseProfileEdit: FC = () => {
                 <p className="text-lg font-black text-slate-800">{bitacoraStats.total}</p>
               </div>
               <div className="bg-slate-50 rounded-xl p-2.5 text-center">
-                <p className="text-[9px] text-slate-500 font-semibold uppercase">Horas</p>
-                <p className="text-lg font-black text-slate-800">{bitacoraStats.totalHours}</p>
+                <p className="text-[9px] text-slate-500 font-semibold uppercase">Turnos</p>
+                <p className="text-lg font-black text-slate-800">{bitacoraStats.completed}</p>
               </div>
               <div className="bg-slate-50 rounded-xl p-2.5 text-center">
                 <p className="text-[9px] text-slate-500 font-semibold uppercase">Ingresos</p>

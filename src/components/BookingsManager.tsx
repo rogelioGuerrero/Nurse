@@ -535,7 +535,7 @@ export const BookingsManager: FC = () => {
             activeServiceTab === 'upcoming' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
           }`}
         >
-          Próximos{upcomingBookings.length > 0 && ` (${upcomingBookings.length})`}
+          Agendados{upcomingBookings.length > 0 && ` (${upcomingBookings.length})`}
         </button>
         <button
           onClick={() => setActiveServiceTab('completed')}
@@ -543,7 +543,7 @@ export const BookingsManager: FC = () => {
             activeServiceTab === 'completed' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
           }`}
         >
-          Realizados{completedBookings.length > 0 && ` (${completedBookings.length})`}
+          Completados{completedBookings.length > 0 && ` (${completedBookings.length})`}
         </button>
       </div>
 
@@ -552,7 +552,7 @@ export const BookingsManager: FC = () => {
         <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center text-slate-500">
           <Calendar className="h-10 w-10 text-slate-300 mx-auto mb-3" />
           <p className="font-semibold text-slate-700">
-            {activeServiceTab === 'upcoming' ? 'No tienes servicios próximos.' : 'No tienes servicios realizados.'}
+            {activeServiceTab === 'upcoming' ? 'No tienes servicios agendados.' : 'No tienes servicios completados.'}
           </p>
           <p className="text-xs text-slate-400 mt-1">
             {activeServiceTab === 'upcoming' ? 'Las visitas confirmadas aparecerán aquí.' : 'Los servicios completados aparecerán aquí.'}

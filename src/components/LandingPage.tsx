@@ -33,7 +33,7 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
 
   const handleDemoLogin = async (role: 'family' | 'nurse') => {
     setDemoLoading(true);
-    const email = role === 'family' ? 'familia@biencudar.com' : 'enfermera@biencudar.com';
+    const email = role === 'family' ? 'familia@biencuidar.com' : 'enfermera@biencuidar.com';
     const password = 'demo123';
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
