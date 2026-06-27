@@ -59,10 +59,24 @@ async function createVapidJWT(endpoint: string): Promise<string> {
   const unsigned = `${headerB64}.${payloadB64}`;
 
   // Import VAPID private key (P-256)
-  const privateKeyBytes = base64UrlToUint8Array(VAPID_PRIVATE_KEY);
+  // web-push generates the private key as a raw 32-byte base64url string.
+  // We need to wrap it in a PKCS8 DER structure for crypto.subtle.importKey.
+  const rawKeyBytes = base64UrlToUint8Array(VAPID_PRIVATE_KEY);
+
+  // PKCS8 DER header for ECDSA P-256 private key
+  const pkcs8Header = new Uint8Array([
+    0x30, 0x77, 0x02, 0x01, 0x00, 0x30, 0x10, 0x06,
+    0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
+    0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22, 0x04,
+    0x62, 0x02, 0x01, 0x01, 0x04, 0x20,
+  ]);
+  const pkcs8Key = new Uint8Array(pkcs8Header.length + rawKeyBytes.length);
+  pkcs8Key.set(pkcs8Header, 0);
+  pkcs8Key.set(rawKeyBytes, pkcs8Header.length);
+
   const key = await crypto.subtle.importKey(
     "pkcs8",
-    privateKeyBytes,
+    pkcs8Key,
     { name: "ECDSA", namedCurve: "P-256" },
     false,
     ["sign"]
@@ -220,11 +234,13 @@ async function sendPushNotification(
       body,
     });
 
-    if (!response.ok && response.status === 410) {
-      // Subscription expired — caller should delete it
+    if (!response.ok) {
+      console.error(`Push failed: ${response.status} ${response.statusText} for ${subscription.endpoint.substring(0, 60)}...`);
+      const respText = await response.text().catch(() => "");
+      if (respText) console.error("Push error body:", respText);
       return false;
     }
-    return response.ok;
+    return true;
   } catch (err) {
     console.error("Push send error:", err);
     return false;
