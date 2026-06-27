@@ -5,8 +5,8 @@
 
 import { supabase, supabaseUrl, supabaseAnonKey } from './supabase';
 
-// VAPID public key — set in .env
-const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
+// VAPID public key — safe to expose (private key is in Supabase secrets)
+const VAPID_PUBLIC_KEY = 'BHSjXVKB_zik6eRg3XDXSfFoRQ6XMVFtmSwnLvenr2S849IY9gfpVF-EfMwwdvl90yciW9dfev61SrSZCea0DuA';
 
 /**
  * Convert base64 VAPID key to Uint8Array for PushManager.subscribe()
@@ -28,11 +28,6 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
  */
 export async function subscribeToPush(userId: string): Promise<boolean> {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    return false;
-  }
-
-  if (!VAPID_PUBLIC_KEY) {
-    console.warn('VITE_VAPID_PUBLIC_KEY not configured — push disabled');
     return false;
   }
 
@@ -111,8 +106,6 @@ export async function sendPushNotification(
   userId: string,
   payload: { title: string; body: string; tag?: string }
 ): Promise<void> {
-  if (!VAPID_PUBLIC_KEY) return;
-
   try {
     await fetch(`${supabaseUrl}/functions/v1/send-push`, {
       method: 'POST',
