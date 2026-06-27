@@ -234,6 +234,25 @@ Deno.serve(async (req: Request) => {
     // 5. Enviar respuesta por email
     const sent = await sendReply(from, subject, reply);
 
+    // 6. Guardar en support_emails para el dashboard de admin
+    const needsHuman = !sent || reply.includes("info@agtisa.com");
+    const { error: insertError } = await supabase
+      .from("support_emails")
+      .insert({
+        from_email: from,
+        to_email: "info@agtisa.com",
+        subject: subject || "(sin asunto)",
+        body: bodyText,
+        classification: classification.category,
+        is_biencuidar: true,
+        auto_replied: sent,
+        auto_reply_body: sent ? reply : null,
+        needs_human: needsHuman,
+      });
+    if (insertError) {
+      console.log(`[email-inbound] Failed to save to support_emails: ${insertError.message}`);
+    }
+
     console.log(`[email-inbound] === END | sent: ${sent}`);
     return new Response(JSON.stringify({
       ok: true,

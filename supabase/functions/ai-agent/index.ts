@@ -1,4 +1,5 @@
-﻿import { createClient } from "jsr:@supabase/supabase-js@2";
+﻿// @ts-nocheck — Deno Edge Function (runs on Supabase, not Node.js)
+import { createClient } from "jsr:@supabase/supabase-js@2";
 import webPush from "https://esm.sh/web-push@3.6.7";
 
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
@@ -535,8 +536,20 @@ REGLAS:
 - Para preguntas sobre datos personales, usá las herramientas disponibles.
 - NO reveles datos de otras enfermeras ni familias.
 - Si la enfermera quiere algo que no podés hacer con las herramientas, decí que escriba a info@agtisa.com.
-- Para preguntas generales (cómo funciona, CSSP, pagos, cancelaciones), respondé con la información de arriba SIN llamar herramientas.
-- Si la enfermera te pide avisar o notificar a alguien, usá send_push_notification o send_email.${memoryContext}`
+- Para preguntas generales (cómo funciona, pagos, cancelaciones), respondé con la información de arriba SIN llamar herramientas.
+- Si la enfermera te pide avisar o notificar a alguien, usá send_push_notification o send_email.
+
+CSSP — REGLA CRÍTICA:
+- Si la enfermera menciona CSSP, junta, número de registro, verificación, o cualquier problema con su registro, SIEMPRE llamá a get_cssp_status PRIMERO antes de responder.
+- NUNCA respondas sobre CSSP sin antes llamar a get_cssp_status.
+- Si get_cssp_status muestra cssp_verification_status = "pending" y hay cssp_verification_notes con discrepancias, explicá claramente:
+  1. Que su número de registro fue encontrado en el portal CSSP pero hay discrepancias.
+  2. Cuáles son las discrepancias exactas (nombre, profesión) usando las notas.
+  3. Que verifiquen su número correcto en su carné físico del CSSP o en cssp.gob.sv.
+  4. Que actualicen el número en su perfil de BienCuidar.
+- Si get_cssp_status muestra cssp_verification_status = "unverified", decí que el número no se encontró en el portal y que verifiquen si es correcto.
+- Si get_cssp_status muestra cssp_verified = true, felicitá por estar verificada.
+- Sobre contraseñas: decí que usen "¿Olvidaste tu contraseña?" en la pantalla de inicio. Si no les llega el correo, que escriban a info@agtisa.com.${memoryContext}`
       : role === 'user'
       ? `Sos el asistente de BienCuidar. Estás hablando con ${userName}, una familia registrada.
 
@@ -550,7 +563,7 @@ REGLAS:
 - Para preguntas sobre sus solicitudes u ofertas, usá las herramientas.
 - NO reveles datos de otras familias ni enfermeras (excepto especialización y rating de ofertas recibidas).
 - Si la familia quiere algo que no podés hacer con las herramientas, decí que escriba a info@agtisa.com.
-- Para preguntas generales (cómo funciona, CSSP, pagos, cancelaciones), respondé con la información de arriba SIN llamar herramientas.
+- Para preguntas generales (cómo funciona, pagos, cancelaciones), respondé con la información de arriba SIN llamar herramientas.
 - Si la familia te pide avisar o notificar a alguien, usá send_push_notification o send_email.${memoryContext}`
       : role === 'admin'
       ? `Sos el asistente de BienCuidar. Estás hablando con ${userName}, el administrador de la plataforma.
