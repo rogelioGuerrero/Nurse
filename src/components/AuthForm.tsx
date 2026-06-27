@@ -89,11 +89,11 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
 
     if (!prefillLocation) {
       if (!locationName.trim()) {
-        setError('Selecciona el departamento donde prefieres trabajar');
+        setError(role === 'nurse' ? 'Selecciona el departamento donde prefieres trabajar' : 'Selecciona tu departamento');
         return;
       }
       if (selectedMunicipalities.length === 0) {
-        setError('Selecciona al menos un municipio/distrito donde prefieres trabajar');
+        setError(role === 'nurse' ? 'Selecciona al menos un municipio/distrito donde prefieres trabajar' : 'Selecciona al menos un municipio/distrito');
         return;
       }
     }
@@ -507,7 +507,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
                     <span className="text-xs font-bold text-slate-600">
                       {selectedMunicipalities.length > 0
                         ? `${selectedMunicipalities.length} municipio(s) seleccionado(s)`
-                        : 'Selecciona municipios/distritos *'}
+                        : role === 'nurse' ? 'Selecciona municipios/distritos *' : 'Selecciona tu municipio/distrito *'}
                     </span>
                     {showMunicipalities ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
                   </button>
