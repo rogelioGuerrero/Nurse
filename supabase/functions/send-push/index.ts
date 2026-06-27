@@ -60,15 +60,13 @@ async function createVapidJWT(endpoint: string): Promise<string> {
 
   // Import VAPID private key (P-256)
   // web-push generates the private key as a raw 32-byte base64url string.
-  // We need to wrap it in a PKCS8 DER structure for crypto.subtle.importKey.
+  // Wrap it in a PKCS8 DER structure for crypto.subtle.importKey.
   const rawKeyBytes = base64UrlToUint8Array(VAPID_PRIVATE_KEY);
-
-  // PKCS8 DER header for ECDSA P-256 private key
   const pkcs8Header = new Uint8Array([
-    0x30, 0x77, 0x02, 0x01, 0x00, 0x30, 0x10, 0x06,
+    0x30, 0x3e, 0x02, 0x01, 0x00, 0x30, 0x10, 0x06,
     0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01,
     0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22, 0x04,
-    0x62, 0x02, 0x01, 0x01, 0x04, 0x20,
+    0x27, 0x30, 0x25, 0x02, 0x01, 0x01, 0x04, 0x20,
   ]);
   const pkcs8Key = new Uint8Array(pkcs8Header.length + rawKeyBytes.length);
   pkcs8Key.set(pkcs8Header, 0);

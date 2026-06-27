@@ -110,8 +110,10 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         if (profile) {
           setCurrentUser(profile);
           setActiveTab(profile.role === 'nurse' ? 'nurse-inbox' : profile.role === 'admin' ? 'admin-panel' : 'care-request');
-          requestNotificationPermission();
-          subscribeToPush(profile.id);
+          const permission = await requestNotificationPermission();
+          if (permission === 'granted') {
+            await subscribeToPush(profile.id);
+          }
         }
       }
     };
