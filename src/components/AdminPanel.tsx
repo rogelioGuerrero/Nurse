@@ -36,22 +36,7 @@ export const AdminPanel: FC = () => {
   const [supportLoading, setSupportLoading] = useState(false);
   const [supportFilter, setSupportFilter] = useState<'needs_human' | 'all' | 'auto_replied'>('needs_human');
   const [nurseViewMode, setNurseViewMode] = useState<'list' | 'grid'>('list');
-  const [nurseGrouping, setNurseGrouping] = useState<'none' | 'specialization'>('specialization');
-
-  const groupedNurses = useMemo(() => {
-    if (nurseGrouping === 'none') return [{ key: 'Todas', nurses }];
-    const groups: Record<string, typeof nurses> = {};
-    for (const n of nurses) {
-      const specs = n.specialization && n.specialization.length > 0 ? n.specialization : ['Sin especialización'];
-      for (const s of specs) {
-        if (!groups[s]) groups[s] = [];
-        groups[s].push(n);
-      }
-    }
-    return Object.entries(groups)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, ns]) => ({ key, nurses: ns }));
-  }, [nurses, nurseGrouping]);
+  const [nurseGrouping, setNurseGrouping] = useState<'none' | 'specialization' | 'department' | 'district'>('specialization');
 
   if (!currentUser || currentUser.role !== 'admin') {
     return (
@@ -63,6 +48,38 @@ export const AdminPanel: FC = () => {
 
   const profileMap = useMemo(() => new Map(profiles.map(p => [p.id, p])), [profiles]);
   const nurseMap = useMemo(() => new Map(nurses.map(n => [n.id, n])), [nurses]);
+
+  const groupedNurses = useMemo(() => {
+    if (nurseGrouping === 'none') return [{ key: 'Todas', nurses }];
+    const groups: Record<string, typeof nurses> = {};
+    for (const n of nurses) {
+      if (nurseGrouping === 'specialization') {
+        const specs = n.specialization && n.specialization.length > 0 ? n.specialization : ['Sin especialización'];
+        for (const s of specs) {
+          if (!groups[s]) groups[s] = [];
+          groups[s].push(n);
+        }
+      } else {
+        const profile = profileMap.get(n.user_id);
+        const locName = profile?.location_name || '';
+        const parts = locName.split(',').map(p => p.trim()).filter(Boolean);
+        if (nurseGrouping === 'department') {
+          const dept = parts[0] || 'Sin departamento';
+          if (!groups[dept]) groups[dept] = [];
+          groups[dept].push(n);
+        } else if (nurseGrouping === 'district') {
+          const districts = parts.length > 1 ? parts.slice(1) : ['Sin distrito'];
+          for (const d of districts) {
+            if (!groups[d]) groups[d] = [];
+            groups[d].push(n);
+          }
+        }
+      }
+    }
+    return Object.entries(groups)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, ns]) => ({ key, nurses: ns }));
+  }, [nurses, nurseGrouping, profileMap]);
 
   // Daily metrics
   const today = new Date().toISOString().split('T')[0];
@@ -904,11 +921,19 @@ Mensaje para avisarle que revise los detalles en la app.`;
                 <p className="text-[10px] text-slate-500 mt-0.5">Datos completos de cada enfermera registrada.</p>
               </div>
               <div className="flex items-center gap-2">
-                <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
+                <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5 flex-wrap">
                   <button
                     onClick={() => setNurseGrouping('specialization')}
                     className={`px-2 py-1 rounded text-[10px] font-bold transition cursor-pointer ${nurseGrouping === 'specialization' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
                   >Por especialización</button>
+                  <button
+                    onClick={() => setNurseGrouping('department')}
+                    className={`px-2 py-1 rounded text-[10px] font-bold transition cursor-pointer ${nurseGrouping === 'department' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
+                  >Por departamento</button>
+                  <button
+                    onClick={() => setNurseGrouping('district')}
+                    className={`px-2 py-1 rounded text-[10px] font-bold transition cursor-pointer ${nurseGrouping === 'district' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
+                  >Por distrito</button>
                   <button
                     onClick={() => setNurseGrouping('none')}
                     className={`px-2 py-1 rounded text-[10px] font-bold transition cursor-pointer ${nurseGrouping === 'none' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
