@@ -1,4 +1,4 @@
-const SW_VERSION = 'biencuidar-v11-briefing-20260628';
+const SW_VERSION = 'biencuidar-v12-patient-20260628';
 const CACHE_NAME = `biencuidar-cache-${SW_VERSION}`;
 const STATIC_ASSETS = [
   '/',
@@ -55,7 +55,7 @@ self.addEventListener('push', (event) => {
     if (event.data) data.body = event.data.text();
   }
 
-  // Store speak text for Compañero de Voz notifications (not for briefings — those fetch data on open)
+  // Store speak text
   if (data.companero && data.speak) {
     _pendingSpeak = data.speak;
   }
@@ -71,13 +71,28 @@ self.addEventListener('push', (event) => {
     : { url: '/' };
 
   event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      tag: data.tag || 'biencuidar',
-      icon: '/icon.svg',
-      badge: '/icon.svg',
-      data: notifData,
-    })
+    (async () => {
+      // For patient mode: if the patient screen is already open, auto-send SPEAK without waiting for click
+      if (data.companero && data.speak) {
+        const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+        for (const client of clientList) {
+          const clientUrl = new URL(client.url);
+          if (clientUrl.searchParams.get('patient')) {
+            client.postMessage({ type: 'SPEAK', text: data.speak });
+            _pendingSpeak = null;
+            break;
+          }
+        }
+      }
+
+      await self.registration.showNotification(data.title, {
+        body: data.body,
+        tag: data.tag || 'biencuidar',
+        icon: '/icon.svg',
+        badge: '/icon.svg',
+        data: notifData,
+      });
+    })()
   );
 });
 

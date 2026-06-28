@@ -36,6 +36,7 @@ const OffersReview = lazy(() => import('./components/OffersReview').then(m => ({
 const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
 const FamilyProfileEdit = lazy(() => import('./components/FamilyProfileEdit').then(m => ({ default: m.FamilyProfileEdit })));
 const CompaneroVoz = lazy(() => import('./components/CompaneroVoz'));
+const PatientMode = lazy(() => import('./components/PatientMode'));
 const VoiceReminderConfig = lazy(() => import('./components/VoiceReminderConfig'));
 import { LandingPage } from './components/LandingPage';
 import { AuthForm } from './components/AuthForm';
@@ -833,6 +834,16 @@ export default function App() {
   const isCompaneroMode = companeroParam === 'true' || companeroParam === 'briefing';
   const isEscalateMode = companeroParam === 'escalate';
   const isBriefingMode = companeroParam === 'briefing';
+  const patientToken = params.get('patient');
+
+  if (patientToken) {
+    const familyUserId = atob(patientToken);
+    return (
+      <Suspense fallback={<LoadingSpinner />}>
+        <PatientMode familyUserId={familyUserId} />
+      </Suspense>
+    );
+  }
 
   if (isCompaneroMode) {
     return (

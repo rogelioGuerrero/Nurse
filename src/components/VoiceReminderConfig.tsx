@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { useToast } from './Toast';
-import { Plus, Trash2, Send, Bell, Clock, Volume2, MessageCircle, AlertCircle, Check, X } from 'lucide-react';
+import { Plus, Trash2, Send, Bell, Clock, Volume2, MessageCircle, AlertCircle, Check, X, Smartphone, Copy } from 'lucide-react';
 
 interface VoiceReminder {
   id: string;
@@ -36,6 +36,10 @@ export default function VoiceReminderConfig() {
     days_of_week: [0, 1, 2, 3, 4, 5, 6] as number[],
     is_morning_briefing: false as boolean,
   });
+
+  const patientLink = currentUser
+    ? `${window.location.origin}/?patient=${btoa(currentUser.id)}`
+    : '';
 
   const loadReminders = useCallback(async () => {
     if (!currentUser) return;
@@ -531,6 +535,42 @@ export default function VoiceReminderConfig() {
             );
           })
         )}
+      </div>
+
+      {/* Patient Mode */}
+      <div className="bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-200/40 rounded-2xl p-5 space-y-4">
+        <div className="flex items-center gap-2 border-b border-indigo-100 pb-3">
+          <Smartphone className="h-5 w-5 text-indigo-600" />
+          <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Modo Paciente</h4>
+        </div>
+        <p className="text-xs text-slate-600 leading-relaxed">
+          Abre este link en el teléfono de tu ser querido y déjalo ahí. Verá una pantalla simple con un solo botón para hablar. Los recordatorios se reproducirán automáticamente al llegar, sin necesidad de tocar notificaciones.
+        </p>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 bg-white border border-indigo-200 rounded-xl px-3 py-2.5 text-xs text-slate-600 font-mono truncate">
+            {patientLink}
+          </div>
+          <button
+            onClick={() => { navigator.clipboard.writeText(patientLink); showToast('Link copiado', 'success'); }}
+            className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-3 py-2.5 rounded-xl transition cursor-pointer shrink-0"
+          >
+            <Copy className="h-3.5 w-3.5" />
+            Copiar
+          </button>
+        </div>
+        <div className="flex items-center gap-3 bg-white/60 border border-indigo-100 rounded-xl p-3">
+          <div className="w-20 h-20 bg-white rounded-lg flex items-center justify-center border border-slate-200 shrink-0 overflow-hidden">
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(patientLink)}`}
+              alt="QR Modo Paciente"
+              className="w-full h-full"
+            />
+          </div>
+          <div className="flex-1">
+            <p className="text-xs font-bold text-slate-700">Escanea este código</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">Abre la cámara del teléfono de tu ser querido y apunta al código QR para abrir el Modo Paciente directamente.</p>
+          </div>
+        </div>
       </div>
 
       <div className="bg-indigo-50/70 border border-indigo-200/30 rounded-2xl p-4 space-y-2 text-[11px] text-indigo-900 leading-normal font-medium">
