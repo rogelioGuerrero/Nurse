@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Volume2, Square, Phone, Heart, BookOpen, Pill, Play } from 'lucide-react';
+import { Volume2, Square, Phone, Heart, BookOpen, Pill, Play, Mic, Loader2, MessageCircle } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 type ReminderType = 'medicine' | 'story' | 'motivation';
 
@@ -35,23 +36,58 @@ const FAKE_SCHEDULE: FakeReminder[] = [
   },
 ];
 
+type ConversationTurn = {
+  role: 'user' | 'assistant';
+  content: string;
+  time: string;
+};
+
+type AppMode = 'idle' | 'scheduled' | 'push';
+
+interface SpeechRecognitionEvent extends Event {
+  readonly resultIndex: number;
+  readonly results: SpeechRecognitionResultList;
+}
+
+declare global {
+  interface Window {
+    SpeechRecognition?: any;
+    webkitSpeechRecognition?: any;
+  }
+}
+
 export default function CompaneroVoz() {
   const [isActive, setIsActive] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
+  const [hasSTT, setHasSTT] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>('');
   const [currentIdx, setCurrentIdx] = useState(-1);
   const [nextIn, setNextIn] = useState(0);
   const [history, setHistory] = useState<{ label: string; time: string }[]>([]);
   const [pushMessage, setPushMessage] = useState<{ label: string; message: string } | null>(null);
+  const [conversation, setConversation] = useState<ConversationTurn[]>([]);
+  const [mode, setMode] = useState<AppMode>('idle');
+  const [transcript, setTranscript] = useState('');
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const recognitionRef = useRef<any>(null);
+  const conversationRef = useRef<ConversationTurn[]>([]);
+  const reminderContextRef = useRef<string>('');
+  const modeRef = useRef<AppMode>('idle');
 
   useEffect(() => {
     if (!('speechSynthesis' in window)) {
       setIsSupported(false);
       return;
+    }
+
+    const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognitionClass) {
+      setHasSTT(true);
     }
 
     const loadVoices = () => {
@@ -66,24 +102,28 @@ export default function CompaneroVoz() {
     loadVoices();
     window.speechSynthesis.onvoiceschanged = loadVoices;
 
-    // Listen for SPEAK messages from Service Worker (push notifications)
     const handleSWMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === 'SPEAK' && event.data.text) {
         const text = event.data.text;
         setPushMessage({ label: 'Recordatorio', message: text });
+        setMode('push');
+        modeRef.current = 'push';
         setIsSpeaking(true);
-        // Small delay to ensure voices are loaded and UI updates
+        reminderContextRef.current = text;
         setTimeout(() => speak(text, () => {
           const now = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
           setHistory(prev => [{ label: 'Recordatorio', time: now }, ...prev].slice(0, 10));
+          setIsSpeaking(false);
+          if (hasSTT) {
+            setTimeout(() => startListening(), 800);
+          }
         }), 100);
       }
     };
 
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.addEventListener('message', handleSWMessage);
-      // Tell SW we're ready to receive pending speak text
-      navigator.serviceWorker.ready.then(reg => {
+      navigator.serviceWorker.ready.then(() => {
         navigator.serviceWorker.controller?.postMessage({ type: 'READY' });
       });
     }
@@ -93,11 +133,12 @@ export default function CompaneroVoz() {
       window.speechSynthesis.onvoiceschanged = null;
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (countdownRef.current) clearInterval(countdownRef.current);
+      stopListening();
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener('message', handleSWMessage);
       }
     };
-  }, [selectedVoiceURI, voices]);
+  }, [selectedVoiceURI, voices, hasSTT]);
 
   const speak = useCallback((text: string, onEnd?: () => void) => {
     if (!('speechSynthesis' in window) || !text.trim()) return;
@@ -129,6 +170,131 @@ export default function CompaneroVoz() {
     window.speechSynthesis.speak(utterance);
   }, [voices, selectedVoiceURI]);
 
+  const startListening = useCallback(() => {
+    const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognitionClass) return;
+
+    stopListening();
+
+    const recognition = new SpeechRecognitionClass();
+    recognition.lang = 'es-ES';
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      setTranscript('');
+    };
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let finalTranscript = '';
+      let interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          finalTranscript += result[0].transcript;
+        } else {
+          interimTranscript += result[0].transcript;
+        }
+      }
+      if (interimTranscript) setTranscript(interimTranscript);
+      if (finalTranscript) {
+        setTranscript(finalTranscript);
+        handleUserMessage(finalTranscript.trim());
+      }
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('SpeechRecognition error:', event.error);
+      setIsListening(false);
+      if (event.error === 'no-speech') {
+        setTimeout(() => {
+          if (modeRef.current === 'push' || modeRef.current === 'scheduled') {
+            startListening();
+          }
+        }, 500);
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }, []);
+
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+  }, []);
+
+  const handleUserMessage = useCallback(async (userText: string) => {
+    if (!userText) return;
+
+    stopListening();
+    setIsListening(false);
+    setIsThinking(true);
+
+    const now = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
+    const userTurn: ConversationTurn = { role: 'user', content: userText, time: now };
+    const newConv = [...conversationRef.current, userTurn];
+    conversationRef.current = newConv;
+    setConversation(newConv);
+
+    const lowerText = userText.toLowerCase();
+    const farewellWords = ['gracias', 'ya está bien', 'ya estoy bien', 'adiós', 'adios', 'hasta luego', 'no más', 'ya'];
+    const isFarewell = farewellWords.some(w => lowerText.includes(w)) && lowerText.length < 25;
+
+    try {
+      const { data, error } = await supabase.functions.invoke('companero-chat', {
+        body: {
+          message: userText,
+          reminderContext: reminderContextRef.current,
+          conversationHistory: conversationRef.current.slice(-8).map(t => ({ role: t.role, content: t.content })),
+        },
+      });
+
+      if (error || !data?.content) {
+        throw new Error(error?.message || 'Sin respuesta');
+      }
+
+      const aiResponse = data.content;
+      const aiTurn: ConversationTurn = { role: 'assistant', content: aiResponse, time: new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }) };
+      const updatedConv = [...conversationRef.current, aiTurn];
+      conversationRef.current = updatedConv;
+      setConversation(updatedConv);
+
+      setIsThinking(false);
+      speak(aiResponse, () => {
+        if (isFarewell) {
+          setConversation([]);
+          conversationRef.current = [];
+          setTranscript('');
+          return;
+        }
+        setTimeout(() => startListening(), 600);
+      });
+    } catch (err) {
+      console.error('companero-chat error:', err);
+      setIsThinking(false);
+      const fallback = 'No te escuché bien, ¿puedes repetirlo?';
+      const aiTurn: ConversationTurn = { role: 'assistant', content: fallback, time: new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }) };
+      const updatedConv = [...conversationRef.current, aiTurn];
+      conversationRef.current = updatedConv;
+      setConversation(updatedConv);
+      speak(fallback, () => {
+        setTimeout(() => startListening(), 600);
+      });
+    }
+  }, [speak, startListening, stopListening]);
+
   const runSchedule = useCallback((startIdx: number) => {
     if (startIdx >= FAKE_SCHEDULE.length) {
       setIsActive(false);
@@ -150,26 +316,44 @@ export default function CompaneroVoz() {
     }, 1000);
 
     timeoutRef.current = setTimeout(() => {
+      reminderContextRef.current = reminder.message;
       speak(reminder.message, () => {
         const now = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
         setHistory(prev => [{ label: reminder.label, time: now }, ...prev].slice(0, 10));
-        runSchedule(startIdx + 1);
+        if (hasSTT && startIdx < FAKE_SCHEDULE.length - 1) {
+          setTimeout(() => startListening(), 800);
+        } else {
+          runSchedule(startIdx + 1);
+        }
       });
     }, reminder.delaySec * 1000);
-  }, [speak]);
+  }, [speak, startListening, hasSTT]);
 
   const handleStart = () => {
     setIsActive(true);
+    setMode('scheduled');
+    modeRef.current = 'scheduled';
     setHistory([]);
+    setConversation([]);
+    conversationRef.current = [];
     runSchedule(0);
   };
 
   const handleStop = () => {
     window.speechSynthesis.cancel();
+    stopListening();
     setIsSpeaking(false);
+    setIsListening(false);
+    setIsThinking(false);
     setIsActive(false);
+    setMode('idle');
+    modeRef.current = 'idle';
     setCurrentIdx(-1);
     setNextIn(0);
+    setConversation([]);
+    conversationRef.current = [];
+    setTranscript('');
+    setPushMessage(null);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (countdownRef.current) clearInterval(countdownRef.current);
   };
@@ -190,8 +374,8 @@ export default function CompaneroVoz() {
     );
   }
 
-  // Push mode — received a message from SW, speaking it
-  if (pushMessage && !isActive) {
+  // Push mode — received a message from SW, speaking it + conversation
+  if (pushMessage && mode === 'push') {
     return (
       <div className="min-h-screen bg-gradient-to-b from-indigo-950 to-slate-900 flex flex-col items-center justify-between p-6 safe-area-pb">
         <div className="text-center pt-4 w-full max-w-md">
@@ -212,6 +396,31 @@ export default function CompaneroVoz() {
                 <p className="text-indigo-300 text-sm">Hablando...</p>
               </div>
             </>
+          ) : isThinking ? (
+            <>
+              <div className="w-40 h-40 rounded-full bg-amber-600/80 flex items-center justify-center shadow-2xl">
+                <Loader2 className="h-20 w-20 text-white animate-spin" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-white text-lg font-bold">Pensando...</p>
+                <p className="text-amber-300 text-sm">Un momento</p>
+              </div>
+            </>
+          ) : isListening ? (
+            <>
+              <div className="w-40 h-40 rounded-full bg-emerald-600 scale-110 animate-pulse flex items-center justify-center shadow-2xl">
+                <Mic className="h-20 w-20 text-white" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-white text-lg font-bold">Te escucho</p>
+                <p className="text-emerald-300 text-sm">Habla ahora...</p>
+              </div>
+              {transcript && (
+                <div className="bg-white/10 rounded-2xl px-4 py-3 max-w-sm">
+                  <p className="text-slate-200 text-sm italic">"{transcript}"</p>
+                </div>
+              )}
+            </>
           ) : (
             <>
               <div className="w-32 h-32 rounded-full bg-emerald-600/30 border-2 border-emerald-500/40 flex items-center justify-center shadow-lg">
@@ -224,12 +433,9 @@ export default function CompaneroVoz() {
             </>
           )}
 
-          {isSpeaking && (
+          {(isSpeaking || isListening || isThinking) && (
             <button
-              onClick={() => {
-                window.speechSynthesis.cancel();
-                setIsSpeaking(false);
-              }}
+              onClick={handleStop}
               className="bg-rose-600/80 hover:bg-rose-600 text-white font-bold px-8 py-3 rounded-full transition flex items-center gap-2 cursor-pointer shadow-lg"
             >
               <Square className="h-5 w-5 fill-white" />
@@ -239,12 +445,45 @@ export default function CompaneroVoz() {
         </div>
 
         <div className="w-full max-w-md space-y-2 pb-4">
+          {conversation.length > 0 && (
+            <div className="space-y-2 mb-3">
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <MessageCircle className="h-3.5 w-3.5" />
+                Conversación
+              </p>
+              <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                {conversation.map((turn, idx) => (
+                  <div
+                    key={idx}
+                    className={`flex ${turn.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[80%] rounded-2xl px-3 py-2 ${
+                        turn.role === 'user'
+                          ? 'bg-emerald-600/30 border border-emerald-500/30'
+                          : 'bg-indigo-600/30 border border-indigo-500/30'
+                      }`}
+                    >
+                      <p className={`text-xs leading-relaxed ${
+                        turn.role === 'user' ? 'text-emerald-100' : 'text-indigo-100'
+                      }`}>
+                        {turn.content}
+                      </p>
+                      <p className="text-slate-500 text-[9px] mt-0.5">{turn.time}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {pushMessage && (
             <div className="bg-indigo-600/10 border border-indigo-500/20 rounded-2xl p-4 mb-2">
               <p className="text-indigo-300 text-[10px] font-bold uppercase tracking-wider mb-1">Mensaje recibido</p>
               <p className="text-slate-300 text-sm leading-relaxed">{pushMessage.message}</p>
             </div>
           )}
+
           {history.length > 0 && (
             <div className="space-y-1.5">
               <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Historial</p>
@@ -276,6 +515,11 @@ export default function CompaneroVoz() {
             <p className="text-slate-400 text-sm max-w-xs mx-auto leading-relaxed">
               Toca el botón para iniciar. Tu teléfono te acompañará durante el día.
             </p>
+            {hasSTT && (
+              <p className="text-emerald-400/70 text-xs max-w-xs mx-auto leading-relaxed pt-1">
+                Puedes responder con tu voz después de cada mensaje.
+              </p>
+            )}
           </div>
 
           <button
@@ -326,6 +570,31 @@ export default function CompaneroVoz() {
               <p className="text-indigo-300 text-sm">Hablando...</p>
             </div>
           </>
+        ) : isThinking ? (
+          <>
+            <div className="w-40 h-40 rounded-full bg-amber-600/80 flex items-center justify-center shadow-2xl">
+              <Loader2 className="h-20 w-20 text-white animate-spin" />
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-white text-lg font-bold">Pensando...</p>
+              <p className="text-amber-300 text-sm">Un momento</p>
+            </div>
+          </>
+        ) : isListening ? (
+          <>
+            <div className="w-40 h-40 rounded-full bg-emerald-600 scale-110 animate-pulse flex items-center justify-center shadow-2xl">
+              <Mic className="h-20 w-20 text-white" />
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-white text-lg font-bold">Te escucho</p>
+              <p className="text-emerald-300 text-sm">Habla ahora...</p>
+            </div>
+            {transcript && (
+              <div className="bg-white/10 rounded-2xl px-4 py-3 max-w-sm">
+                <p className="text-slate-200 text-sm italic">"{transcript}"</p>
+              </div>
+            )}
+          </>
         ) : currentReminder ? (
           <>
             <div className="w-32 h-32 rounded-full bg-slate-700/50 border-2 border-indigo-500/30 flex items-center justify-center shadow-lg">
@@ -354,6 +623,38 @@ export default function CompaneroVoz() {
       </div>
 
       <div className="w-full max-w-md space-y-2 pb-4">
+        {conversation.length > 0 && (
+          <div className="space-y-2 mb-3">
+            <p className="text-slate-500 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+              <MessageCircle className="h-3.5 w-3.5" />
+              Conversación
+            </p>
+            <div className="space-y-1.5 max-h-40 overflow-y-auto">
+              {conversation.map((turn, idx) => (
+                <div
+                  key={idx}
+                  className={`flex ${turn.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[80%] rounded-2xl px-3 py-2 ${
+                      turn.role === 'user'
+                        ? 'bg-emerald-600/30 border border-emerald-500/30'
+                        : 'bg-indigo-600/30 border border-indigo-500/30'
+                    }`}
+                  >
+                    <p className={`text-xs leading-relaxed ${
+                      turn.role === 'user' ? 'text-emerald-100' : 'text-indigo-100'
+                    }`}>
+                      {turn.content}
+                    </p>
+                    <p className="text-slate-500 text-[9px] mt-0.5">{turn.time}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         <p className="text-slate-500 text-xs font-bold uppercase tracking-wider text-center mb-2">
           Mensajes de hoy ({history.length})
         </p>

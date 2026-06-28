@@ -357,8 +357,8 @@ export default function VoiceReminderConfig() {
         <p>
           1. Creas el recordatorio con el mensaje que quieres que tu ser querido escuche.<br/>
           2. Toca "Probar" para enviarlo a tu teléfono ahora mismo.<br/>
-          3. En producción, el sistema envía el push automáticamente a la hora programada.<br/>
-          4. Tu ser querido toca la notificación y el teléfono lee el mensaje en voz alta.
+          3. El sistema envía el recordatorio automáticamente a la hora programada.<br/>
+          4. Tu ser querido recibe la notificación y el teléfono lee el mensaje en voz alta.
         </p>
       </div>
     </div>
