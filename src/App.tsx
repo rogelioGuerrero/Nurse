@@ -34,6 +34,7 @@ const NurseInbox = lazy(() => import('./components/NurseInbox').then(m => ({ def
 const OffersReview = lazy(() => import('./components/OffersReview').then(m => ({ default: m.OffersReview })));
 const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
 const FamilyProfileEdit = lazy(() => import('./components/FamilyProfileEdit').then(m => ({ default: m.FamilyProfileEdit })));
+const CompaneroVoz = lazy(() => import('./components/CompaneroVoz'));
 import { LandingPage } from './components/LandingPage';
 import { AuthForm } from './components/AuthForm';
 import { LegalDisclaimer } from './components/LegalDisclaimer';
@@ -803,6 +804,17 @@ function MarketplaceApp() {
 }
 
 export default function App() {
+  const params = new URLSearchParams(window.location.search);
+  const isCompaneroMode = params.get('companero') === 'true';
+
+  if (isCompaneroMode) {
+    return (
+      <Suspense fallback={<LoadingSpinner />}>
+        <CompaneroVoz />
+      </Suspense>
+    );
+  }
+
   return (
     <ToastProvider>
       <AppContextProvider>
