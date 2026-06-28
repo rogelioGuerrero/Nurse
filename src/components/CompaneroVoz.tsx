@@ -1,13 +1,51 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Volume2, Square, RefreshCw, Phone } from 'lucide-react';
+import { Volume2, Square, Phone, Heart, BookOpen, Pill, Play } from 'lucide-react';
+
+type ReminderType = 'medicine' | 'story' | 'motivation';
+
+interface FakeReminder {
+  type: ReminderType;
+  icon: typeof Heart;
+  label: string;
+  message: string;
+  delaySec: number;
+}
+
+const FAKE_SCHEDULE: FakeReminder[] = [
+  {
+    type: 'medicine',
+    icon: Pill,
+    label: 'Recordatorio de medicina',
+    message: 'Doña María, es la hora de su medicina para la presión. Por favor, tome una tableta de losartán con un vaso de agua. Recuerde que es importante tomarla a la misma hora todos los días.',
+    delaySec: 3,
+  },
+  {
+    type: 'story',
+    icon: BookOpen,
+    label: 'Cuento corto',
+    message: 'Voy a contarle un cuento breve, doña María. Había una vez una tortuga que vivía junto a un río cristalino. Todos los días caminaba despacio, pero nunca se rendía. Un día, una liebre se burló de ella por ser tan lenta. La tortuga le dijo: ¿Queremos apostar una carrera? La liebre, riendo, aceptó. Cuando empezó la carrera, la liebre corría tan rápido que decidió dormir un rato bajo un árbol. Pero la tortuga, paso a paso, sin detenerse, llegó primero a la meta. Moraleja: el que persevera, alcanza.',
+    delaySec: 15,
+  },
+  {
+    type: 'motivation',
+    icon: Heart,
+    label: 'Mensaje de su familia',
+    message: 'Su hija Rosita le envía un mensaje: Mamá, te amo mucho. Gracias por todo lo que has hecho por nosotros. Eres la mejor mamá del mundo. Pronto voy a visitarte. Un beso enorme.',
+    delaySec: 15,
+  },
+];
 
 export default function CompaneroVoz() {
+  const [isActive, setIsActive] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>('');
-  const [lastMessage, setLastMessage] = useState<string>('');
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const [currentIdx, setCurrentIdx] = useState(-1);
+  const [nextIn, setNextIn] = useState(0);
+  const [history, setHistory] = useState<{ label: string; time: string }[]>([]);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!('speechSynthesis' in window)) {
@@ -30,17 +68,19 @@ export default function CompaneroVoz() {
     return () => {
       window.speechSynthesis.cancel();
       window.speechSynthesis.onvoiceschanged = null;
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
     };
   }, [selectedVoiceURI]);
 
-  const speak = useCallback((text: string) => {
+  const speak = useCallback((text: string, onEnd?: () => void) => {
     if (!('speechSynthesis' in window) || !text.trim()) return;
 
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'es-ES';
-    utterance.rate = 0.9;
+    utterance.rate = 0.85;
     utterance.pitch = 1.0;
     utterance.volume = 1.0;
 
@@ -51,25 +91,62 @@ export default function CompaneroVoz() {
     }
 
     utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      onEnd?.();
+    };
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      onEnd?.();
+    };
 
-    utteranceRef.current = utterance;
-    setLastMessage(text);
     window.speechSynthesis.speak(utterance);
   }, [voices, selectedVoiceURI]);
 
-  const stopSpeaking = useCallback(() => {
+  const runSchedule = useCallback((startIdx: number) => {
+    if (startIdx >= FAKE_SCHEDULE.length) {
+      setIsActive(false);
+      setCurrentIdx(-1);
+      return;
+    }
+
+    const reminder = FAKE_SCHEDULE[startIdx];
+    setCurrentIdx(startIdx);
+    setNextIn(reminder.delaySec);
+
+    let remaining = reminder.delaySec;
+    countdownRef.current = setInterval(() => {
+      remaining -= 1;
+      setNextIn(remaining);
+      if (remaining <= 0 && countdownRef.current) {
+        clearInterval(countdownRef.current);
+      }
+    }, 1000);
+
+    timeoutRef.current = setTimeout(() => {
+      speak(reminder.message, () => {
+        const now = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
+        setHistory(prev => [{ label: reminder.label, time: now }, ...prev].slice(0, 10));
+        runSchedule(startIdx + 1);
+      });
+    }, reminder.delaySec * 1000);
+  }, [speak]);
+
+  const handleStart = () => {
+    setIsActive(true);
+    setHistory([]);
+    runSchedule(0);
+  };
+
+  const handleStop = () => {
     window.speechSynthesis.cancel();
     setIsSpeaking(false);
-  }, []);
-
-  const testMessages = [
-    'Hola, soy tu compañero de BienCuidar. Estoy aquí para ayudarte.',
-    'Es la hora de tomar tu medicina. Por favor, toma tu medicamento ahora.',
-    'Recuerda tomar agua. Es importante mantenerte hidratado.',
-    'Tu enfermera llegará pronto. Por favor, espera en casa.',
-  ];
+    setIsActive(false);
+    setCurrentIdx(-1);
+    setNextIn(0);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    if (countdownRef.current) clearInterval(countdownRef.current);
+  };
 
   if (!isSupported) {
     return (
@@ -87,67 +164,126 @@ export default function CompaneroVoz() {
     );
   }
 
+  if (!isActive) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-indigo-950 to-slate-900 flex flex-col items-center justify-center p-6 safe-area-pb">
+        <div className="text-center space-y-8">
+          <div className="inline-flex items-center gap-2 bg-indigo-600/20 border border-indigo-500/30 px-4 py-2 rounded-full">
+            <Phone className="h-5 w-5 text-indigo-300" />
+            <span className="text-indigo-200 font-bold text-sm">BienCuidar</span>
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-white font-serif italic">Compañero de Voz</h1>
+            <p className="text-slate-400 text-sm max-w-xs mx-auto leading-relaxed">
+              Toca el botón para iniciar. Tu teléfono te acompañará durante el día.
+            </p>
+          </div>
+
+          <button
+            onClick={handleStart}
+            className="w-48 h-48 rounded-full bg-indigo-600 hover:bg-indigo-500 hover:scale-105 active:scale-95 transition-all duration-300 shadow-2xl flex flex-col items-center justify-center gap-2 cursor-pointer"
+          >
+            <Play className="h-20 w-20 text-white fill-white" />
+            <span className="text-white font-bold text-lg">Iniciar</span>
+          </button>
+
+          {history.length > 0 && (
+            <div className="w-full max-w-sm space-y-2 pt-4">
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Última sesión</p>
+              {history.slice(0, 4).map((h, idx) => (
+                <div key={idx} className="flex items-center justify-between bg-white/5 rounded-xl px-4 py-2">
+                  <span className="text-slate-300 text-xs font-medium">{h.label}</span>
+                  <span className="text-slate-500 text-[10px]">{h.time}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const currentReminder = currentIdx >= 0 ? FAKE_SCHEDULE[currentIdx] : null;
+  const CurrentIcon = currentReminder?.icon || Volume2;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-indigo-950 to-slate-900 flex flex-col items-center justify-between p-6 safe-area-pb">
 
-      {/* Header minimalista */}
-      <div className="text-center pt-4">
+      <div className="text-center pt-4 w-full max-w-md">
         <div className="inline-flex items-center gap-2 bg-indigo-600/20 border border-indigo-500/30 px-4 py-2 rounded-full">
           <Phone className="h-5 w-5 text-indigo-300" />
-          <span className="text-indigo-200 font-bold text-sm">BienCuidar</span>
+          <span className="text-indigo-200 font-bold text-sm">BienCuidar · Compañero activo</span>
         </div>
-        <p className="text-slate-400 text-xs mt-2">Compañero de Voz</p>
       </div>
 
-      {/* Botón principal - grande, claro */}
-      <div className="flex flex-col items-center gap-6">
-        <button
-          onClick={() => isSpeaking ? stopSpeaking() : speak(testMessages[0])}
-          className={`w-40 h-40 rounded-full flex items-center justify-center transition-all duration-300 shadow-2xl ${
-            isSpeaking
-              ? 'bg-rose-600 scale-110 animate-pulse'
-              : 'bg-indigo-600 hover:bg-indigo-500 hover:scale-105 active:scale-95'
-          }`}
-        >
-          {isSpeaking ? (
-            <Square className="h-16 w-16 text-white fill-white" />
-          ) : (
-            <Volume2 className="h-16 w-16 text-white" />
-          )}
-        </button>
-        <p className="text-white text-lg font-bold">
-          {isSpeaking ? 'Tocar para detener' : 'Tocar para escuchar'}
-        </p>
-      </div>
-
-      {/* Mensajes rápidos - botones grandes */}
-      <div className="w-full max-w-md space-y-3 pb-4">
-        <p className="text-slate-400 text-xs font-bold uppercase tracking-wider text-center mb-3">
-          Mensajes de prueba
-        </p>
-        {testMessages.map((msg, idx) => (
-          <button
-            key={idx}
-            onClick={() => speak(msg)}
-            disabled={isSpeaking}
-            className="w-full bg-white/10 hover:bg-white/20 disabled:opacity-40 border border-white/10 rounded-2xl p-4 text-left transition cursor-pointer disabled:cursor-not-allowed"
-          >
-            <div className="flex items-center gap-3">
-              <Volume2 className="h-6 w-6 text-indigo-300 shrink-0" />
-              <span className="text-white text-sm font-medium leading-snug">{msg}</span>
+      <div className="flex flex-col items-center gap-6 w-full max-w-md">
+        {isSpeaking ? (
+          <>
+            <div className="w-40 h-40 rounded-full bg-indigo-600 scale-110 animate-pulse flex items-center justify-center shadow-2xl">
+              <CurrentIcon className="h-20 w-20 text-white" />
             </div>
-          </button>
-        ))}
+            <div className="text-center space-y-1">
+              <p className="text-white text-lg font-bold">{currentReminder?.label}</p>
+              <p className="text-indigo-300 text-sm">Hablando...</p>
+            </div>
+          </>
+        ) : currentReminder ? (
+          <>
+            <div className="w-32 h-32 rounded-full bg-slate-700/50 border-2 border-indigo-500/30 flex items-center justify-center shadow-lg">
+              <CurrentIcon className="h-16 w-16 text-indigo-300" />
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-white text-base font-bold">{currentReminder.label}</p>
+              <p className="text-slate-400 text-sm">
+                {nextIn > 0 ? `En ${nextIn} segundos...` : 'Preparando...'}
+              </p>
+            </div>
+          </>
+        ) : (
+          <div className="w-32 h-32 rounded-full bg-slate-700/50 flex items-center justify-center">
+            <Volume2 className="h-16 w-16 text-slate-500" />
+          </div>
+        )}
+
+        <button
+          onClick={handleStop}
+          className="bg-rose-600/80 hover:bg-rose-600 text-white font-bold px-8 py-3 rounded-full transition flex items-center gap-2 cursor-pointer shadow-lg"
+        >
+          <Square className="h-5 w-5 fill-white" />
+          Detener
+        </button>
       </div>
 
-      {/* Selector de voz - colapsable, para configuración */}
+      <div className="w-full max-w-md space-y-2 pb-4">
+        <p className="text-slate-500 text-xs font-bold uppercase tracking-wider text-center mb-2">
+          Mensajes de hoy ({history.length})
+        </p>
+        {history.length === 0 ? (
+          <p className="text-slate-600 text-xs text-center">Aún no se han reproducido mensajes</p>
+        ) : (
+          <div className="space-y-1.5 max-h-40 overflow-y-auto">
+            {history.map((h, idx) => {
+              const reminder = FAKE_SCHEDULE.find(r => r.label === h.label);
+              const Icon = reminder?.icon || Volume2;
+              return (
+                <div key={idx} className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-2.5">
+                  <Icon className="h-4 w-4 text-indigo-400 shrink-0" />
+                  <span className="text-slate-300 text-xs font-medium flex-1">{h.label}</span>
+                  <span className="text-slate-500 text-[10px]">{h.time}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {voices.length > 0 && (
         <details className="w-full max-w-md pb-4">
-          <summary className="text-slate-500 text-xs font-bold cursor-pointer hover:text-slate-300 transition flex items-center gap-1.5">
-            <RefreshCw className="h-3 w-3" />
+          <summary className="text-slate-500 text-xs font-bold cursor-pointer hover:text-slate-300 transition">
             Configurar voz
           </summary>
-          <div className="mt-3 space-y-2">
+          <div className="mt-3">
             <select
               value={selectedVoiceURI}
               onChange={(e) => setSelectedVoiceURI(e.target.value)}
@@ -168,19 +304,8 @@ export default function CompaneroVoz() {
                 ))
               }
             </select>
-            <p className="text-slate-500 text-[10px]">
-              Si no hay voces en español, tu teléfono usará la voz por defecto.
-            </p>
           </div>
         </details>
-      )}
-
-      {/* Último mensaje reproducido */}
-      {lastMessage && !isSpeaking && (
-        <div className="w-full max-w-md bg-indigo-600/10 border border-indigo-500/20 rounded-2xl p-4 mb-4">
-          <p className="text-indigo-300 text-[10px] font-bold uppercase tracking-wider mb-1">Último mensaje</p>
-          <p className="text-slate-300 text-sm leading-relaxed">{lastMessage}</p>
-        </div>
       )}
     </div>
   );
