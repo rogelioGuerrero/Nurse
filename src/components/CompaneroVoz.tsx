@@ -82,6 +82,8 @@ export default function CompaneroVoz() {
   const familyUserIdRef = useRef<string>('');
   const patientUserIdRef = useRef<string>('');
   const escalationPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const silenceCountRef = useRef(0);
+  const inactivityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!('speechSynthesis' in window)) {
@@ -137,6 +139,7 @@ export default function CompaneroVoz() {
       window.speechSynthesis.onvoiceschanged = null;
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (countdownRef.current) clearInterval(countdownRef.current);
+      if (inactivityTimeoutRef.current) clearTimeout(inactivityTimeoutRef.current);
       stopListening();
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener('message', handleSWMessage);
@@ -204,6 +207,7 @@ export default function CompaneroVoz() {
       }
       if (interimTranscript) setTranscript(interimTranscript);
       if (finalTranscript) {
+        silenceCountRef.current = 0;
         setTranscript(finalTranscript);
         handleUserMessage(finalTranscript.trim());
       }
@@ -213,6 +217,19 @@ export default function CompaneroVoz() {
       console.error('SpeechRecognition error:', event.error);
       setIsListening(false);
       if (event.error === 'no-speech') {
+        silenceCountRef.current++;
+        if (silenceCountRef.current >= 3) {
+          // 3 silences in a row (~15s) — say goodbye and close
+          silenceCountRef.current = 0;
+          speak('Bueno, me despido. Aquí estaré cuando me necesites. ¡Hasta pronto!', () => {
+            setConversation([]);
+            conversationRef.current = [];
+            setTranscript('');
+            setMode('idle');
+            modeRef.current = 'idle';
+          });
+          return;
+        }
         setTimeout(() => {
           if ((modeRef.current === 'push' || modeRef.current === 'scheduled') && !isEscalatingRef.current) {
             startListening();
@@ -436,6 +453,8 @@ export default function CompaneroVoz() {
     setPushMessage(null);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (countdownRef.current) clearInterval(countdownRef.current);
+    silenceCountRef.current = 0;
+    if (inactivityTimeoutRef.current) clearTimeout(inactivityTimeoutRef.current);
   };
 
   if (!isSupported) {
