@@ -6,6 +6,91 @@ const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const NVIDIA_NIM_API_KEY = Deno.env.get("NVIDIA_NIM_API_KEY");
+
+// ===== NVIDIA NIM SAFETY MIDDLEWARE =====
+
+async function checkJailbreak(userMessage: string): Promise<{ isJailbreak: boolean; confidence: number }> {
+  if (!NVIDIA_NIM_API_KEY) return { isJailbreak: false, confidence: 0 };
+  try {
+    const res = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${NVIDIA_NIM_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "nvidia/nemoguard-jailbreak-v1",
+        messages: [{ role: "user", content: userMessage }],
+        max_tokens: 10,
+        temperature: 0,
+      }),
+    });
+    if (!res.ok) { console.log(`[ai-agent] jailbreak check skipped: ${res.status}`); return { isJailbreak: false, confidence: 0 }; }
+    const data = await res.json();
+    const content = (data.choices[0]?.message?.content || "").toLowerCase().trim();
+    const isJailbreak = content.includes("jailbreak") || content.includes("unsafe") || content.includes("yes");
+    console.log(`[ai-agent] jailbreak check: ${isJailbreak} | response: ${content.slice(0, 50)}`);
+    return { isJailbreak, confidence: isJailbreak ? 0.9 : 0.1 };
+  } catch (err: any) {
+    console.log(`[ai-agent] jailbreak check error: ${err.message}`);
+    return { isJailbreak: false, confidence: 0 };
+  }
+}
+
+async function detectPII(text: string): Promise<{ cleaned: string; found: boolean }> {
+  if (!NVIDIA_NIM_API_KEY) return { cleaned: text, found: false };
+  try {
+    const res = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${NVIDIA_NIM_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "nvidia/llama-nemotron-nano-v2-8b-v1",
+        messages: [
+          { role: "system", content: "Detecta datos personales (DUI, teléfono, email, dirección, número de seguro) en el texto. Reemplázalos con [REDACTED]. Devuelve SOLO el texto limpio, sin explicaciones." },
+          { role: "user", content: text },
+        ],
+        max_tokens: 800,
+        temperature: 0,
+      }),
+    });
+    if (!res.ok) { console.log(`[ai-agent] PII check skipped: ${res.status}`); return { cleaned: text, found: false }; }
+    const data = await res.json();
+    const cleaned = data.choices[0]?.message?.content || text;
+    const found = cleaned.includes("[REDACTED]");
+    console.log(`[ai-agent] PII check: found=${found}`);
+    return { cleaned, found };
+  } catch (err: any) {
+    console.log(`[ai-agent] PII check error: ${err.message}`);
+    return { cleaned: text, found: false };
+  }
+}
+
+async function checkContentSafety(text: string): Promise<{ isSafe: boolean; reason?: string }> {
+  if (!NVIDIA_NIM_API_KEY) return { isSafe: true };
+  try {
+    const res = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${NVIDIA_NIM_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "nvidia/llama-nemotron-nano-v2-8b-v1",
+        messages: [
+          { role: "system", content: "Eres un filtro de seguridad clínica. Analiza la respuesta del asistente. Si contiene: dosis específicas de medicamentos, diagnósticos médicos definitivos, instrucciones que podrían causar daño si se siguen sin supervisión profesional, o recomendaciones de automedicación, responde 'UNSAFE: <razón>'. Si es segura, responde 'SAFE'." },
+          { role: "user", content: text },
+        ],
+        max_tokens: 100,
+        temperature: 0,
+      }),
+    });
+    if (!res.ok) { console.log(`[ai-agent] content safety skipped: ${res.status}`); return { isSafe: true }; }
+    const data = await res.json();
+    const content = (data.choices[0]?.message?.content || "").trim();
+    const isUnsafe = content.toUpperCase().startsWith("UNSAFE");
+    const reason = isUnsafe ? content.split(":")[1]?.trim() : undefined;
+    console.log(`[ai-agent] content safety: ${isUnsafe ? 'UNSAFE' : 'SAFE'}${reason ? ' — ' + reason : ''}`);
+    return { isSafe: !isUnsafe, reason };
+  } catch (err: any) {
+    console.log(`[ai-agent] content safety error: ${err.message}`);
+    return { isSafe: true };
+  }
+}
 const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
 const VAPID_SUBJECT = "mailto:admin@biencuidar.agtisa.com";
@@ -227,6 +312,44 @@ async function sendPushNotification(supabase: any, userId: string, role: string,
   return { success: true, sent, total_targets: targetUserIds.length, target };
 }
 
+async function ragKnowledgeSearch(args: any) {
+  const { query, top_k = 5 } = args;
+  if (!query) return { error: 'Falta parámetro: query' };
+
+  const RAG_QUERY_URL = `${Deno.env.get('SUPABASE_URL')}/functions/v1/rag-query`;
+  const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  const res = await fetch(RAG_QUERY_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${SERVICE_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query,
+      project: 'biencuidar',
+      top_k,
+      rerank: true,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    console.log(`[ai-agent] ragKnowledgeSearch error: ${res.status} — ${err.slice(0, 200)}`);
+    return { error: 'No se pudo buscar en la base de conocimiento' };
+  }
+
+  const data = await res.json();
+  const results = (data.results || []).map((r: any) => ({
+    text: r.chunk_text,
+    source: r.source_url,
+    score: r.score,
+  }));
+
+  console.log(`[ai-agent] ragKnowledgeSearch | query: ${query.slice(0, 60)} | results: ${results.length}`);
+  return { results, count: results.length };
+}
+
 async function sendEmail(supabase: any, userId: string, role: string, args: any) {
   const { to, subject, body } = args;
   if (!to || !subject || !body) {
@@ -310,6 +433,8 @@ async function sendEmail(supabase: any, userId: string, role: string, args: any)
 
 // ===== TOOL DEFINITIONS =====
 
+const RAG_TOOL = { type: 'function', function: { name: 'rag_knowledge_search', description: 'Buscar en la base de conocimiento de BienCuidar: leyes de El Salvador, regulaciones CSSP, protocolos clínicos, manuales de enfermería, Código Tributario, LIVA. Usar cuando el usuario pregunte sobre normativa legal, procedimientos clínicos, requisitos del CSSP, o cualquier tema profesional que requiera información documentada.', parameters: { type: 'object', properties: { query: { type: 'string', description: 'La pregunta o tema a buscar (ej: "requisitos para registro CSSP", "retención ISR servicios de enfermería", "protocolo cuidados paliativos")' }, top_k: { type: 'number', description: 'Número de resultados a devolver (default: 5, max: 10)' } }, required: ['query'] } } };
+
 const NURSE_TOOLS = [
   { type: 'function', function: { name: 'get_my_profile', description: 'Ver el perfil de la enfermera: nombre, especialización, tarifa por turno, disponibilidad, estado CSSP, rating', parameters: { type: 'object', properties: {} } } },
   { type: 'function', function: { name: 'get_my_bookings', description: 'Ver los turnos asignados: fechas, horarios, estado, paciente, pago', parameters: { type: 'object', properties: {} } } },
@@ -318,6 +443,7 @@ const NURSE_TOOLS = [
   { type: 'function', function: { name: 'update_my_rate', description: 'Cambiar mi tarifa por turno (en USD). Rango válido: 5 a 100', parameters: { type: 'object', properties: { new_rate: { type: 'number', description: 'Nueva tarifa por turno en USD (ej: 25)' } }, required: ['new_rate'] } } },
   { type: 'function', function: { name: 'send_push_notification', description: 'Enviar una notificación push a una persona. Usar cuando el usuario pida avisar, notificar o alertar a alguien.', parameters: { type: 'object', properties: { target: { type: 'string', enum: ['admin', 'family'], description: 'A quién: "admin" para el administrador, "family" para la familia del paciente' }, title: { type: 'string', description: 'Título corto (ej: "Voy a llegar tarde")' }, body: { type: 'string', description: 'Mensaje (ej: "Voy a llegar 15 minutos tarde por tráfico")' } }, required: ['target', 'title', 'body'] } } },
   { type: 'function', function: { name: 'send_email', description: 'Enviar un correo electrónico a una persona o grupo. Usar cuando el usuario pida enviar un email, avisar por correo, o cuando notificaciones push no sean suficientes.', parameters: { type: 'object', properties: { to: { type: 'string', enum: ['admin', 'family'], description: 'A quién: "admin" para el administrador, "family" para la familia del paciente' }, subject: { type: 'string', description: 'Asunto del correo (ej: "Cambio de horario de mañana")' }, body: { type: 'string', description: 'Contenido del correo en texto plano (ej: "Necesito cambiar el turno de mañana a la tarde")' } }, required: ['to', 'subject', 'body'] } } },
+  RAG_TOOL,
 ];
 
 const FAMILY_TOOLS = [
@@ -327,15 +453,17 @@ const FAMILY_TOOLS = [
   { type: 'function', function: { name: 'get_my_care_requests', description: 'Ver mis solicitudes de cuidado activas: paciente, especialización needed, estado', parameters: { type: 'object', properties: {} } } },
   { type: 'function', function: { name: 'send_push_notification', description: 'Enviar una notificación push a una persona. Usar cuando el usuario pida avisar, notificar o alertar a alguien.', parameters: { type: 'object', properties: { target: { type: 'string', enum: ['admin', 'nurse'], description: 'A quién: "admin" para el administrador, "nurse" para la enfermera asignada' }, title: { type: 'string', description: 'Título corto (ej: "Cambio de horario")' }, body: { type: 'string', description: 'Mensaje (ej: "Necesito cambiar el turno de mañana a tarde")' } }, required: ['target', 'title', 'body'] } } },
   { type: 'function', function: { name: 'send_email', description: 'Enviar un correo electrónico a una persona o grupo. Usar cuando el usuario pida enviar un email, avisar por correo, o cuando notificaciones push no sean suficientes.', parameters: { type: 'object', properties: { to: { type: 'string', enum: ['admin', 'nurse'], description: 'A quién: "admin" para el administrador, "nurse" para la enfermera asignada' }, subject: { type: 'string', description: 'Asunto del correo (ej: "Cambio de horario de mañana")' }, body: { type: 'string', description: 'Contenido del correo en texto plano (ej: "Necesito cambiar el turno de mañana a la tarde")' } }, required: ['to', 'subject', 'body'] } } },
+  RAG_TOOL,
 ];
 
 const ADMIN_TOOLS = [
   { type: 'function', function: { name: 'get_platform_stats', description: 'Ver estadísticas de la plataforma: total enfermeras, verificadas, pendientes, solicitudes abiertas, bookings activos, familias', parameters: { type: 'object', properties: {} } } },
   { type: 'function', function: { name: 'send_push_notification', description: 'Enviar una notificación push a usuarios. Usar cuando el admin quiera avisar, notificar o alertar a un grupo.', parameters: { type: 'object', properties: { target: { type: 'string', enum: ['all_nurses', 'all_families', 'admin'], description: 'A quién enviar: "all_nurses" para todas las enfermeras verificadas, "all_families" para todas las familias, "admin" para el admin' }, title: { type: 'string', description: 'Título corto (ej: "Recordatorio importante")' }, body: { type: 'string', description: 'Mensaje de la notificación (ej: "Recuerden hacer check-in al llegar al paciente")' } }, required: ['target', 'title', 'body'] } } },
   { type: 'function', function: { name: 'send_email', description: 'Enviar un correo electrónico a usuarios. Usar cuando el admin quiera enviar un email a un grupo.', parameters: { type: 'object', properties: { to: { type: 'string', enum: ['all_nurses', 'all_families', 'admin'], description: 'A quién enviar: "all_nurses" para todas las enfermeras verificadas, "all_families" para todas las familias, "admin" para el admin' }, subject: { type: 'string', description: 'Asunto del correo (ej: "Recordatorio importante")' }, body: { type: 'string', description: 'Contenido del correo en texto plano (ej: "Recuerden hacer check-in al llegar al paciente")' } }, required: ['to', 'subject', 'body'] } } },
+  RAG_TOOL,
 ];
 
-const VISITOR_TOOLS: any[] = [];
+const VISITOR_TOOLS: any[] = [RAG_TOOL];
 
 // ===== TOOL EXECUTOR =====
 
@@ -353,6 +481,7 @@ async function executeTool(toolName: string, supabase: any, userId: string, role
     case 'get_platform_stats': result = await getPlatformStats(supabase); break;
     case 'send_push_notification': result = await sendPushNotification(supabase, userId, role, args); break;
     case 'send_email': result = await sendEmail(supabase, userId, role, args); break;
+    case 'rag_knowledge_search': result = await ragKnowledgeSearch(args); break;
     default: result = { error: 'Función no disponible' };
   }
   console.log(`[ai-agent] executeTool: ${toolName} | ${Date.now() - start}ms | result keys: ${Object.keys(result).join(',')}`);
@@ -503,6 +632,16 @@ Deno.serve(async (req: Request) => {
     }
 
     console.log(`[ai-agent] === START | channel: ${channel} | email: ${user_email} | msg: ${message.slice(0, 80)}`);
+
+    // 0. Jailbreak detection (NVIDIA NIM)
+    const jailbreakCheck = await checkJailbreak(message);
+    if (jailbreakCheck.isJailbreak) {
+      console.log(`[ai-agent] Jailbreak detected — blocking request`);
+      return new Response(JSON.stringify({
+        reply: "No puedo procesar ese tipo de solicitud. Si tenés una consulta legítima sobre BienCuidar, estaré encantado de ayudarte.",
+        role: 'blocked', tools_used: false, channel, blocked: 'jailbreak',
+      }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    }
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
@@ -661,6 +800,21 @@ REGLAS:
       reply = buildFallbackReply(toolResults);
     }
     reply = reply || 'No pude procesar tu consulta. Escribinos a info@agtisa.com';
+
+    // Post-response safety checks (NVIDIA NIM)
+    // 1. Content safety — block clinically dangerous advice
+    const safetyCheck = await checkContentSafety(reply);
+    if (!safetyCheck.isSafe) {
+      console.log(`[ai-agent] Content safety blocked: ${safetyCheck.reason}`);
+      reply = `Lo siento, no puedo proporcionar ese tipo de información médica específica. Te recomiendo consultar con un profesional de la salud o escribirnos a info@agtisa.com para orientación.`;
+    }
+
+    // 2. PII detection — redact personal data from responses
+    const piiCheck = await detectPII(reply);
+    if (piiCheck.found) {
+      reply = piiCheck.cleaned;
+      console.log(`[ai-agent] PII redacted from response`);
+    }
 
     if (userId) {
       extractMemory(supabase, userId, persistentMemory, message, reply);
