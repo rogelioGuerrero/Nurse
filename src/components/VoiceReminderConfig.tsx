@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { useToast } from './Toast';
-import { Pill, BookOpen, Heart, Plus, Trash2, Send, Bell, Clock, Volume2, MessageCircle, Phone, AlertCircle, Check, X } from 'lucide-react';
+import { Plus, Trash2, Send, Bell, Clock, Volume2, MessageCircle, AlertCircle, Check, X } from 'lucide-react';
 
 interface VoiceReminder {
   id: string;
@@ -13,18 +13,6 @@ interface VoiceReminder {
   days_of_week: number[];
   active: boolean;
 }
-
-const TYPE_ICONS: Record<string, typeof Pill> = {
-  medicine: Pill,
-  story: BookOpen,
-  motivation: Heart,
-};
-
-const TYPE_LABELS: Record<string, string> = {
-  medicine: 'Salud',
-  story: 'Compañía',
-  motivation: 'Familia',
-};
 
 const DAYS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
@@ -42,7 +30,6 @@ export default function VoiceReminderConfig() {
   const [showSuggestion, setShowSuggestion] = useState(false);
 
   const [newReminder, setNewReminder] = useState({
-    type: 'medicine' as string,
     label: '',
     message: '',
     scheduled_time: '09:00',
@@ -168,7 +155,7 @@ export default function VoiceReminderConfig() {
 
     const { error } = await supabase.from('voice_reminders').insert({
       family_user_id: currentUser.id,
-      type: newReminder.type,
+      type: 'general',
       label: newReminder.label.trim(),
       message: newReminder.message.trim(),
       scheduled_time: newReminder.scheduled_time + ':00',
@@ -183,7 +170,6 @@ export default function VoiceReminderConfig() {
 
     showToast('Recordatorio creado', 'success');
     setNewReminder({
-      type: 'medicine',
       label: '',
       message: '',
       scheduled_time: '09:00',
@@ -272,29 +258,6 @@ export default function VoiceReminderConfig() {
         </div>
 
         <div className="grid grid-cols-1 gap-4">
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Tipo</label>
-            <div className="flex gap-2">
-              {Object.entries(TYPE_LABELS).map(([value, label]) => {
-                const Icon = TYPE_ICONS[value];
-                return (
-                  <button
-                    key={value}
-                    onClick={() => setNewReminder(prev => ({ ...prev, type: value }))}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                      newReminder.type === value
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5" />
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Título</label>
             <input
@@ -479,7 +442,6 @@ export default function VoiceReminderConfig() {
           </div>
         ) : (
           reminders.map((reminder) => {
-            const Icon = TYPE_ICONS[reminder.type] || Bell;
             return (
               <div
                 key={reminder.id}
@@ -489,12 +451,8 @@ export default function VoiceReminderConfig() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                      reminder.type === 'medicine' ? 'bg-rose-50 text-rose-600' :
-                      reminder.type === 'story' ? 'bg-amber-50 text-amber-600' :
-                      'bg-emerald-50 text-emerald-600'
-                    }`}>
-                      <Icon className="h-5 w-5" />
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-indigo-50 text-indigo-600">
+                      <Bell className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex items-center gap-2">
