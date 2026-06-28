@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { useToast } from './Toast';
-import { Pill, BookOpen, Heart, Plus, Trash2, Send, Bell, Clock, Volume2 } from 'lucide-react';
+import { Pill, BookOpen, Heart, Plus, Trash2, Send, Bell, Clock, Volume2, MessageCircle, Phone } from 'lucide-react';
 
 interface VoiceReminder {
   id: string;
@@ -34,6 +34,9 @@ export default function VoiceReminderConfig() {
   const [reminders, setReminders] = useState<VoiceReminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [testing, setTesting] = useState<string | null>(null);
+  const [pendingQuestions, setPendingQuestions] = useState<any[]>([]);
+  const [replyText, setReplyText] = useState<Record<string, string>>({});
+  const [sendingReply, setSendingReply] = useState<string | null>(null);
 
   const [newReminder, setNewReminder] = useState({
     type: 'medicine' as string,
@@ -61,6 +64,56 @@ export default function VoiceReminderConfig() {
   useEffect(() => {
     loadReminders();
   }, [loadReminders]);
+
+  // Load pending questions from the patient
+  const loadPendingQuestions = useCallback(async () => {
+    if (!currentUser) return;
+    const { data, error } = await supabase
+      .from('companero_messages')
+      .select('*')
+      .eq('family_user_id', currentUser.id)
+      .eq('direction', 'patient_to_family')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false });
+    if (!error && data) {
+      setPendingQuestions(data);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    loadPendingQuestions();
+    const interval = setInterval(() => loadPendingQuestions(), 5000);
+    return () => clearInterval(interval);
+  }, [loadPendingQuestions]);
+
+  const handleReply = async (questionId: string) => {
+    const text = replyText[questionId]?.trim();
+    if (!text || !currentUser) return;
+    setSendingReply(questionId);
+    try {
+      // Insert family response
+      const { error: insertError } = await supabase.from('companero_messages').insert({
+        family_user_id: currentUser.id,
+        direction: 'family_to_patient',
+        message: text,
+        context: 'Respuesta a pregunta del adulto mayor',
+        status: 'answered',
+      });
+      if (insertError) throw insertError;
+
+      // Mark original question as answered
+      await supabase.from('companero_messages').update({ status: 'answered', responded_at: new Date().toISOString() }).eq('id', questionId);
+
+      showToast('Respuesta enviada. Se leerá en voz alta.', 'success');
+      setReplyText(prev => ({ ...prev, [questionId]: '' }));
+      loadPendingQuestions();
+    } catch (err) {
+      console.error('Reply error:', err);
+      showToast('Error al enviar respuesta', 'error');
+    } finally {
+      setSendingReply(null);
+    }
+  };
 
   const handleCreate = async () => {
     if (!currentUser) return;
@@ -261,6 +314,61 @@ export default function VoiceReminderConfig() {
           </button>
         </div>
       </div>
+
+      {/* Pending questions from the patient */}
+      {pendingQuestions.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 px-1">
+            <MessageCircle className="h-4 w-4 text-rose-500" />
+            <h4 className="text-xs font-extrabold uppercase tracking-widest text-rose-600">
+              Preguntas de tu ser querido ({pendingQuestions.length})
+            </h4>
+          </div>
+          {pendingQuestions.map((q) => (
+            <div key={q.id} className="bg-rose-50 border-2 border-rose-200 rounded-2xl p-4 shadow-sm space-y-3">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                  <MessageCircle className="h-4 w-4 text-rose-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-slate-800 font-medium leading-relaxed">{q.message}</p>
+                  {q.context && (
+                    <p className="text-[10px] text-slate-400 mt-1 italic">Contexto: {q.context}</p>
+                  )}
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    {new Date(q.created_at).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' })}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={replyText[q.id] || ''}
+                  onChange={(e) => setReplyText(prev => ({ ...prev, [q.id]: e.target.value }))}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !sendingReply) handleReply(q.id); }}
+                  placeholder="Escribe tu respuesta..."
+                  className="flex-1 text-sm bg-white border border-slate-200 rounded-xl px-3 py-2 focus:border-rose-500 transition outline-none"
+                />
+                <button
+                  onClick={() => handleReply(q.id)}
+                  disabled={sendingReply === q.id || !replyText[q.id]?.trim()}
+                  className="bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold px-4 py-2 rounded-xl transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {sendingReply === q.id ? (
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Send className="h-3.5 w-3.5" />
+                  )}
+                  Responder
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-400 leading-relaxed">
+                Tu respuesta se leerá en voz alta en el teléfono de tu ser querido.
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="space-y-3">
         <h4 className="text-xs font-extrabold uppercase tracking-widest text-slate-500 px-1">

@@ -160,7 +160,7 @@ function PasswordRecoveryForm({ onSuccess, onCancel }: { onSuccess: () => void; 
   );
 }
 
-function MarketplaceApp() {
+function MarketplaceApp({ initialTab }: { initialTab?: string }) {
   const { 
     nurses, 
     profiles, 
@@ -174,6 +174,11 @@ function MarketplaceApp() {
     passwordRecoveryMode,
     setPasswordRecoveryMode
   } = useApp();
+
+  // Set initial tab if provided (e.g., from escalation notification)
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab, setActiveTab]);
 
   // Search and general filtering states
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -824,13 +829,25 @@ function MarketplaceApp() {
 
 export default function App() {
   const params = new URLSearchParams(window.location.search);
-  const isCompaneroMode = params.get('companero') === 'true';
+  const companeroParam = params.get('companero');
+  const isCompaneroMode = companeroParam === 'true';
+  const isEscalateMode = companeroParam === 'escalate';
 
   if (isCompaneroMode) {
     return (
       <Suspense fallback={<LoadingSpinner />}>
         <CompaneroVoz />
       </Suspense>
+    );
+  }
+
+  if (isEscalateMode) {
+    return (
+      <ToastProvider>
+        <AppContextProvider>
+          <MarketplaceApp initialTab="voice-reminders" />
+        </AppContextProvider>
+      </ToastProvider>
     );
   }
 

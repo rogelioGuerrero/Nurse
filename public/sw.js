@@ -1,4 +1,4 @@
-const SW_VERSION = 'biencuidar-v9-companero-20260628';
+const SW_VERSION = 'biencuidar-v10-companero-escalate-20260628';
 const CACHE_NAME = `biencuidar-cache-${SW_VERSION}`;
 const STATIC_ASSETS = [
   '/',
@@ -60,7 +60,10 @@ self.addEventListener('push', (event) => {
     _pendingSpeak = data.speak;
   }
 
-  const notifData = data.companero
+  // Escalation notifications route to the Compañero tab (family responds)
+  const notifData = data.escalate
+    ? { url: '/?companero=escalate', escalate: true }
+    : data.companero
     ? { url: '/?companero=true', speak: data.speak || '' }
     : { url: '/' };
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Volume2, Square, Phone, Heart, BookOpen, Pill, Play, Mic, Loader2, MessageCircle } from 'lucide-react';
+import { Volume2, Square, Phone, Heart, BookOpen, Pill, Play, Mic, Loader2, MessageCircle, Send } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 type ReminderType = 'medicine' | 'story' | 'motivation';
@@ -61,6 +61,7 @@ export default function CompaneroVoz() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  const [isEscalating, setIsEscalating] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
   const [hasSTT, setHasSTT] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
@@ -78,6 +79,9 @@ export default function CompaneroVoz() {
   const conversationRef = useRef<ConversationTurn[]>([]);
   const reminderContextRef = useRef<string>('');
   const modeRef = useRef<AppMode>('idle');
+  const familyUserIdRef = useRef<string>('');
+  const patientUserIdRef = useRef<string>('');
+  const escalationPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!('speechSynthesis' in window)) {
@@ -210,7 +214,7 @@ export default function CompaneroVoz() {
       setIsListening(false);
       if (event.error === 'no-speech') {
         setTimeout(() => {
-          if (modeRef.current === 'push' || modeRef.current === 'scheduled') {
+          if ((modeRef.current === 'push' || modeRef.current === 'scheduled') && !isEscalatingRef.current) {
             startListening();
           }
         }, 500);
@@ -223,7 +227,7 @@ export default function CompaneroVoz() {
 
     recognitionRef.current = recognition;
     recognition.start();
-  }, []);
+  }, [isEscalating]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {
@@ -234,6 +238,39 @@ export default function CompaneroVoz() {
     }
     setIsListening(false);
   }, []);
+
+  const isEscalatingRef = useRef(false);
+
+  const checkEscalationResponse = useCallback(async () => {
+    if (!familyUserIdRef.current) return;
+    const { data } = await supabase
+      .from('companero_messages')
+      .select('id, message, context, status, created_at')
+      .eq('family_user_id', familyUserIdRef.current)
+      .eq('direction', 'family_to_patient')
+      .eq('status', 'answered')
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (data && data.length > 0) {
+      const response = data[0];
+      // Mark as expired so we don't pick it up again
+      await supabase.from('companero_messages').update({ status: 'expired' }).eq('id', response.id);
+      if (escalationPollRef.current) {
+        clearInterval(escalationPollRef.current);
+        escalationPollRef.current = null;
+      }
+      setIsEscalating(false);
+      isEscalatingRef.current = false;
+      const now = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
+      const familyTurn: ConversationTurn = { role: 'assistant', content: `Tu familia responde: ${response.message}`, time: now };
+      const updatedConv = [...conversationRef.current, familyTurn];
+      conversationRef.current = updatedConv;
+      setConversation(updatedConv);
+      speak(`Tu familia responde: ${response.message}`, () => {
+        setTimeout(() => startListening(), 600);
+      });
+    }
+  }, [speak, startListening]);
 
   const handleUserMessage = useCallback(async (userText: string) => {
     if (!userText) return;
@@ -261,26 +298,63 @@ export default function CompaneroVoz() {
         },
       });
 
-      if (error || !data?.content) {
+      if (error || (!data?.spoken && !data?.content)) {
         throw new Error(error?.message || 'Sin respuesta');
       }
 
-      const aiResponse = data.content;
-      const aiTurn: ConversationTurn = { role: 'assistant', content: aiResponse, time: new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }) };
+      const responseType = data.type || 'chat';
+      const spokenText = data.spoken || data.content || '';
+      const aiTurn: ConversationTurn = { role: 'assistant', content: spokenText, time: new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }) };
       const updatedConv = [...conversationRef.current, aiTurn];
       conversationRef.current = updatedConv;
       setConversation(updatedConv);
 
       setIsThinking(false);
-      speak(aiResponse, () => {
-        if (isFarewell) {
-          setConversation([]);
-          conversationRef.current = [];
-          setTranscript('');
-          return;
-        }
-        setTimeout(() => startListening(), 600);
-      });
+
+      if (responseType === 'escalate' && data.question) {
+        // Send question to family via escalation edge function
+        setIsEscalating(true);
+        isEscalatingRef.current = true;
+        speak(spokenText, async () => {
+          try {
+            // Get current user info
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              familyUserIdRef.current = user.id;
+            }
+            await supabase.functions.invoke('companero-escalate', {
+              body: {
+                family_user_id: familyUserIdRef.current,
+                patient_user_id: patientUserIdRef.current,
+                question: data.question,
+                context: reminderContextRef.current,
+              },
+            });
+            // Start polling for family response
+            escalationPollRef.current = setInterval(() => {
+              checkEscalationResponse();
+            }, 5000);
+          } catch (err) {
+            console.error('escalation error:', err);
+            setIsEscalating(false);
+            isEscalatingRef.current = false;
+            speak('No pude enviarle el mensaje a tu familia. Por favor, llámalos por teléfono.', () => {
+              setTimeout(() => startListening(), 600);
+            });
+          }
+        });
+      } else {
+        // Normal chat response
+        speak(spokenText, () => {
+          if (isFarewell) {
+            setConversation([]);
+            conversationRef.current = [];
+            setTranscript('');
+            return;
+          }
+          setTimeout(() => startListening(), 600);
+        });
+      }
     } catch (err) {
       console.error('companero-chat error:', err);
       setIsThinking(false);
@@ -293,7 +367,7 @@ export default function CompaneroVoz() {
         setTimeout(() => startListening(), 600);
       });
     }
-  }, [speak, startListening, stopListening]);
+  }, [speak, startListening, stopListening, checkEscalationResponse]);
 
   const runSchedule = useCallback((startIdx: number) => {
     if (startIdx >= FAKE_SCHEDULE.length) {
@@ -345,6 +419,12 @@ export default function CompaneroVoz() {
     setIsSpeaking(false);
     setIsListening(false);
     setIsThinking(false);
+    setIsEscalating(false);
+    isEscalatingRef.current = false;
+    if (escalationPollRef.current) {
+      clearInterval(escalationPollRef.current);
+      escalationPollRef.current = null;
+    }
     setIsActive(false);
     setMode('idle');
     modeRef.current = 'idle';
@@ -396,6 +476,16 @@ export default function CompaneroVoz() {
                 <p className="text-indigo-300 text-sm">Hablando...</p>
               </div>
             </>
+          ) : isEscalating ? (
+            <>
+              <div className="w-40 h-40 rounded-full bg-rose-600/80 flex items-center justify-center shadow-2xl">
+                <Send className="h-20 w-20 text-white animate-pulse" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-white text-lg font-bold">Preguntando a tu familia</p>
+                <p className="text-rose-300 text-sm">Esperando su respuesta...</p>
+              </div>
+            </>
           ) : isThinking ? (
             <>
               <div className="w-40 h-40 rounded-full bg-amber-600/80 flex items-center justify-center shadow-2xl">
@@ -433,7 +523,7 @@ export default function CompaneroVoz() {
             </>
           )}
 
-          {(isSpeaking || isListening || isThinking) && (
+          {(isSpeaking || isListening || isThinking || isEscalating) && (
             <button
               onClick={handleStop}
               className="bg-rose-600/80 hover:bg-rose-600 text-white font-bold px-8 py-3 rounded-full transition flex items-center gap-2 cursor-pointer shadow-lg"
@@ -568,6 +658,16 @@ export default function CompaneroVoz() {
             <div className="text-center space-y-1">
               <p className="text-white text-lg font-bold">{currentReminder?.label}</p>
               <p className="text-indigo-300 text-sm">Hablando...</p>
+            </div>
+          </>
+        ) : isEscalating ? (
+          <>
+            <div className="w-40 h-40 rounded-full bg-rose-600/80 flex items-center justify-center shadow-2xl">
+              <Send className="h-20 w-20 text-white animate-pulse" />
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-white text-lg font-bold">Preguntando a tu familia</p>
+              <p className="text-rose-300 text-sm">Esperando su respuesta...</p>
             </div>
           </>
         ) : isThinking ? (

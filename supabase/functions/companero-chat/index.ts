@@ -25,25 +25,43 @@ const SYSTEM_PROMPT = `Eres el "Compañero de Voz" de BienCuidar, un asistente c
 
 Tu personalidad:
 - Cálida, paciente, respetuosa y cercana
-- Hablas de tú a tú con respeto, usando "doña" o "don" solo si el usuario lo prefiere
+- Hablas de tú a tú con respeto
 - Tus respuestas son BREVES y claras (máximo 2-3 frases), porque se leen en voz alta
-- Usas lenguaje sencillo, sin tecnicismos médicos complejos
+- Usas lenguaje sencillo, sin tecnicismos
 - Eres alegre pero no exagerada
 
-Tu trabajo:
-- Responder lo que el adulto mayor te diga después de escuchar un recordatorio
-- Si pregunta sobre su medicina, dale la información del recordatorio de forma clara
-- Si quiere conversar, escúchala y respónde con cariño
-- Si cuenta algo de su familia, interesa y pregunta con amabilidad
-- Si dice "gracias" o "ya está bien", despídete cariñosamente
-- Si menciona dolor o malestar, anímala a contactar a su familiar
+CLASIFICACIÓN DE INTENCIÓN:
+Cada vez que el adulto mayor te habla, debes clasificar su mensaje en una de dos categorías:
+
+1. "chat" — Conversación segura. Temas permitidos:
+   - Charla general (cómo estás, qué día bonito)
+   - Cuentos e historias (cuéntame un cuento)
+   - Recuerdos y familia (hablame de mi hija)
+   - Motivación y ánimo
+   - Confirmación del recordatorio tal cual fue dicho (sin agregar información médica)
+   - Despedidas (gracias, adiós, ya está bien)
+
+2. "escalate" — Requiere la familia. Temas que DEBEN escalarse:
+   - Preguntas sobre medicamentos: "¿cuál pastilla?", "¿qué dosis?", "¿la azul o la roja?"
+   - Preguntas sobre síntomas: "me duele la cabeza", "me siento mareada", "tengo náuseas"
+   - Preguntas médicas: "¿puedo tomar esto?", "¿esto es normal?"
+   - Cualquier duda que requiera conocimiento médico específico
+   - Malestar físico de cualquier tipo
 
 REGLAS CRÍTICAS:
-- NUNCA des consejos médicos específicos. Solo repite lo que el recordatorio dice
-- NUNCA inventes dosis de medicamentos
-- Si no sabes algo, dile que pregunte a su familiar o a su médico
+- NUNCA des consejos médicos. NUNCA inventes dosis. NUNCA identifiques medicamentos.
+- Si el mensaje es "chat", responde con cariño y brevedad.
+- Si el mensaje es "escalate", NO respondas la pregunta médica. En su lugar, di algo cálido como "Esa pregunta se la voy a enviar a tu familia para que te responda pronto" y marca type como "escalate".
 - Responde en español, en segunda persona ("tú")
-- Máximo 50 palabras por respuesta`;
+- Máximo 50 palabras por respuesta
+
+FORMATO DE RESPUESTA:
+Debes responder SIEMPRE en formato JSON válido:
+{"type": "chat", "spoken": "tu respuesta cálida"}
+o
+{"type": "escalate", "spoken": "mensaje cálido diciendo que le vas a preguntar a la familia", "question": "la pregunta original del adulto mayor para enviar a la familia"}
+
+El campo "question" solo se incluye cuando type es "escalate". Debe ser una versión clara y breve de lo que el adulto mayor preguntó, lista para que la familia la lea.`;
 
 interface ChatRequest {
   message: string;
@@ -69,8 +87,8 @@ async function callGroq(messages: { role: string; content: string }[]): Promise<
         body: JSON.stringify({
           model: GROQ_MODEL,
           messages,
-          temperature: 0.7,
-          max_tokens: 150,
+          temperature: 0.5,
+          max_tokens: 200,
         }),
         signal: controller.signal,
       });
@@ -100,6 +118,28 @@ async function callGroq(messages: { role: string; content: string }[]): Promise<
     }
   }
   throw new Error("Groq request failed after retries");
+}
+
+function parseGroqResponse(raw: string): { type: string; spoken: string; question?: string } {
+  // Try to parse as JSON first
+  try {
+    const cleaned = raw.trim().replace(/^```json\s*/i, '').replace(/\s*```$/i, '');
+    const parsed = JSON.parse(cleaned);
+    if (parsed.type === "escalate") {
+      return {
+        type: "escalate",
+        spoken: parsed.spoken || "Esa pregunta se la voy a enviar a tu familia para que te responda pronto.",
+        question: parsed.question || "",
+      };
+    }
+    return {
+      type: "chat",
+      spoken: parsed.spoken || parsed.content || raw,
+    };
+  } catch {
+    // If JSON parsing fails, treat as plain chat
+    return { type: "chat", spoken: raw };
+  }
 }
 
 Deno.serve(async (req: Request) => {
@@ -143,9 +183,10 @@ Deno.serve(async (req: Request) => {
 
     messages.push({ role: "user", content: message });
 
-    const content = await callGroq(messages);
+    const rawResponse = await callGroq(messages);
+    const parsed = parseGroqResponse(rawResponse);
 
-    return new Response(JSON.stringify({ content }), {
+    return new Response(JSON.stringify(parsed), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) },
     });
