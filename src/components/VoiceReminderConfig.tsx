@@ -32,8 +32,9 @@ export default function VoiceReminderConfig() {
   const [newReminder, setNewReminder] = useState({
     label: '',
     message: '',
-    scheduled_time: '09:00',
+    scheduled_time: '08:00',
     days_of_week: [0, 1, 2, 3, 4, 5, 6] as number[],
+    is_morning_briefing: false as boolean,
   });
 
   const loadReminders = useCallback(async () => {
@@ -148,18 +149,23 @@ export default function VoiceReminderConfig() {
 
   const handleCreate = async () => {
     if (!currentUser) return;
-    if (!newReminder.label.trim() || !newReminder.message.trim()) {
+    if (!newReminder.is_morning_briefing && (!newReminder.label.trim() || !newReminder.message.trim())) {
       showToast('Completa el título y el mensaje', 'error');
+      return;
+    }
+    if (newReminder.is_morning_briefing && !newReminder.scheduled_time) {
+      showToast('Selecciona la hora del briefing', 'error');
       return;
     }
 
     const { error } = await supabase.from('voice_reminders').insert({
       family_user_id: currentUser.id,
       type: 'general',
-      label: newReminder.label.trim(),
-      message: newReminder.message.trim(),
+      label: newReminder.is_morning_briefing ? 'Resumen del día' : newReminder.label.trim(),
+      message: newReminder.is_morning_briefing ? 'Briefing matutino' : newReminder.message.trim(),
       scheduled_time: newReminder.scheduled_time + ':00',
       days_of_week: newReminder.days_of_week,
+      is_morning_briefing: newReminder.is_morning_briefing,
       active: true,
     });
 
@@ -172,8 +178,9 @@ export default function VoiceReminderConfig() {
     setNewReminder({
       label: '',
       message: '',
-      scheduled_time: '09:00',
+      scheduled_time: '08:00',
       days_of_week: [0, 1, 2, 3, 4, 5, 6],
+      is_morning_briefing: false,
     });
     loadReminders();
   };
@@ -258,6 +265,22 @@ export default function VoiceReminderConfig() {
         </div>
 
         <div className="grid grid-cols-1 gap-4">
+          {/* Morning Briefing Toggle */}
+          <label className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl p-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={newReminder.is_morning_briefing}
+              onChange={(e) => setNewReminder(prev => ({ ...prev, is_morning_briefing: e.target.checked, label: e.target.checked ? 'Resumen del día' : '', message: e.target.checked ? '' : prev.message }))}
+              className="w-4 h-4 rounded accent-amber-600"
+            />
+            <div>
+              <p className="text-xs font-bold text-amber-800">Resumen matutino</p>
+              <p className="text-[10px] text-amber-600">Al tocar la notificación, se leerá la hora, el clima y los recordatorios pendientes del día.</p>
+            </div>
+          </label>
+
+          {!newReminder.is_morning_briefing && (
+          <>
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Título</label>
             <input
@@ -328,6 +351,8 @@ export default function VoiceReminderConfig() {
               </div>
             )}
           </div>
+          </>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
@@ -366,7 +391,7 @@ export default function VoiceReminderConfig() {
             className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold py-2.5 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-sm"
           >
             <Plus className="h-4 w-4" />
-            Crear Recordatorio
+            {newReminder.is_morning_briefing ? 'Activar Resumen Matutino' : 'Crear Recordatorio'}
           </button>
         </div>
       </div>

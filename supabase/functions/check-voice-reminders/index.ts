@@ -162,7 +162,8 @@ Deno.serve(async (req: Request) => {
         body: reminder.label,
         tag: "companero-" + reminder.id,
         companero: true,
-        speak: reminder.message,
+        speak: reminder.is_morning_briefing ? "" : reminder.message,
+        morningBriefing: reminder.is_morning_briefing || false,
       });
 
       let sent = 0;
@@ -241,7 +242,8 @@ Deno.serve(async (req: Request) => {
         body: reminder.label,
         tag: "companero-" + reminder.id,
         companero: true,
-        speak: reminder.message,
+        speak: reminder.is_morning_briefing ? "" : reminder.message,
+        morningBriefing: reminder.is_morning_briefing || false,
       });
 
       let sent = 0;

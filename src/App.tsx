@@ -830,13 +830,14 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
 export default function App() {
   const params = new URLSearchParams(window.location.search);
   const companeroParam = params.get('companero');
-  const isCompaneroMode = companeroParam === 'true';
+  const isCompaneroMode = companeroParam === 'true' || companeroParam === 'briefing';
   const isEscalateMode = companeroParam === 'escalate';
+  const isBriefingMode = companeroParam === 'briefing';
 
   if (isCompaneroMode) {
     return (
       <Suspense fallback={<LoadingSpinner />}>
-        <CompaneroVoz />
+        <CompaneroVoz isBriefing={isBriefingMode} />
       </Suspense>
     );
   }

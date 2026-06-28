@@ -56,7 +56,7 @@ declare global {
   }
 }
 
-export default function CompaneroVoz() {
+export default function CompaneroVoz({ isBriefing = false }: { isBriefing?: boolean }) {
   const [isActive, setIsActive] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -146,6 +146,67 @@ export default function CompaneroVoz() {
       }
     };
   }, [selectedVoiceURI, voices, hasSTT]);
+
+  // === Morning Briefing ===
+  const fetchMorningBriefing = useCallback(async () => {
+    const now = new Date();
+    const dayName = now.toLocaleDateString('es-SV', { weekday: 'long' });
+    const dateStr = now.toLocaleDateString('es-SV', { day: 'numeric', month: 'long' });
+    const timeStr = now.toLocaleTimeString('es-SV', { hour: 'numeric', minute: '2-digit' });
+
+    // Fetch weather (Open-Meteo, no API key needed)
+    let weatherText = '';
+    try {
+      const wRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=13.69&longitude=-89.19&current=temperature_2m,weather_code&timezone=America/El_Salvador');
+      const wData = await wRes.json();
+      const temp = Math.round(wData.current?.temperature_2m ?? 0);
+      const code = wData.current?.weather_code ?? 0;
+      const weatherMap: Record<number, string> = {
+        0: 'despejado', 1: 'mayormente despejado', 2: 'parcialmente nublado', 3: 'nublado',
+        45: 'con niebla', 48: 'con niebla', 51: 'con llovizna', 53: 'con llovizna', 55: 'con llovizna',
+        61: 'con lluvia', 63: 'con lluvia', 65: 'con lluvia fuerte', 71: 'con nieve', 73: 'con nieve',
+        75: 'con nieve', 80: 'con chubascos', 81: 'con chubascos', 82: 'con chubascos fuertes',
+        95: 'con tormenta', 96: 'con tormenta', 99: 'con tormenta',
+      };
+      const desc = weatherMap[code] || 'con clima variable';
+      weatherText = ` El clima está ${desc}, ${temp} grados.`;
+      if (code >= 51 && code <= 65 || code >= 80 && code <= 82 || code >= 95) {
+        weatherText += ' Mejor no salga sin paraguas.';
+      }
+    } catch { /* weather is optional */ }
+
+    // Fetch today's reminders
+    let agendaText = '';
+    try {
+      const { data: reminders } = await supabase
+        .from('voice_reminders')
+        .select('label, scheduled_time, is_morning_briefing')
+        .eq('active', true);
+      if (reminders && reminders.length > 0) {
+        const todayDay = now.getDay();
+        const todays = reminders.filter(r => {
+          if (r.is_morning_briefing) return false;
+          const time = r.scheduled_time?.slice(0, 5);
+          const [h, m] = time.split(':').map(Number);
+          const reminderMinutes = h * 60 + m;
+          const nowMinutes = now.getHours() * 60 + now.getMinutes();
+          return reminderMinutes >= nowMinutes;
+        });
+        if (todays.length > 0) {
+          const items = todays.map(r => {
+            const time = r.scheduled_time?.slice(0, 5);
+            return `a las ${time}, ${r.label.toLowerCase()}`;
+          }).join('; ');
+          agendaText = ` Hoy le quedan ${todays.length} ${todays.length === 1 ? 'recordatorio' : 'recordatorios'}: ${items}.`;
+        } else {
+          agendaText = ' Ya no le quedan más recordatorios hoy.';
+        }
+      }
+    } catch { /* agenda is optional */ }
+
+    const greeting = `Buenos días. Hoy es ${dayName} ${dateStr}, son las ${timeStr}.${weatherText}${agendaText} Que tenga un bonito día.`;
+    return greeting;
+  }, [voices, selectedVoiceURI]);
 
   const speak = useCallback((text: string, onEnd?: () => void) => {
     if (!('speechSynthesis' in window) || !text.trim()) return;
@@ -245,6 +306,30 @@ export default function CompaneroVoz() {
     recognitionRef.current = recognition;
     recognition.start();
   }, [isEscalating]);
+
+  // Trigger morning briefing when opened via briefing push notification
+  useEffect(() => {
+    if (!isBriefing || !('speechSynthesis' in window)) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const text = await fetchMorningBriefing();
+      if (cancelled) return;
+      setPushMessage({ label: 'Resumen del día', message: text });
+      setMode('push');
+      modeRef.current = 'push';
+      setIsSpeaking(true);
+      reminderContextRef.current = text;
+      speak(text, () => {
+        const now = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
+        setHistory(prev => [{ label: 'Resumen del día', time: now }, ...prev].slice(0, 10));
+        setIsSpeaking(false);
+        if (hasSTT) {
+          setTimeout(() => startListening(), 800);
+        }
+      });
+    }, 300);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [isBriefing, fetchMorningBriefing, hasSTT, speak, startListening]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {

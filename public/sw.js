@@ -1,4 +1,4 @@
-const SW_VERSION = 'biencuidar-v10-companero-escalate-20260628';
+const SW_VERSION = 'biencuidar-v11-briefing-20260628';
 const CACHE_NAME = `biencuidar-cache-${SW_VERSION}`;
 const STATIC_ASSETS = [
   '/',
@@ -55,14 +55,17 @@ self.addEventListener('push', (event) => {
     if (event.data) data.body = event.data.text();
   }
 
-  // Store speak text for Compañero de Voz notifications
+  // Store speak text for Compañero de Voz notifications (not for briefings — those fetch data on open)
   if (data.companero && data.speak) {
     _pendingSpeak = data.speak;
   }
 
   // Escalation notifications route to the Compañero tab (family responds)
+  // Morning briefings route to Compañero with a briefing flag
   const notifData = data.escalate
     ? { url: '/?companero=escalate', escalate: true }
+    : data.morningBriefing
+    ? { url: '/?companero=briefing', morningBriefing: true }
     : data.companero
     ? { url: '/?companero=true', speak: data.speak || '' }
     : { url: '/' };
