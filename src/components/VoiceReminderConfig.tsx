@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { useToast } from './Toast';
-import { Pill, BookOpen, Heart, Plus, Trash2, Send, Bell, Clock, Volume2, MessageCircle, Phone, Sparkles, Check, X } from 'lucide-react';
+import { Pill, BookOpen, Heart, Plus, Trash2, Send, Bell, Clock, Volume2, MessageCircle, Phone, AlertCircle, Check, X } from 'lucide-react';
 
 interface VoiceReminder {
   id: string;
@@ -153,7 +153,7 @@ export default function VoiceReminderConfig() {
       const suggestionMatch = suggestion.match(/versión[:\s]*["«"]?(.+?)["»"]?$/i);
       const improvedText = suggestionMatch ? suggestionMatch[1].trim() : suggestion.split('\n').pop()?.trim() || suggestion;
       setNewReminder(prev => ({ ...prev, message: improvedText }));
-      showToast('Mensaje actualizado con la sugerencia', 'success');
+      showToast('Mensaje actualizado', 'success');
     }
     setSuggestion(null);
     setShowSuggestion(false);
@@ -317,9 +317,9 @@ export default function VoiceReminderConfig() {
                 {suggesting ? (
                   <div className="w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
                 ) : (
-                  <Sparkles className="h-3 w-3" />
+                  <AlertCircle className="h-3 w-3" />
                 )}
-                Sugerir mejora con IA
+                Verificar claridad
               </button>
             </div>
             <textarea
@@ -332,11 +332,11 @@ export default function VoiceReminderConfig() {
             {showSuggestion && (
               <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 space-y-2">
                 {suggesting ? (
-                  <p className="text-xs text-indigo-600 font-medium">Analizando mensaje...</p>
+                  <p className="text-xs text-indigo-600 font-medium">Verificando mensaje...</p>
                 ) : suggestion ? (
                   <>
                     <div className="flex items-start gap-2">
-                      <Sparkles className="h-4 w-4 text-indigo-500 shrink-0 mt-0.5" />
+                      <AlertCircle className="h-4 w-4 text-indigo-500 shrink-0 mt-0.5" />
                       <p className="text-xs text-slate-700 leading-relaxed">{suggestion}</p>
                     </div>
                     <div className="flex gap-2 pt-1">
@@ -345,7 +345,7 @@ export default function VoiceReminderConfig() {
                         className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
                       >
                         <Check className="h-3 w-3" />
-                        Usar sugerencia
+                        Usar versión mejorada
                       </button>
                       <button
                         onClick={() => { setShowSuggestion(false); setSuggestion(null); }}
