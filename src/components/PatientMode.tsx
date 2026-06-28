@@ -60,7 +60,7 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
         const reg = await navigator.serviceWorker.ready;
         let sub = await reg.pushManager.getSubscription();
         if (!sub) {
-          const vapidRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v2/send-push/vapid-key`);
+          const vapidRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-push/vapid-key`);
           if (vapidRes.ok) {
             const { publicKey } = await vapidRes.json();
             sub = await reg.pushManager.subscribe({
@@ -130,29 +130,25 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
 
   // === Chat with Groq ===
   const chatWithGroq = useCallback(async (userText: string): Promise<{ type: string; spoken: string; question?: string }> => {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     const history = conversationRef.current.slice(-6).map(t => ({ role: t.role, content: t.text }));
-    const res = await fetch(`${supabaseUrl}/functions/v2/companero-chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${anonKey}`, apikey: anonKey },
-      body: JSON.stringify({ message: userText, reminderContext: reminderContextRef.current || undefined, conversationHistory: history }),
+    const { data, error } = await supabase.functions.invoke('companero-chat', {
+      body: {
+        message: userText,
+        reminderContext: reminderContextRef.current || undefined,
+        conversationHistory: history,
+      },
     });
-    if (!res.ok) throw new Error('Chat error');
-    return await res.json();
+    if (error) throw error;
+    return data as { type: string; spoken: string; question?: string };
   }, []);
 
   // === Escalate ===
   const escalate = useCallback(async (question: string) => {
-    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     isEscalatingRef.current = true;
     setIsEscalating(true);
     try {
-      await fetch(`${supabaseUrl}/functions/v2/companero-escalate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${anonKey}`, apikey: anonKey },
-        body: JSON.stringify({ family_user_id: familyUserId, question }),
+      await supabase.functions.invoke('companero-escalate', {
+        body: { family_user_id: familyUserId, question },
       });
     } catch (e) { console.error('Escalate error:', e); }
     isEscalatingRef.current = false;
