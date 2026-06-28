@@ -81,6 +81,28 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
     })();
   }, [familyUserId]);
 
+  // === Heartbeat to track patient activity ===
+  const sendHeartbeat = useCallback((interactionType: string = 'heartbeat') => {
+    supabase.from('patient_activity').upsert({
+      family_user_id: familyUserId,
+      last_seen_at: new Date().toISOString(),
+      last_interaction_type: interactionType,
+    }, { onConflict: 'family_user_id' }).then(({ error }) => {
+      if (error) console.error('Heartbeat error:', error);
+    });
+  }, [familyUserId]);
+
+  useEffect(() => {
+    sendHeartbeat('app_opened');
+    const interval = setInterval(() => sendHeartbeat('heartbeat'), 5 * 60 * 1000);
+    const handleVisibility = () => { if (!document.hidden) sendHeartbeat('app_visible'); };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [sendHeartbeat]);
+
   // === SW message handler (auto-play push) ===
   useEffect(() => {
     const handleSWMessage = (event: MessageEvent) => {
@@ -238,6 +260,7 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
 
   // === Tap orb to talk ===
   const handleOrbTap = useCallback(() => {
+    sendHeartbeat('tap');
     if (orbState === 'speaking') {
       window.speechSynthesis.cancel();
       setOrbState('idle');
@@ -250,7 +273,7 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
       silenceCountRef.current = 0;
       startListening();
     }
-  }, [orbState, hasSTT, startListening]);
+  }, [orbState, hasSTT, startListening, sendHeartbeat]);
 
   // === Cleanup ===
   useEffect(() => {

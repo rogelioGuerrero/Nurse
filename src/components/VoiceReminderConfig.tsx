@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { useToast } from './Toast';
-import { Plus, Trash2, Send, Bell, Clock, Volume2, MessageCircle, AlertCircle, Check, X, Smartphone, Copy } from 'lucide-react';
+import { Plus, Trash2, Send, Bell, Clock, Volume2, MessageCircle, AlertCircle, Check, X, Smartphone, Copy, Activity } from 'lucide-react';
 
 interface VoiceReminder {
   id: string;
@@ -28,6 +28,7 @@ export default function VoiceReminderConfig() {
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [suggesting, setSuggesting] = useState(false);
   const [showSuggestion, setShowSuggestion] = useState(false);
+  const [patientActivity, setPatientActivity] = useState<{ last_seen_at: string; last_interaction_type: string } | null>(null);
 
   const [newReminder, setNewReminder] = useState({
     label: '',
@@ -54,6 +55,14 @@ export default function VoiceReminderConfig() {
     }
     setReminders(data || []);
     setLoading(false);
+
+    // Load patient activity
+    const { data: activity } = await supabase
+      .from('patient_activity')
+      .select('last_seen_at, last_interaction_type')
+      .eq('family_user_id', currentUser.id)
+      .maybeSingle();
+    if (activity) setPatientActivity(activity);
   }, [currentUser]);
 
   useEffect(() => {
@@ -542,6 +551,21 @@ export default function VoiceReminderConfig() {
         <div className="flex items-center gap-2 border-b border-indigo-100 pb-3">
           <Smartphone className="h-5 w-5 text-indigo-600" />
           <h4 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider">Modo Paciente</h4>
+          {patientActivity && (() => {
+            const hoursAgo = (Date.now() - new Date(patientActivity.last_seen_at).getTime()) / (60 * 60 * 1000);
+            const isRecent = hoursAgo < 1;
+            const isWarning = hoursAgo >= 1 && hoursAgo < 6;
+            return (
+              <div className={`flex items-center gap-1.5 ml-auto text-[10px] font-bold px-2 py-1 rounded-full ${
+                isRecent ? 'bg-emerald-100 text-emerald-700' :
+                isWarning ? 'bg-amber-100 text-amber-700' :
+                'bg-rose-100 text-rose-700'
+              }`}>
+                <Activity className="h-3 w-3" />
+                {isRecent ? 'Activo ahora' : isWarning ? `Hace ${Math.floor(hoursAgo)}h` : `Hace ${Math.floor(hoursAgo)}h ⚠`}
+              </div>
+            );
+          })()}
         </div>
         <p className="text-xs text-slate-600 leading-relaxed">
           Abre este link en el teléfono de tu ser querido y déjalo ahí. Verá una pantalla simple con un solo botón para hablar. Los recordatorios se reproducirán automáticamente al llegar, sin necesidad de tocar notificaciones.
