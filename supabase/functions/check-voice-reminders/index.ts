@@ -144,6 +144,16 @@ Deno.serve(async (req: Request) => {
         .eq("user_id", targetUserId);
 
       if (!subs || subs.length === 0) {
+        // Log: no subscription
+        await supabase.from("notification_logs").insert({
+          family_user_id: reminder.family_user_id,
+          reminder_id: reminder.id,
+          notification_type: "test",
+          recipient_user_id: targetUserId,
+          title: "BienCuidar · Compañero",
+          body: reminder.label,
+          push_status: "no_subscription",
+        });
         return new Response(JSON.stringify({ sent: 0, message: "No hay suscripción push para este usuario" }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) } });
       }
 
@@ -157,7 +167,20 @@ Deno.serve(async (req: Request) => {
 
       let sent = 0;
       for (const sub of subs) {
-        if (await sendPushToSubscription(sub, payload)) sent++;
+        const ok = await sendPushToSubscription(sub, payload);
+        if (ok) sent++;
+        // Log each attempt
+        await supabase.from("notification_logs").insert({
+          family_user_id: reminder.family_user_id,
+          reminder_id: reminder.id,
+          notification_type: "test",
+          recipient_user_id: targetUserId,
+          title: "BienCuidar · Compañero",
+          body: reminder.label,
+          payload: { speak: reminder.message, label: reminder.label },
+          push_endpoint: sub.endpoint,
+          push_status: ok ? "sent" : "failed",
+        });
       }
 
       console.log(`[check-voice-reminders] test sent: ${sent} for reminder ${reminder.id}`);
@@ -199,7 +222,19 @@ Deno.serve(async (req: Request) => {
         .select("endpoint, p256dh_key, auth_key")
         .eq("user_id", targetUserId);
 
-      if (!subs || subs.length === 0) continue;
+      if (!subs || subs.length === 0) {
+        // Log: no subscription
+        await supabase.from("notification_logs").insert({
+          family_user_id: reminder.family_user_id,
+          reminder_id: reminder.id,
+          notification_type: "reminder",
+          recipient_user_id: targetUserId,
+          title: "BienCuidar · Compañero",
+          body: reminder.label,
+          push_status: "no_subscription",
+        });
+        continue;
+      }
 
       const payload = JSON.stringify({
         title: "BienCuidar · Compañero",
@@ -211,7 +246,20 @@ Deno.serve(async (req: Request) => {
 
       let sent = 0;
       for (const sub of subs) {
-        if (await sendPushToSubscription(sub, payload)) sent++;
+        const ok = await sendPushToSubscription(sub, payload);
+        if (ok) sent++;
+        // Log each attempt
+        await supabase.from("notification_logs").insert({
+          family_user_id: reminder.family_user_id,
+          reminder_id: reminder.id,
+          notification_type: "reminder",
+          recipient_user_id: targetUserId,
+          title: "BienCuidar · Compañero",
+          body: reminder.label,
+          payload: { speak: reminder.message, label: reminder.label },
+          push_endpoint: sub.endpoint,
+          push_status: ok ? "sent" : "failed",
+        });
       }
 
       if (sent > 0) {

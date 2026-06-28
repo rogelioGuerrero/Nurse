@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { useToast } from './Toast';
-import { Pill, BookOpen, Heart, Plus, Trash2, Send, Bell, Clock, Volume2, MessageCircle, Phone } from 'lucide-react';
+import { Pill, BookOpen, Heart, Plus, Trash2, Send, Bell, Clock, Volume2, MessageCircle, Phone, Sparkles, Check, X } from 'lucide-react';
 
 interface VoiceReminder {
   id: string;
@@ -37,6 +37,9 @@ export default function VoiceReminderConfig() {
   const [pendingQuestions, setPendingQuestions] = useState<any[]>([]);
   const [replyText, setReplyText] = useState<Record<string, string>>({});
   const [sendingReply, setSendingReply] = useState<string | null>(null);
+  const [suggestion, setSuggestion] = useState<string | null>(null);
+  const [suggesting, setSuggesting] = useState(false);
+  const [showSuggestion, setShowSuggestion] = useState(false);
 
   const [newReminder, setNewReminder] = useState({
     type: 'medicine' as string,
@@ -113,6 +116,47 @@ export default function VoiceReminderConfig() {
     } finally {
       setSendingReply(null);
     }
+  };
+
+  const handleSuggest = async () => {
+    if (!newReminder.message.trim()) {
+      showToast('Escribe un mensaje primero', 'error');
+      return;
+    }
+    setSuggesting(true);
+    setSuggestion(null);
+    setShowSuggestion(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('companero-chat', {
+        body: {
+          message: `SUGERENCIA: El familiar escribió este recordatorio para un adulto mayor: "${newReminder.message}". Analiza si es claro o ambiguo. Si falta detalle (color de pastilla, dosis, tamaño, nombre del medicamento, instrucciones específicas), sugiere una versión mejorada más clara y específica. Si ya está bien, di "El mensaje está claro". Responde solo en español, máximo 2 frases de análisis + la versión sugerida si aplica.`,
+          reminderContext: 'Modo sugerencia de mejora de recordatorio',
+        },
+      });
+      if (error || (!data?.spoken && !data?.content)) {
+        throw new Error(error?.message || 'Sin respuesta');
+      }
+      const text = data.spoken || data.content || '';
+      const isClear = text.toLowerCase().includes('está claro') || text.toLowerCase().includes('esta claro');
+      setSuggestion(isClear ? null : text);
+    } catch (err) {
+      console.error('Suggestion error:', err);
+      showToast('No pude analizar el mensaje', 'error');
+      setShowSuggestion(false);
+    } finally {
+      setSuggesting(false);
+    }
+  };
+
+  const handleAcceptSuggestion = () => {
+    if (suggestion) {
+      const suggestionMatch = suggestion.match(/versión[:\s]*["«"]?(.+?)["»"]?$/i);
+      const improvedText = suggestionMatch ? suggestionMatch[1].trim() : suggestion.split('\n').pop()?.trim() || suggestion;
+      setNewReminder(prev => ({ ...prev, message: improvedText }));
+      showToast('Mensaje actualizado con la sugerencia', 'success');
+    }
+    setSuggestion(null);
+    setShowSuggestion(false);
   };
 
   const handleCreate = async () => {
@@ -263,7 +307,21 @@ export default function VoiceReminderConfig() {
           </div>
 
           <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Mensaje (se leerá en voz alta)</label>
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">Mensaje (se leerá en voz alta)</label>
+              <button
+                onClick={handleSuggest}
+                disabled={suggesting || !newReminder.message.trim()}
+                className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition cursor-pointer disabled:opacity-40"
+              >
+                {suggesting ? (
+                  <div className="w-3 h-3 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Sparkles className="h-3 w-3" />
+                )}
+                Sugerir mejora con IA
+              </button>
+            </div>
             <textarea
               rows={3}
               value={newReminder.message}
@@ -271,6 +329,41 @@ export default function VoiceReminderConfig() {
               placeholder="Ej: Doña María, es la hora de su medicina para la presión. Tome una tableta con un vaso de agua."
               className="w-full text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 focus:bg-white focus:border-indigo-500 transition outline-none resize-none leading-relaxed"
             />
+            {showSuggestion && (
+              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 space-y-2">
+                {suggesting ? (
+                  <p className="text-xs text-indigo-600 font-medium">Analizando mensaje...</p>
+                ) : suggestion ? (
+                  <>
+                    <div className="flex items-start gap-2">
+                      <Sparkles className="h-4 w-4 text-indigo-500 shrink-0 mt-0.5" />
+                      <p className="text-xs text-slate-700 leading-relaxed">{suggestion}</p>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={handleAcceptSuggestion}
+                        className="flex items-center gap-1 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                      >
+                        <Check className="h-3 w-3" />
+                        Usar sugerencia
+                      </button>
+                      <button
+                        onClick={() => { setShowSuggestion(false); setSuggestion(null); }}
+                        className="flex items-center gap-1 bg-slate-200 hover:bg-slate-300 text-slate-600 text-[10px] font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                      >
+                        <X className="h-3 w-3" />
+                        Ignorar
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Check className="h-4 w-4 text-emerald-500" />
+                    <p className="text-xs text-emerald-700 font-medium">El mensaje está claro. No necesita mejoras.</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

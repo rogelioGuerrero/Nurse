@@ -157,6 +157,15 @@ Deno.serve(async (req: Request) => {
       .eq("user_id", family_user_id);
 
     if (!subs || subs.length === 0) {
+      // Log: no subscription
+      await supabase.from("notification_logs").insert({
+        family_user_id,
+        notification_type: "escalate",
+        recipient_user_id: family_user_id,
+        title: "BienCuidar · Tu ser querido pregunta",
+        body: question,
+        push_status: "no_subscription",
+      });
       return new Response(JSON.stringify({ sent: 0, message: "No hay suscripción push para el familiar", saved: !!savedMessage }), {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) },
@@ -174,7 +183,19 @@ Deno.serve(async (req: Request) => {
 
     let sent = 0;
     for (const sub of subs) {
-      if (await sendPushToSubscription(sub, payload)) sent++;
+      const ok = await sendPushToSubscription(sub, payload);
+      if (ok) sent++;
+      // Log each attempt
+      await supabase.from("notification_logs").insert({
+        family_user_id,
+        notification_type: "escalate",
+        recipient_user_id: family_user_id,
+        title: "BienCuidar · Tu ser querido pregunta",
+        body: question,
+        payload: { question, context: context || null, messageId: savedMessage?.id },
+        push_endpoint: sub.endpoint,
+        push_status: ok ? "sent" : "failed",
+      });
     }
 
     console.log(`[companero-escalate] sent push to family: ${sent}, question: "${question}"`);
