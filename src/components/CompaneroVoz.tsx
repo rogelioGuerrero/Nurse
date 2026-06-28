@@ -44,6 +44,7 @@ export default function CompaneroVoz() {
   const [currentIdx, setCurrentIdx] = useState(-1);
   const [nextIn, setNextIn] = useState(0);
   const [history, setHistory] = useState<{ label: string; time: string }[]>([]);
+  const [pushMessage, setPushMessage] = useState<{ label: string; message: string } | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -65,13 +66,38 @@ export default function CompaneroVoz() {
     loadVoices();
     window.speechSynthesis.onvoiceschanged = loadVoices;
 
+    // Listen for SPEAK messages from Service Worker (push notifications)
+    const handleSWMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'SPEAK' && event.data.text) {
+        const text = event.data.text;
+        setPushMessage({ label: 'Recordatorio', message: text });
+        setIsSpeaking(true);
+        // Small delay to ensure voices are loaded and UI updates
+        setTimeout(() => speak(text, () => {
+          const now = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
+          setHistory(prev => [{ label: 'Recordatorio', time: now }, ...prev].slice(0, 10));
+        }), 100);
+      }
+    };
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleSWMessage);
+      // Tell SW we're ready to receive pending speak text
+      navigator.serviceWorker.ready.then(reg => {
+        navigator.serviceWorker.controller?.postMessage({ type: 'READY' });
+      });
+    }
+
     return () => {
       window.speechSynthesis.cancel();
       window.speechSynthesis.onvoiceschanged = null;
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (countdownRef.current) clearInterval(countdownRef.current);
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleSWMessage);
+      }
     };
-  }, [selectedVoiceURI]);
+  }, [selectedVoiceURI, voices]);
 
   const speak = useCallback((text: string, onEnd?: () => void) => {
     if (!('speechSynthesis' in window) || !text.trim()) return;
@@ -159,6 +185,78 @@ export default function CompaneroVoz() {
           <p className="text-slate-400 text-sm max-w-xs mx-auto">
             Tu navegador no soporta síntesis de voz. Intenta con Chrome o Edge actualizado.
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Push mode — received a message from SW, speaking it
+  if (pushMessage && !isActive) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-indigo-950 to-slate-900 flex flex-col items-center justify-between p-6 safe-area-pb">
+        <div className="text-center pt-4 w-full max-w-md">
+          <div className="inline-flex items-center gap-2 bg-indigo-600/20 border border-indigo-500/30 px-4 py-2 rounded-full">
+            <Phone className="h-5 w-5 text-indigo-300" />
+            <span className="text-indigo-200 font-bold text-sm">BienCuidar · Compañero activo</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center gap-6 w-full max-w-md">
+          {isSpeaking ? (
+            <>
+              <div className="w-40 h-40 rounded-full bg-indigo-600 scale-110 animate-pulse flex items-center justify-center shadow-2xl">
+                <Volume2 className="h-20 w-20 text-white" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-white text-lg font-bold">{pushMessage.label}</p>
+                <p className="text-indigo-300 text-sm">Hablando...</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="w-32 h-32 rounded-full bg-emerald-600/30 border-2 border-emerald-500/40 flex items-center justify-center shadow-lg">
+                <Volume2 className="h-16 w-16 text-emerald-300" />
+              </div>
+              <div className="text-center space-y-1">
+                <p className="text-white text-base font-bold">Mensaje completado</p>
+                <p className="text-slate-400 text-sm">Esperando el siguiente recordatorio...</p>
+              </div>
+            </>
+          )}
+
+          {isSpeaking && (
+            <button
+              onClick={() => {
+                window.speechSynthesis.cancel();
+                setIsSpeaking(false);
+              }}
+              className="bg-rose-600/80 hover:bg-rose-600 text-white font-bold px-8 py-3 rounded-full transition flex items-center gap-2 cursor-pointer shadow-lg"
+            >
+              <Square className="h-5 w-5 fill-white" />
+              Detener
+            </button>
+          )}
+        </div>
+
+        <div className="w-full max-w-md space-y-2 pb-4">
+          {pushMessage && (
+            <div className="bg-indigo-600/10 border border-indigo-500/20 rounded-2xl p-4 mb-2">
+              <p className="text-indigo-300 text-[10px] font-bold uppercase tracking-wider mb-1">Mensaje recibido</p>
+              <p className="text-slate-300 text-sm leading-relaxed">{pushMessage.message}</p>
+            </div>
+          )}
+          {history.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">Historial</p>
+              {history.map((h, idx) => (
+                <div key={idx} className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-2.5">
+                  <Volume2 className="h-4 w-4 text-indigo-400 shrink-0" />
+                  <span className="text-slate-300 text-xs font-medium flex-1">{h.label}</span>
+                  <span className="text-slate-500 text-[10px]">{h.time}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );

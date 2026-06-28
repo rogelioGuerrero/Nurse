@@ -16,7 +16,8 @@ import {
   Stethoscope, 
   Star, Sparkles,
   Heart, Users, ChevronRight, GraduationCap, Network, MapPinned, MessageCircle,
-  Search, Inbox, ClipboardList, ShieldCheck, User, LogOut, Lock, CheckCircle2, AlertCircle
+  Search, Inbox, ClipboardList, ShieldCheck, User, LogOut, Lock, CheckCircle2, AlertCircle,
+  Volume2
 } from 'lucide-react';
 
 const LoadingSpinner = () => (
@@ -35,6 +36,7 @@ const OffersReview = lazy(() => import('./components/OffersReview').then(m => ({
 const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
 const FamilyProfileEdit = lazy(() => import('./components/FamilyProfileEdit').then(m => ({ default: m.FamilyProfileEdit })));
 const CompaneroVoz = lazy(() => import('./components/CompaneroVoz'));
+const VoiceReminderConfig = lazy(() => import('./components/VoiceReminderConfig'));
 import { LandingPage } from './components/LandingPage';
 import { AuthForm } from './components/AuthForm';
 import { LegalDisclaimer } from './components/LegalDisclaimer';
@@ -633,6 +635,14 @@ function MarketplaceApp() {
           </ErrorBoundary>
         )}
 
+        {activeTab === 'voice-reminders' && (
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingSpinner />}>
+              <VoiceReminderConfig />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+
         {activeTab === 'nurse-profile-edit' && (
           <ErrorBoundary>
             <Suspense fallback={<LoadingSpinner />}>
@@ -725,6 +735,15 @@ function MarketplaceApp() {
                 >
                   <User className="h-5 w-5" />
                   <span className="text-[9px] font-bold">Perfil</span>
+                </button>
+                <button
+                  onClick={() => { setActiveTab('voice-reminders'); }}
+                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
+                    activeTab === 'voice-reminders' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <Volume2 className="h-5 w-5" />
+                  <span className="text-[9px] font-bold">Compañero</span>
                 </button>
                 <button
                   onClick={() => { setActiveTab('clinical-ai'); }}

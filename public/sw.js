@@ -1,4 +1,4 @@
-const SW_VERSION = 'biencuidar-v8-push-20260626';
+const SW_VERSION = 'biencuidar-v9-companero-20260628';
 const CACHE_NAME = `biencuidar-cache-${SW_VERSION}`;
 const STATIC_ASSETS = [
   '/',
@@ -6,6 +6,8 @@ const STATIC_ASSETS = [
   '/manifest.json',
   '/icon.svg',
 ];
+
+let _pendingSpeak = null;
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -35,6 +37,13 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+  // Client ready — send pending speak text if any
+  if (event.data && event.data.type === 'READY') {
+    if (_pendingSpeak) {
+      event.source.postMessage({ type: 'SPEAK', text: _pendingSpeak });
+      _pendingSpeak = null;
+    }
+  }
 });
 
 // --- Web Push support ---
@@ -45,13 +54,23 @@ self.addEventListener('push', (event) => {
   } catch {
     if (event.data) data.body = event.data.text();
   }
+
+  // Store speak text for Compañero de Voz notifications
+  if (data.companero && data.speak) {
+    _pendingSpeak = data.speak;
+  }
+
+  const notifData = data.companero
+    ? { url: '/?companero=true', speak: data.speak || '' }
+    : { url: '/' };
+
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
       tag: data.tag || 'biencuidar',
       icon: '/icon.svg',
       badge: '/icon.svg',
-      data: { url: '/' },
+      data: notifData,
     })
   );
 });
@@ -59,12 +78,25 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+  const speakText = (event.notification.data && event.notification.data.speak) || null;
+
   event.waitUntil(
-    self.clients.matchAll({ type: 'window' }).then((clientList) => {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Look for an existing client matching the target URL
       for (const client of clientList) {
-        if ('focus' in client) return client.focus();
+        const clientUrl = new URL(client.url);
+        const targetPath = new URL(targetUrl, self.location.origin);
+        if (clientUrl.pathname === targetPath.pathname && 'focus' in client) {
+ client.focus();
+          if (speakText) client.postMessage({ type: 'SPEAK', text: speakText });
+          return;
+        }
       }
-      return self.clients.openWindow(targetUrl);
+      // No existing client — open new one
+      return self.clients.openWindow(targetUrl).then((client) => {
+        // _pendingSpeak will be sent when the client sends READY
+        if (speakText) _pendingSpeak = speakText;
+      });
     })
   );
 });
