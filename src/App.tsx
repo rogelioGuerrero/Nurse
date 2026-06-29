@@ -752,15 +752,6 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                   <span className="text-[9px] font-bold">Benni</span>
                 </button>
                 <button
-                  onClick={() => { setActiveTab('clinical-ai'); }}
-                  className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
-                    activeTab === 'clinical-ai' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
-                  }`}
-                >
-                  <Sparkles className="h-5 w-5 text-amber-500" />
-                  <span className="text-[9px] font-bold">Apoyo</span>
-                </button>
-                <button
                   onClick={async () => { await supabase.auth.signOut(); }}
                   className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer text-slate-400 hover:text-rose-600"
                 >
