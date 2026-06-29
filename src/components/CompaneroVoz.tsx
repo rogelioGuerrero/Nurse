@@ -391,6 +391,21 @@ export default function CompaneroVoz({ isBriefing = false }: { isBriefing?: bool
     const farewellWords = ['gracias', 'ya está bien', 'ya estoy bien', 'adiós', 'adios', 'hasta luego', 'no más', 'ya'];
     const isFarewell = farewellWords.some(w => lowerText.includes(w)) && lowerText.length < 25;
 
+    // Check if patient wants to repeat the last reminder
+    const repeatWords = ['qué', 'que', 'repite', 'repetí', 'no entendí', 'no entendi', 'otra vez', 'cómo dijiste', 'como dijiste', 'qué dijiste', 'que dijiste', 'no escuché', 'no escuche', 'no oi', 'no oí'];
+    const wantsRepeat = repeatWords.some(w => lowerText === w || lowerText === w + '?' || lowerText.startsWith(w + ' ')) && lowerText.length < 30;
+
+    if (wantsRepeat && reminderContextRef.current) {
+      const lastMsg = reminderContextRef.current;
+      const repeatTurn: ConversationTurn = { role: 'assistant', content: lastMsg, time: new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }) };
+      const updatedConv = [...conversationRef.current, repeatTurn];
+      conversationRef.current = updatedConv;
+      setConversation(updatedConv);
+      setIsThinking(false);
+      speak(lastMsg, () => { setTimeout(() => startListening(), 600); });
+      return;
+    }
+
     try {
       const { data, error } = await supabase.functions.invoke('companero-chat', {
         body: {

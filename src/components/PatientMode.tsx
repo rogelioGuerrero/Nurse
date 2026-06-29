@@ -228,6 +228,25 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
       const finalText = finalTranscriptRef.current.trim();
       finalTranscriptRef.current = '';
       if (finalText && !isEscalatingRef.current) {
+        // Check if patient wants to repeat the last reminder
+        const lower = finalText.toLowerCase().trim();
+        const repeatWords = ['qué', 'que', 'repite', 'repetí', 'no entendí', 'no entendi', 'otra vez', 'cómo dijiste', 'como dijiste', 'qué dijiste', 'que dijiste', 'no escuché', 'no escuche', 'no oi', 'no oí'];
+        const wantsRepeat = repeatWords.some(w => lower === w || lower === w + '?' || lower.startsWith(w + ' ')) && lower.length < 30;
+
+        if (wantsRepeat && reminderContextRef.current) {
+          const lastMsg = reminderContextRef.current;
+          setConversation(prev => { const next = [...prev, { role: 'user' as const, text: finalText }, { role: 'assistant' as const, text: lastMsg }]; conversationRef.current = next; return next; });
+          setSubtitle(lastMsg);
+          setOrbState('speaking');
+          modeRef.current = 'speaking';
+          speak(lastMsg, () => {
+            setOrbState('idle');
+            modeRef.current = 'idle';
+            setSubtitle('');
+          });
+          return;
+        }
+
         setOrbState('thinking');
         modeRef.current = 'thinking';
         setConversation(prev => { const next = [...prev, { role: 'user' as const, text: finalText }]; conversationRef.current = next; return next; });
