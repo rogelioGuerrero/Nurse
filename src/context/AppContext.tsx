@@ -168,7 +168,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       // Nurses list is public to authenticated users (for marketplace)
       const { data: nursesResult } = await supabase.from('nurses').select('*');
       nursesData = demoUserIds.length > 0
-        ? (nursesResult || []).filter((n: any) => !demoUserIds.includes(n.user_id))
+        ? (nursesResult || []).filter((n: any) => !demoUserIds.includes(n.user_id) || n.user_id === currentUser.id)
         : nursesResult;
       if (nursesData) setNurses(nursesData);
 
