@@ -16,7 +16,7 @@ function buildBaseHtml(nurse: NurseEmailRequest): string {
   <p>Detectamos un problema con tu número de registro CSSP <strong>${nurse.cssp_registration}</strong> en BienCuidar.</p>
   <p><strong>Problema:</strong> ${nurse.problem_type}<br>${nurse.problem_detail}</p>
   <p>Ingresá a <a href="https://biencuidar.agtisa.com">biencuidar.agtisa.com</a>, entrá en <strong>"Mi Perfil"</strong> y corregí tu número CSSP.</p>
-  <p style="font-size: 13px; color: #94a3b8; margin-top: 24px;">BienCuidar — Plataforma de enfermería en El Salvador<br>info@agtisa.com</p>
+  <p style="font-size: 13px; color: #94a3b8; margin-top: 24px;">BienCuidar — Plataforma de cuidado de salud en El Salvador<br>info@agtisa.com</p>
 </div>`;
 }
 

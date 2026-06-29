@@ -181,6 +181,20 @@ export const AdminPanel: FC = () => {
     setSupportLoading(false);
   };
 
+  const markEmailResolved = async (emailId: string) => {
+    try {
+      const { error } = await supabase
+        .from('support_emails')
+        .update({ needs_human: false })
+        .eq('id', emailId);
+      if (!error) {
+        setSupportEmails(prev => prev.map(e => e.id === emailId ? { ...e, needs_human: false } : e));
+      }
+    } catch {
+      // silent
+    }
+  };
+
   const loadChatStats = async () => {
     setChatLoading(true);
     try {
@@ -1302,7 +1316,15 @@ Mensaje para avisarle que revise los detalles en la app.`;
                       </div>
                     )}
                     {email.needs_human && (
-                      <p className="text-[10px] text-slate-400">Respondé desde Hostinger → info@agtisa.com</p>
+                      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                        <p className="text-[10px] text-slate-400">Respondé desde Hostinger → info@agtisa.com</p>
+                        <button
+                          onClick={() => markEmailResolved(email.id)}
+                          className="text-[10px] font-bold text-emerald-600 hover:text-emerald-500 cursor-pointer"
+                        >
+                          Marcar como resuelto
+                        </button>
+                      </div>
                     )}
                   </div>
                 ))}

@@ -61,7 +61,7 @@ async function classifyEmail(
   subject: string,
   bodyText: string
 ): Promise<{ category: "consulta" | "spam" | "sistema" | "marketing"; reason: string }> {
-  const prompt = `Clasificá el siguiente correo recibido por BienCuidar (plataforma de enfermería en El Salvador).
+  const prompt = `Clasificá el siguiente correo recibido por BienCuidar (plataforma de cuidado de salud en El Salvador).
 
 Remitente: ${from}
 Asunto: ${subject}
@@ -130,7 +130,7 @@ async function callAiAgent(
 async function sendReply(to: string, subject: string, replyText: string): Promise<boolean> {
   const html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #1e293b;">
   <p>${replyText.replace(/\n/g, "<br>")}</p>
-  <p style="font-size: 13px; color: #94a3b8; margin-top: 24px;">BienCuidar — Plataforma de enfermería en El Salvador<br>info@agtisa.com</p>
+  <p style="font-size: 13px; color: #94a3b8; margin-top: 24px;">BienCuidar — Plataforma de cuidado de salud en El Salvador<br>info@agtisa.com</p>
 </div>`;
 
   const res = await fetch("https://api.resend.com/emails", {
@@ -235,6 +235,7 @@ Deno.serve(async (req: Request) => {
     const sent = await sendReply(from, subject, reply);
 
     // 6. Guardar en support_emails para el dashboard de admin
+    // Marcar como needs_human=true si la respuesta incluye el fallback (indica que el AI no pudo resolver)
     const needsHuman = !sent || reply.includes("info@agtisa.com");
     const { error: insertError } = await supabase
       .from("support_emails")
