@@ -445,6 +445,33 @@ export default function CompaneroVoz({ isBriefing = false }: { isBriefing?: bool
             });
           }
         });
+      } else if (responseType === 'family_request' && data.request) {
+        // Send family request (non-medical) to family
+        setIsEscalating(true);
+        isEscalatingRef.current = true;
+        speak(spokenText, async () => {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              familyUserIdRef.current = user.id;
+            }
+            await supabase.functions.invoke('companero-escalate', {
+              body: {
+                family_user_id: familyUserIdRef.current,
+                patient_user_id: patientUserIdRef.current,
+                question: data.request,
+                context: reminderContextRef.current,
+              },
+            });
+            escalationPollRef.current = setInterval(() => {
+              checkEscalationResponse();
+            }, 5000);
+          } catch (err) {
+            console.error('family_request error:', err);
+            setIsEscalating(false);
+            isEscalatingRef.current = false;
+          }
+        });
       } else {
         // Normal chat response
         speak(spokenText, () => {

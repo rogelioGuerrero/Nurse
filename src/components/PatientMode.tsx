@@ -151,7 +151,7 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
   }, [voices, selectedVoiceURI]);
 
   // === Chat with Groq ===
-  const chatWithGroq = useCallback(async (userText: string): Promise<{ type: string; spoken: string; question?: string }> => {
+  const chatWithGroq = useCallback(async (userText: string): Promise<{ type: string; spoken: string; question?: string; request?: string }> => {
     const history = conversationRef.current.slice(-6).map(t => ({ role: t.role, content: t.text }));
     const { data, error } = await supabase.functions.invoke('companero-chat', {
       body: {
@@ -161,7 +161,7 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
       },
     });
     if (error) throw error;
-    return data as { type: string; spoken: string; question?: string };
+    return data as { type: string; spoken: string; question?: string; request?: string };
   }, []);
 
   // === Escalate ===
@@ -236,6 +236,9 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
           setSubtitle(result.spoken);
           if (result.type === 'escalate' && result.question) {
             await escalate(result.question);
+          }
+          if (result.type === 'family_request' && result.request) {
+            await escalate(result.request);
           }
           speak(result.spoken, () => {
             setOrbState('idle');
