@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { useWhisperSTT } from '../hooks/useWhisperSTT';
 
-type OrbState = 'idle' | 'speaking' | 'listening' | 'thinking';
+type OrbState = 'idle' | 'speaking' | 'listening' | 'thinking' | 'transcribing';
 
 interface ConversationTurn {
   role: 'user' | 'assistant';
@@ -26,6 +27,8 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
   const reminderContextRef = useRef<string>('');
   const conversationRef = useRef<ConversationTurn[]>([]);
   const finalTranscriptRef = useRef<string>('');
+  const whisperFailedRef = useRef(false);
+  const handleUserMessageRef = useRef<(text: string) => void>(() => {});
 
   // === Voices ===
   useEffect(() => {
@@ -177,8 +180,86 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
     setIsEscalating(false);
   }, [familyUserId]);
 
-  // === Listening ===
-  const startListening = useCallback(() => {
+  // === Handle user message (shared by Whisper and Web Speech fallback) ===
+  const handleUserMessage = useCallback((finalText: string) => {
+    if (!finalText || isEscalatingRef.current) {
+      setOrbState('idle');
+      modeRef.current = 'idle';
+      return;
+    }
+
+    const lower = finalText.toLowerCase().trim();
+    const repeatWords = ['qué', 'que', 'repite', 'repetí', 'no entendí', 'no entendi', 'otra vez', 'cómo dijiste', 'como dijiste', 'qué dijiste', 'que dijiste', 'no escuché', 'no escuche', 'no oi', 'no oí'];
+    const wantsRepeat = repeatWords.some(w => lower === w || lower === w + '?' || lower.startsWith(w + ' ')) && lower.length < 30;
+
+    if (wantsRepeat && reminderContextRef.current) {
+      const lastMsg = reminderContextRef.current;
+      setConversation(prev => { const next = [...prev, { role: 'user' as const, text: finalText }, { role: 'assistant' as const, text: lastMsg }]; conversationRef.current = next; return next; });
+      setSubtitle(lastMsg);
+      setOrbState('speaking');
+      modeRef.current = 'speaking';
+      speak(lastMsg, () => {
+        setOrbState('idle');
+        modeRef.current = 'idle';
+        setSubtitle('');
+      });
+      return;
+    }
+
+    setOrbState('thinking');
+    modeRef.current = 'thinking';
+    setConversation(prev => { const next = [...prev, { role: 'user' as const, text: finalText }]; conversationRef.current = next; return next; });
+    chatWithGroq(finalText).then(async (result) => {
+      setConversation(prev => { const next = [...prev, { role: 'assistant' as const, text: result.spoken }]; conversationRef.current = next; return next; });
+      setSubtitle(result.spoken);
+      if (result.type === 'escalate' && result.question) {
+        await escalate(result.question);
+      }
+      if (result.type === 'family_request' && result.request) {
+        await escalate(result.request);
+      }
+      speak(result.spoken, () => {
+        setOrbState('idle');
+        modeRef.current = 'idle';
+        setSubtitle('');
+      });
+    }).catch(() => {
+      speak('Disculpa, no te entendí bien. ¿Puedes repetirlo?', () => {
+        setOrbState('idle');
+        modeRef.current = 'idle';
+        setSubtitle('');
+      });
+    });
+  }, [chatWithGroq, escalate, speak]);
+
+  // Keep ref updated for use inside Whisper callbacks
+  handleUserMessageRef.current = handleUserMessage;
+
+  // === Whisper STT hook ===
+  const whisperSTT = useWhisperSTT({
+    onTranscript: (text) => {
+      silenceCountRef.current = 0;
+      setSubtitle(text);
+      handleUserMessageRef.current(text);
+    },
+    onSilence: () => {
+      silenceCountRef.current++;
+      if (silenceCountRef.current >= 3) {
+        silenceCountRef.current = 0;
+        speak('Bueno, me despido. Aquí estaré cuando me necesites. ¡Hasta pronto!', () => {
+          setConversation([]);
+          conversationRef.current = [];
+          setOrbState('idle');
+          modeRef.current = 'idle';
+          setSubtitle('');
+        });
+      }
+    },
+    silenceThresholdMs: 3000,
+  });
+
+  // === Web Speech API fallback (used when Whisper fails) ===
+  const startListeningFallback = useCallback(() => {
     const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognitionClass) return;
     try { if (recognitionRef.current) recognitionRef.current.stop(); } catch {}
@@ -219,7 +300,7 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
         }
         setTimeout(() => {
           if ((modeRef.current === 'listening' || modeRef.current === 'speaking') && !isEscalatingRef.current) {
-            startListening();
+            startListeningFallback();
           }
         }, 500);
       }
@@ -227,58 +308,61 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
     recognition.onend = () => {
       const finalText = finalTranscriptRef.current.trim();
       finalTranscriptRef.current = '';
-      if (finalText && !isEscalatingRef.current) {
-        // Check if patient wants to repeat the last reminder
-        const lower = finalText.toLowerCase().trim();
-        const repeatWords = ['qué', 'que', 'repite', 'repetí', 'no entendí', 'no entendi', 'otra vez', 'cómo dijiste', 'como dijiste', 'qué dijiste', 'que dijiste', 'no escuché', 'no escuche', 'no oi', 'no oí'];
-        const wantsRepeat = repeatWords.some(w => lower === w || lower === w + '?' || lower.startsWith(w + ' ')) && lower.length < 30;
-
-        if (wantsRepeat && reminderContextRef.current) {
-          const lastMsg = reminderContextRef.current;
-          setConversation(prev => { const next = [...prev, { role: 'user' as const, text: finalText }, { role: 'assistant' as const, text: lastMsg }]; conversationRef.current = next; return next; });
-          setSubtitle(lastMsg);
-          setOrbState('speaking');
-          modeRef.current = 'speaking';
-          speak(lastMsg, () => {
-            setOrbState('idle');
-            modeRef.current = 'idle';
-            setSubtitle('');
-          });
-          return;
-        }
-
-        setOrbState('thinking');
-        modeRef.current = 'thinking';
-        setConversation(prev => { const next = [...prev, { role: 'user' as const, text: finalText }]; conversationRef.current = next; return next; });
-        chatWithGroq(finalText).then(async (result) => {
-          setConversation(prev => { const next = [...prev, { role: 'assistant' as const, text: result.spoken }]; conversationRef.current = next; return next; });
-          setSubtitle(result.spoken);
-          if (result.type === 'escalate' && result.question) {
-            await escalate(result.question);
-          }
-          if (result.type === 'family_request' && result.request) {
-            await escalate(result.request);
-          }
-          speak(result.spoken, () => {
-            setOrbState('idle');
-            modeRef.current = 'idle';
-            setSubtitle('');
-          });
-        }).catch(() => {
-          speak('Disculpa, no te entendí bien. ¿Puedes repetirlo?', () => {
-            setOrbState('idle');
-            modeRef.current = 'idle';
-            setSubtitle('');
-          });
-        });
-      } else if (modeRef.current === 'listening') {
-        setOrbState('idle');
-        modeRef.current = 'idle';
-      }
+      handleUserMessageRef.current(finalText);
     };
     recognitionRef.current = recognition;
     recognition.start();
-  }, [chatWithGroq, escalate, speak]);
+  }, [speak]);
+
+  // === Listening — tries Whisper first, falls back to Web Speech API ===
+  const startListening = useCallback(async () => {
+    silenceCountRef.current = 0;
+
+    // If Whisper failed before, use fallback directly
+    if (whisperFailedRef.current) {
+      startListeningFallback();
+      return;
+    }
+
+    // Try Whisper first
+    setOrbState('listening');
+    modeRef.current = 'listening';
+    setSubtitle('');
+
+    try {
+      await whisperSTT.startRecording();
+    } catch (err) {
+      console.error('[PatientMode] Whisper start failed, falling back:', err);
+      whisperFailedRef.current = true;
+      startListeningFallback();
+    }
+  }, [whisperSTT, startListeningFallback]);
+
+  // === Handle Whisper transcription state ===
+  useEffect(() => {
+    if (whisperSTT.isRecording) {
+      setOrbState('listening');
+      modeRef.current = 'listening';
+    } else if (whisperSTT.isTranscribing) {
+      setOrbState('transcribing');
+      modeRef.current = 'transcribing';
+    } else if (modeRef.current === 'listening' || modeRef.current === 'transcribing') {
+      // Recording/transcription ended without producing transcript yet
+      // Only reset to idle if we're not already in thinking/speaking
+      if (modeRef.current === 'listening' || modeRef.current === 'transcribing') {
+        setOrbState('idle');
+        modeRef.current = 'idle';
+      }
+    }
+  }, [whisperSTT.isRecording, whisperSTT.isTranscribing]);
+
+  // === Handle Whisper errors — fall back to Web Speech API ===
+  useEffect(() => {
+    if (whisperSTT.error && !whisperFailedRef.current) {
+      console.warn('[PatientMode] Whisper error, switching to fallback:', whisperSTT.error);
+      whisperFailedRef.current = true;
+    }
+  }, [whisperSTT.error]);
 
   // === Tap orb to talk ===
   const handleOrbTap = useCallback(() => {
@@ -290,12 +374,18 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
       setSubtitle('');
       return;
     }
-    if (orbState === 'listening' || orbState === 'thinking') return;
-    if (hasSTT) {
+    if (orbState === 'listening' || orbState === 'thinking' || orbState === 'transcribing') {
+      // Stop recording if user taps while listening
+      if (whisperSTT.isRecording) {
+        whisperSTT.stopRecording();
+      }
+      return;
+    }
+    if (hasSTT || !whisperFailedRef.current) {
       silenceCountRef.current = 0;
       startListening();
     }
-  }, [orbState, hasSTT, startListening, sendHeartbeat]);
+  }, [orbState, hasSTT, startListening, sendHeartbeat, whisperSTT]);
 
   // === Emergency button ===
   const handleEmergency = useCallback(() => {
@@ -316,8 +406,10 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
     return () => {
       if (inactivityTimeoutRef.current) clearTimeout(inactivityTimeoutRef.current);
       if (recognitionRef.current) try { recognitionRef.current.stop(); } catch {}
+      if (whisperSTT.isRecording) whisperSTT.stopRecording();
       window.speechSynthesis.cancel();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!isSupported) {
@@ -421,9 +513,10 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
           <p className="text-white/80 text-base font-medium leading-relaxed mb-3">{subtitle}</p>
         ) : (
           <p className="text-white/30 text-sm mb-3">
-            {orbState === 'idle' && (hasSTT ? 'Toca para hablar' : 'Esperando mensajes...')}
+            {orbState === 'idle' && (hasSTT || !whisperFailedRef.current ? 'Toca para hablar' : 'Esperando mensajes...')}
             {orbState === 'speaking' && 'Toca para silenciar'}
             {orbState === 'listening' && 'Escuchando...'}
+            {orbState === 'transcribing' && 'Transcribiendo...'}
             {orbState === 'thinking' && 'Pensando...'}
           </p>
         )}

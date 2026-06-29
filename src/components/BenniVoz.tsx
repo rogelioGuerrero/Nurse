@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Volume2, Square, Phone, Heart, BookOpen, Pill, Play, Mic, Loader2, MessageCircle, Send } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useWhisperSTT } from '../hooks/useWhisperSTT';
 
 type ReminderType = 'medicine' | 'story' | 'motivation';
 
@@ -84,6 +85,8 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
   const escalationPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const silenceCountRef = useRef(0);
   const inactivityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const whisperFailedRef = useRef(false);
+  const handleUserMessageRef = useRef<(text: string) => void>(() => {});
 
   useEffect(() => {
     if (!('speechSynthesis' in window)) {
@@ -238,7 +241,19 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
     window.speechSynthesis.speak(utterance);
   }, [voices, selectedVoiceURI]);
 
-  const startListening = useCallback(() => {
+  // === Stop listening (shared) ===
+  const stopListening = useCallback(() => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+      recognitionRef.current = null;
+    }
+    setIsListening(false);
+  }, []);
+
+  // === Web Speech API fallback (used when Whisper fails) ===
+  const startListeningFallback = useCallback(() => {
     const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognitionClass) return;
 
@@ -270,7 +285,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
       if (finalTranscript) {
         silenceCountRef.current = 0;
         setTranscript(finalTranscript);
-        handleUserMessage(finalTranscript.trim());
+        handleUserMessageRef.current(finalTranscript.trim());
       }
     };
 
@@ -280,7 +295,6 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
       if (event.error === 'no-speech') {
         silenceCountRef.current++;
         if (silenceCountRef.current >= 3) {
-          // 3 silences in a row (~15s) — say goodbye and close
           silenceCountRef.current = 0;
           speak('Bueno, me despido. Aquí estaré cuando me necesites. ¡Hasta pronto!', () => {
             setConversation([]);
@@ -293,7 +307,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
         }
         setTimeout(() => {
           if ((modeRef.current === 'push' || modeRef.current === 'scheduled') && !isEscalatingRef.current) {
-            startListening();
+            startListeningFallback();
           }
         }, 500);
       }
@@ -305,7 +319,74 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
 
     recognitionRef.current = recognition;
     recognition.start();
-  }, [isEscalating]);
+  }, [speak, stopListening]);
+
+  // === Whisper STT hook ===
+  const whisperSTT = useWhisperSTT({
+    onTranscript: (text) => {
+      silenceCountRef.current = 0;
+      setTranscript(text);
+      handleUserMessageRef.current(text);
+    },
+    onSilence: () => {
+      silenceCountRef.current++;
+      if (silenceCountRef.current >= 3) {
+        silenceCountRef.current = 0;
+        speak('Bueno, me despido. Aquí estaré cuando me necesites. ¡Hasta pronto!', () => {
+          setConversation([]);
+          conversationRef.current = [];
+          setTranscript('');
+          setMode('idle');
+          modeRef.current = 'idle';
+        });
+      }
+    },
+    silenceThresholdMs: 3000,
+  });
+
+  // === Listening — tries Whisper first, falls back to Web Speech API ===
+  const startListening = useCallback(async () => {
+    silenceCountRef.current = 0;
+
+    // If Whisper failed before, use fallback directly
+    if (whisperFailedRef.current) {
+      startListeningFallback();
+      return;
+    }
+
+    // Try Whisper first
+    setIsListening(true);
+    setTranscript('');
+
+    try {
+      await whisperSTT.startRecording();
+    } catch (err) {
+      console.error('[BenniVoz] Whisper start failed, falling back:', err);
+      whisperFailedRef.current = true;
+      setIsListening(false);
+      startListeningFallback();
+    }
+  }, [whisperSTT, startListeningFallback]);
+
+  // === Handle Whisper recording/transcribing state ===
+  useEffect(() => {
+    if (whisperSTT.isRecording) {
+      setIsListening(true);
+    } else if (!whisperSTT.isTranscribing) {
+      // Recording and transcription both done
+      if (modeRef.current === 'push' || modeRef.current === 'scheduled') {
+        setIsListening(false);
+      }
+    }
+  }, [whisperSTT.isRecording, whisperSTT.isTranscribing]);
+
+  // === Handle Whisper errors — fall back to Web Speech API ===
+  useEffect(() => {
+    if (whisperSTT.error && !whisperFailedRef.current) {
+      console.warn('[BenniVoz] Whisper error, switching to fallback:', whisperSTT.error);
+      whisperFailedRef.current = true;
+    }
+  }, [whisperSTT.error]);
 
   // Trigger morning briefing when opened via briefing push notification
   useEffect(() => {
@@ -330,16 +411,6 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
     }, 300);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [isBriefing, fetchMorningBriefing, hasSTT, speak, startListening]);
-
-  const stopListening = useCallback(() => {
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch {}
-      recognitionRef.current = null;
-    }
-    setIsListening(false);
-  }, []);
 
   const isEscalatingRef = useRef(false);
 
@@ -513,6 +584,9 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
     }
   }, [speak, startListening, stopListening, checkEscalationResponse]);
 
+  // Keep ref updated for use inside Whisper callbacks
+  handleUserMessageRef.current = handleUserMessage;
+
   const runSchedule = useCallback((startIdx: number) => {
     if (startIdx >= FAKE_SCHEDULE.length) {
       setIsActive(false);
@@ -560,6 +634,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
   const handleStop = () => {
     window.speechSynthesis.cancel();
     stopListening();
+    if (whisperSTT.isRecording) whisperSTT.stopRecording();
     setIsSpeaking(false);
     setIsListening(false);
     setIsThinking(false);
