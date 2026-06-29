@@ -21,7 +21,7 @@ function corsHeaders(origin?: string) {
   };
 }
 
-const SYSTEM_PROMPT = `Eres el "Compañero de Voz" de BienCuidar, un asistente conversacional que acompaña a adultos mayores a través de voz en español.
+const SYSTEM_PROMPT = `Eres "Benni", el asistente conversacional de BienCuidar que acompaña a adultos mayores a través de voz en español.
 
 Tu personalidad:
 - Cálida, paciente, respetuosa y cercana
@@ -192,7 +192,7 @@ Deno.serve(async (req: Request) => {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Error interno";
-    console.error("[companero-chat] error:", message);
+    console.error("[benni-chat] error:", message);
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) },

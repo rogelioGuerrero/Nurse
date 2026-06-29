@@ -56,24 +56,24 @@ self.addEventListener('push', (event) => {
   }
 
   // Store speak text
-  if (data.companero && data.speak) {
+  if (data.benni && data.speak) {
     _pendingSpeak = data.speak;
   }
 
-  // Escalation notifications route to the Compañero tab (family responds)
-  // Morning briefings route to Compañero with a briefing flag
+  // Escalation notifications route to Benni (family responds)
+  // Morning briefings route to Benni with a briefing flag
   const notifData = data.escalate
-    ? { url: '/?companero=escalate', escalate: true }
+    ? { url: '/?benni=escalate', escalate: true }
     : data.morningBriefing
-    ? { url: '/?companero=briefing', morningBriefing: true }
-    : data.companero
-    ? { url: '/?companero=true', speak: data.speak || '' }
+    ? { url: '/?benni=briefing', morningBriefing: true }
+    : data.benni
+    ? { url: '/?benni=true', speak: data.speak || '' }
     : { url: '/' };
 
   event.waitUntil(
     (async () => {
       // For patient mode: if the patient screen is already open, auto-send SPEAK without waiting for click
-      if (data.companero && data.speak) {
+      if (data.benni && data.speak) {
         const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
         for (const client of clientList) {
           const clientUrl = new URL(client.url);

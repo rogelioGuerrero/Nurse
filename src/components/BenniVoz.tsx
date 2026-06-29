@@ -56,7 +56,7 @@ declare global {
   }
 }
 
-export default function CompaneroVoz({ isBriefing = false }: { isBriefing?: boolean }) {
+export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean }) {
   const [isActive, setIsActive] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -346,7 +346,7 @@ export default function CompaneroVoz({ isBriefing = false }: { isBriefing?: bool
   const checkEscalationResponse = useCallback(async () => {
     if (!familyUserIdRef.current) return;
     const { data } = await supabase
-      .from('companero_messages')
+      .from('benni_messages')
       .select('id, message, context, status, created_at')
       .eq('family_user_id', familyUserIdRef.current)
       .eq('direction', 'family_to_patient')
@@ -356,7 +356,7 @@ export default function CompaneroVoz({ isBriefing = false }: { isBriefing?: bool
     if (data && data.length > 0) {
       const response = data[0];
       // Mark as expired so we don't pick it up again
-      await supabase.from('companero_messages').update({ status: 'expired' }).eq('id', response.id);
+      await supabase.from('benni_messages').update({ status: 'expired' }).eq('id', response.id);
       if (escalationPollRef.current) {
         clearInterval(escalationPollRef.current);
         escalationPollRef.current = null;
@@ -407,7 +407,7 @@ export default function CompaneroVoz({ isBriefing = false }: { isBriefing?: bool
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('companero-chat', {
+      const { data, error } = await supabase.functions.invoke('benni-chat', {
         body: {
           message: userText,
           reminderContext: reminderContextRef.current,
@@ -439,7 +439,7 @@ export default function CompaneroVoz({ isBriefing = false }: { isBriefing?: bool
             if (user) {
               familyUserIdRef.current = user.id;
             }
-            await supabase.functions.invoke('companero-escalate', {
+            await supabase.functions.invoke('benni-escalate', {
               body: {
                 family_user_id: familyUserIdRef.current,
                 patient_user_id: patientUserIdRef.current,
@@ -470,7 +470,7 @@ export default function CompaneroVoz({ isBriefing = false }: { isBriefing?: bool
             if (user) {
               familyUserIdRef.current = user.id;
             }
-            await supabase.functions.invoke('companero-escalate', {
+            await supabase.functions.invoke('benni-escalate', {
               body: {
                 family_user_id: familyUserIdRef.current,
                 patient_user_id: patientUserIdRef.current,
@@ -500,7 +500,7 @@ export default function CompaneroVoz({ isBriefing = false }: { isBriefing?: bool
         });
       }
     } catch (err) {
-      console.error('companero-chat error:', err);
+      console.error('benni-chat error:', err);
       setIsThinking(false);
       const fallback = 'No te escuché bien, ¿puedes repetirlo?';
       const aiTurn: ConversationTurn = { role: 'assistant', content: fallback, time: new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }) };
@@ -607,7 +607,7 @@ export default function CompaneroVoz({ isBriefing = false }: { isBriefing?: bool
         <div className="text-center pt-4 w-full max-w-md">
           <div className="inline-flex items-center gap-2 bg-indigo-600/20 border border-indigo-500/30 px-4 py-2 rounded-full">
             <Phone className="h-5 w-5 text-indigo-300" />
-            <span className="text-indigo-200 font-bold text-sm">BienCuidar · Compañero activo</span>
+            <span className="text-indigo-200 font-bold text-sm">BienCuidar · Benni activo</span>
           </div>
         </div>
 
@@ -747,7 +747,7 @@ export default function CompaneroVoz({ isBriefing = false }: { isBriefing?: bool
           </div>
 
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold text-white font-serif italic">Compañero de Voz</h1>
+            <h1 className="text-3xl font-bold text-white font-serif italic">Benni</h1>
             <p className="text-slate-400 text-sm max-w-xs mx-auto leading-relaxed">
               Toca el botón para iniciar. Tu teléfono te acompañará durante el día.
             </p>
@@ -791,7 +791,7 @@ export default function CompaneroVoz({ isBriefing = false }: { isBriefing?: bool
       <div className="text-center pt-4 w-full max-w-md">
         <div className="inline-flex items-center gap-2 bg-indigo-600/20 border border-indigo-500/30 px-4 py-2 rounded-full">
           <Phone className="h-5 w-5 text-indigo-300" />
-          <span className="text-indigo-200 font-bold text-sm">BienCuidar · Compañero activo</span>
+          <span className="text-indigo-200 font-bold text-sm">BienCuidar · Benni activo</span>
         </div>
       </div>
 

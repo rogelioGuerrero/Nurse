@@ -150,7 +150,7 @@ Deno.serve(async (req: Request) => {
           reminder_id: reminder.id,
           notification_type: "test",
           recipient_user_id: targetUserId,
-          title: "BienCuidar · Compañero",
+          title: "BienCuidar · Benni",
           body: reminder.label,
           push_status: "no_subscription",
         });
@@ -158,10 +158,10 @@ Deno.serve(async (req: Request) => {
       }
 
       const payload = JSON.stringify({
-        title: "BienCuidar · Compañero",
+        title: "BienCuidar · Benni",
         body: reminder.label,
-        tag: "companero-" + reminder.id,
-        companero: true,
+        tag: "benni-" + reminder.id,
+        benni: true,
         speak: reminder.is_morning_briefing ? "" : reminder.message,
         morningBriefing: reminder.is_morning_briefing || false,
       });
@@ -176,7 +176,7 @@ Deno.serve(async (req: Request) => {
           reminder_id: reminder.id,
           notification_type: "test",
           recipient_user_id: targetUserId,
-          title: "BienCuidar · Compañero",
+          title: "BienCuidar · Benni",
           body: reminder.label,
           payload: { speak: reminder.message, label: reminder.label },
           push_endpoint: sub.endpoint,
@@ -230,7 +230,7 @@ Deno.serve(async (req: Request) => {
           reminder_id: reminder.id,
           notification_type: "reminder",
           recipient_user_id: targetUserId,
-          title: "BienCuidar · Compañero",
+          title: "BienCuidar · Benni",
           body: reminder.label,
           push_status: "no_subscription",
         });
@@ -238,10 +238,10 @@ Deno.serve(async (req: Request) => {
       }
 
       const payload = JSON.stringify({
-        title: "BienCuidar · Compañero",
+        title: "BienCuidar · Benni",
         body: reminder.label,
-        tag: "companero-" + reminder.id,
-        companero: true,
+        tag: "benni-" + reminder.id,
+        benni: true,
         speak: reminder.is_morning_briefing ? "" : reminder.message,
         morningBriefing: reminder.is_morning_briefing || false,
       });
@@ -256,7 +256,7 @@ Deno.serve(async (req: Request) => {
           reminder_id: reminder.id,
           notification_type: "reminder",
           recipient_user_id: targetUserId,
-          title: "BienCuidar · Compañero",
+          title: "BienCuidar · Benni",
           body: reminder.label,
           payload: { speak: reminder.message, label: reminder.label },
           push_endpoint: sub.endpoint,

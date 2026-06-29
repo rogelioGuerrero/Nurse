@@ -153,7 +153,7 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
   // === Chat with Groq ===
   const chatWithGroq = useCallback(async (userText: string): Promise<{ type: string; spoken: string; question?: string; request?: string }> => {
     const history = conversationRef.current.slice(-6).map(t => ({ role: t.role, content: t.text }));
-    const { data, error } = await supabase.functions.invoke('companero-chat', {
+    const { data, error } = await supabase.functions.invoke('benni-chat', {
       body: {
         message: userText,
         reminderContext: reminderContextRef.current || undefined,
@@ -169,7 +169,7 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
     isEscalatingRef.current = true;
     setIsEscalating(true);
     try {
-      await supabase.functions.invoke('companero-escalate', {
+      await supabase.functions.invoke('benni-escalate', {
         body: { family_user_id: familyUserId, question },
       });
     } catch (e) { console.error('Escalate error:', e); }

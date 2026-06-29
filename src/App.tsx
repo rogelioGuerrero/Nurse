@@ -35,7 +35,7 @@ const NurseInbox = lazy(() => import('./components/NurseInbox').then(m => ({ def
 const OffersReview = lazy(() => import('./components/OffersReview').then(m => ({ default: m.OffersReview })));
 const AdminPanel = lazy(() => import('./components/AdminPanel').then(m => ({ default: m.AdminPanel })));
 const FamilyProfileEdit = lazy(() => import('./components/FamilyProfileEdit').then(m => ({ default: m.FamilyProfileEdit })));
-const CompaneroVoz = lazy(() => import('./components/CompaneroVoz'));
+const BenniVoz = lazy(() => import('./components/BenniVoz'));
 const PatientMode = lazy(() => import('./components/PatientMode'));
 const VoiceReminderConfig = lazy(() => import('./components/VoiceReminderConfig'));
 import { LandingPage } from './components/LandingPage';
@@ -749,7 +749,7 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                   }`}
                 >
                   <Volume2 className="h-5 w-5" />
-                  <span className="text-[9px] font-bold">Compañero</span>
+                  <span className="text-[9px] font-bold">Benni</span>
                 </button>
                 <button
                   onClick={() => { setActiveTab('clinical-ai'); }}
@@ -830,10 +830,10 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
 
 export default function App() {
   const params = new URLSearchParams(window.location.search);
-  const companeroParam = params.get('companero');
-  const isCompaneroMode = companeroParam === 'true' || companeroParam === 'briefing';
-  const isEscalateMode = companeroParam === 'escalate';
-  const isBriefingMode = companeroParam === 'briefing';
+  const benniParam = params.get('benni');
+  const isBenniMode = benniParam === 'true' || benniParam === 'briefing';
+  const isEscalateMode = benniParam === 'escalate';
+  const isBriefingMode = benniParam === 'briefing';
   const patientToken = params.get('patient');
 
   if (patientToken) {
@@ -845,10 +845,10 @@ export default function App() {
     );
   }
 
-  if (isCompaneroMode) {
+  if (isBenniMode) {
     return (
       <Suspense fallback={<LoadingSpinner />}>
-        <CompaneroVoz isBriefing={isBriefingMode} />
+        <BenniVoz isBriefing={isBriefingMode} />
       </Suspense>
     );
   }

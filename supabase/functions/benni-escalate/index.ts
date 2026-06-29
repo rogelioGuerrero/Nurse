@@ -132,9 +132,9 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Save message to companero_messages table
+    // Save message to benni_messages table
     const { data: savedMessage, error: saveError } = await supabase
-      .from("companero_messages")
+      .from("benni_messages")
       .insert({
         family_user_id,
         patient_user_id: patient_user_id || null,
@@ -147,7 +147,7 @@ Deno.serve(async (req: Request) => {
       .single();
 
     if (saveError) {
-      console.error("[companero-escalate] save error:", saveError.message);
+      console.error("[benni-escalate] save error:", saveError.message);
     }
 
     // Send push to family
@@ -175,8 +175,8 @@ Deno.serve(async (req: Request) => {
     const payload = JSON.stringify({
       title: "BienCuidar · Tu ser querido pregunta",
       body: question,
-      tag: "companero-question",
-      companero: true,
+      tag: "benni-question",
+      benni: true,
       escalate: true,
       messageId: savedMessage?.id,
     });
@@ -198,14 +198,14 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    console.log(`[companero-escalate] sent push to family: ${sent}, question: "${question}"`);
+    console.log(`[benni-escalate] sent push to family: ${sent}, question: "${question}"`);
     return new Response(JSON.stringify({ sent, saved: !!savedMessage, messageId: savedMessage?.id }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) },
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Error interno";
-    console.error("[companero-escalate] error:", message);
+    console.error("[benni-escalate] error:", message);
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) },

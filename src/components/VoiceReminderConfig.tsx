@@ -84,7 +84,7 @@ export default function VoiceReminderConfig() {
       .lte('created_at', weekEnd.toISOString());
 
     const { count: escalationsCount } = await supabase
-      .from('companero_messages')
+      .from('benni_messages')
       .select('*', { count: 'exact', head: true })
       .eq('family_user_id', currentUser.id)
       .eq('direction', 'patient_to_family')
@@ -92,7 +92,7 @@ export default function VoiceReminderConfig() {
       .lte('created_at', weekEnd.toISOString());
 
     const { count: emergencyCount } = await supabase
-      .from('companero_messages')
+      .from('benni_messages')
       .select('*', { count: 'exact', head: true })
       .eq('family_user_id', currentUser.id)
       .eq('direction', 'patient_to_family')
@@ -124,7 +124,7 @@ export default function VoiceReminderConfig() {
   const loadPendingQuestions = useCallback(async () => {
     if (!currentUser) return;
     const { data, error } = await supabase
-      .from('companero_messages')
+      .from('benni_messages')
       .select('*')
       .eq('family_user_id', currentUser.id)
       .eq('direction', 'patient_to_family')
@@ -147,7 +147,7 @@ export default function VoiceReminderConfig() {
     setSendingReply(questionId);
     try {
       // Insert family response
-      const { error: insertError } = await supabase.from('companero_messages').insert({
+      const { error: insertError } = await supabase.from('benni_messages').insert({
         family_user_id: currentUser.id,
         direction: 'family_to_patient',
         message: text,
@@ -157,7 +157,7 @@ export default function VoiceReminderConfig() {
       if (insertError) throw insertError;
 
       // Mark original question as answered
-      await supabase.from('companero_messages').update({ status: 'answered', responded_at: new Date().toISOString() }).eq('id', questionId);
+      await supabase.from('benni_messages').update({ status: 'answered', responded_at: new Date().toISOString() }).eq('id', questionId);
 
       showToast('Respuesta enviada. Se leerá en voz alta.', 'success');
       setReplyText(prev => ({ ...prev, [questionId]: '' }));
@@ -179,7 +179,7 @@ export default function VoiceReminderConfig() {
     setSuggestion(null);
     setShowSuggestion(true);
     try {
-      const { data, error } = await supabase.functions.invoke('companero-chat', {
+      const { data, error } = await supabase.functions.invoke('benni-chat', {
         body: {
           message: `SUGERENCIA: El familiar escribió este recordatorio para un adulto mayor: "${newReminder.message}". Analiza si es claro o ambiguo. Si falta detalle (color de pastilla, dosis, tamaño, nombre del medicamento, instrucciones específicas), sugiere una versión mejorada más clara y específica. Si ya está bien, di "El mensaje está claro". Responde solo en español, máximo 2 frases de análisis + la versión sugerida si aplica.`,
           reminderContext: 'Modo sugerencia de mejora de recordatorio',
@@ -313,7 +313,7 @@ export default function VoiceReminderConfig() {
         <div className="space-y-3">
           <div className="inline-flex items-center gap-1.5 bg-indigo-600/35 border border-indigo-500/30 px-3.5 py-1.5 rounded-full text-indigo-200 font-bold tracking-wider text-[10px] uppercase">
             <Bell className="h-3.5 w-3.5" />
-            Compañero de Voz
+            Benni
           </div>
           <h2 className="text-3xl font-bold font-serif italic">Recordatorios Auditivos</h2>
           <p className="text-sm text-slate-200 leading-relaxed max-w-3xl">
