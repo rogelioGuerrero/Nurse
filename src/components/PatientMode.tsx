@@ -275,6 +275,20 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
     }
   }, [orbState, hasSTT, startListening, sendHeartbeat]);
 
+  // === Emergency button ===
+  const handleEmergency = useCallback(() => {
+    sendHeartbeat('emergency');
+    setSubtitle('Avisando a tu familia...');
+    setOrbState('speaking');
+    modeRef.current = 'speaking';
+    escalate('BOTÓN DE EMERGENCIA: El paciente presionó el botón "No me siento bien". Por favor llamarlo o visitarlo lo antes posible.');
+    speak('Avisé a tu familia que no te sientes bien. Ya van a llamarte. Si fue un error, no pasa nada.', () => {
+      setOrbState('idle');
+      modeRef.current = 'idle';
+      setSubtitle('');
+    });
+  }, [escalate, speak, sendHeartbeat]);
+
   // === Cleanup ===
   useEffect(() => {
     return () => {
@@ -379,8 +393,8 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
         </button>
       </div>
 
-      {/* Bottom: subtitle + hint */}
-      <div className="pb-16 px-8 w-full max-w-md text-center min-h-[120px] flex flex-col justify-end">
+      {/* Bottom: emergency button + subtitle + hint */}
+      <div className="pb-16 px-8 w-full max-w-md text-center min-h-[120px] flex flex-col justify-end items-center">
         {subtitle ? (
           <p className="text-white/80 text-base font-medium leading-relaxed mb-3">{subtitle}</p>
         ) : (
@@ -392,8 +406,17 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
           </p>
         )}
         {isEscalating && (
-          <p className="text-amber-300/60 text-xs">Enviando pregunta a tu familia...</p>
+          <p className="text-amber-300/60 text-xs mb-3">Enviando pregunta a tu familia...</p>
         )}
+        <button
+          onClick={handleEmergency}
+          className="mt-2 flex items-center gap-2 bg-rose-600 hover:bg-rose-500 active:scale-95 text-white text-sm font-bold px-6 py-3 rounded-full transition-all shadow-lg shadow-rose-600/30"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.007M5.25 6.75h13.5a2.25 2.25 0 012.25 2.25v6a2.25 2.25 0 01-2.25 2.25H5.25a2.25 2.25 0 01-2.25-2.25v-6a2.25 2.25 0 012.25-2.25z" />
+          </svg>
+          No me siento bien
+        </button>
       </div>
 
       <style>{`
