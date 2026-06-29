@@ -202,8 +202,8 @@ Deno.serve(async (req: Request) => {
     const emailContent = await getEmailContent(email_id);
     const bodyText = emailContent.text || stripHtml(emailContent.html);
 
-    if (!bodyText && !emailContent.subject) {
-      console.log(`[email-inbound] Empty email body — discarding`);
+    if (!bodyText || bodyText.trim().length < 5) {
+      console.log(`[email-inbound] Empty or too short email body — discarding`);
       return new Response(JSON.stringify({ ok: true, action: "discarded", reason: "empty_body" }), {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },

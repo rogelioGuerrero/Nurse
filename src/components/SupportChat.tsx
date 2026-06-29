@@ -46,7 +46,9 @@ FAQ:
 - ¿Obligada a aceptar? No. Decidís cuáles aceptar.
 - ¿Cobrar sin factura? Sí, se puede.
 - ¿Dónde funciona? Todo El Salvador.
-- ¿Cómo me contactan? Todo dentro de la plataforma. Datos de contacto solo después de aceptar.`;
+- ¿Cómo me contactan? Todo dentro de la plataforma. Datos de contacto solo después de aceptar.
+- ¿Puedo preguntar a la familia antes de aceptar? Sí. Al enviar tu oferta podés escribir un mensaje personalizado preguntando sobre insumos, necesidades específicas o cualquier detalle. La familia lee tu mensaje al revisar las ofertas.
+- ¿Quién lleva los insumos? Lo acordás con la familia en el mensaje de tu oferta o por teléfono después de aceptar.`;
 
 const FAMILY_PROMPT = `Sos el asistente de BienCuidar. Plataforma que conecta familias con enfermeras en El Salvador.
 

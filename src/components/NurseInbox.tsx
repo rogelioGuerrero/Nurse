@@ -63,6 +63,7 @@ export const NurseInbox: FC = () => {
   // Modal de ajuste de tarifa
   const [acceptModal, setAcceptModal] = useState<{ request: CareRequest; slotIndex: number } | null>(null);
   const [offerRate, setOfferRate] = useState<number>(0);
+  const [offerMessage, setOfferMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'available' | 'my-offers'>('available');
 
   // Find the current nurse's record
@@ -151,6 +152,7 @@ export const NurseInbox: FC = () => {
     if (!myNurse) return;
     setAcceptModal({ request, slotIndex });
     setOfferRate(myNurse.shift_rate);
+    setOfferMessage('');
   };
 
   const handleConfirmOffer = () => {
@@ -161,7 +163,7 @@ export const NurseInbox: FC = () => {
       nurse_id: myNurse.id,
       slot_index: slotIndex,
       offered_rate: offerRate,
-      message: 'Confirmo disponibilidad para esta visita.'
+      message: offerMessage.trim() || 'Confirmo disponibilidad para esta visita.'
     });
     setAcceptModal(null);
   };
@@ -504,6 +506,19 @@ export const NurseInbox: FC = () => {
                   <div className="border-t border-indigo-100 pt-1 flex justify-between"><span className="font-bold text-slate-700">Recibes neto:</span><span className="font-black text-emerald-600">${(offerRate * 0.90).toFixed(2)}</span></div>
                 </div>
               )}
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Mensaje a la familia (opcional)</label>
+              <textarea
+                value={offerMessage}
+                onChange={e => setOfferMessage(e.target.value)}
+                rows={3}
+                maxLength={500}
+                placeholder="Ej: Tengo experiencia con este tipo de cuidado. ¿Podrían indicarme si cuentan con los insumos en casa o prefieren que yo los lleve?"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs text-slate-700 outline-none focus:border-indigo-300 focus:ring-1 focus:ring-indigo-200 resize-none"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">Este mensaje se enviará a la familia junto con tu oferta.</p>
             </div>
 
             <div className="flex gap-2">
