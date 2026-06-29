@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 import { useApp } from '../context/AppContext';
 import { useToast } from './Toast';
-import { Plus, Trash2, Send, Bell, Clock, Volume2, MessageCircle, AlertCircle, Check, X, Smartphone, Copy, Activity } from 'lucide-react';
+import { Plus, Trash2, Send, Bell, Clock, Volume2, MessageCircle, AlertCircle, Check, X, Smartphone, Copy, Activity, ClipboardList } from 'lucide-react';
 
 interface VoiceReminder {
   id: string;
@@ -29,6 +29,7 @@ export default function VoiceReminderConfig() {
   const [suggesting, setSuggesting] = useState(false);
   const [showSuggestion, setShowSuggestion] = useState(false);
   const [patientActivity, setPatientActivity] = useState<{ last_seen_at: string; last_interaction_type: string } | null>(null);
+  const [weeklySummary, setWeeklySummary] = useState<{ reminders_sent: number; escalations: number; emergency_presses: number; wellness_alerts: number } | null>(null);
 
   const [newReminder, setNewReminder] = useState({
     label: '',
@@ -63,6 +64,56 @@ export default function VoiceReminderConfig() {
       .eq('family_user_id', currentUser.id)
       .maybeSingle();
     if (activity) setPatientActivity(activity);
+
+    // Load weekly summary (current week only)
+    const now = new Date();
+    const day = now.getDay();
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - day);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(now);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    const { count: remindersCount } = await supabase
+      .from('notification_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('family_user_id', currentUser.id)
+      .eq('notification_type', 'reminder')
+      .eq('push_status', 'sent')
+      .gte('created_at', weekStart.toISOString())
+      .lte('created_at', weekEnd.toISOString());
+
+    const { count: escalationsCount } = await supabase
+      .from('companero_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('family_user_id', currentUser.id)
+      .eq('direction', 'patient_to_family')
+      .gte('created_at', weekStart.toISOString())
+      .lte('created_at', weekEnd.toISOString());
+
+    const { count: emergencyCount } = await supabase
+      .from('companero_messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('family_user_id', currentUser.id)
+      .eq('direction', 'patient_to_family')
+      .ilike('message', '%BOTÓN DE EMERGENCIA%')
+      .gte('created_at', weekStart.toISOString())
+      .lte('created_at', weekEnd.toISOString());
+
+    const { count: wellnessCount } = await supabase
+      .from('notification_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('family_user_id', currentUser.id)
+      .in('notification_type', ['wellness_alert', 'unread_reminders'])
+      .gte('created_at', weekStart.toISOString())
+      .lte('created_at', weekEnd.toISOString());
+
+    setWeeklySummary({
+      reminders_sent: remindersCount || 0,
+      escalations: escalationsCount || 0,
+      emergency_presses: emergencyCount || 0,
+      wellness_alerts: wellnessCount || 0,
+    });
   }, [currentUser]);
 
   useEffect(() => {
@@ -595,6 +646,23 @@ export default function VoiceReminderConfig() {
             <p className="text-[10px] text-slate-500 mt-0.5">Abre la cámara del teléfono de tu ser querido y apunta al código QR para abrir el Modo Paciente directamente.</p>
           </div>
         </div>
+
+        {/* Weekly summary */}
+        {weeklySummary && (
+          <div className="bg-white border border-indigo-100 rounded-xl p-4 space-y-2">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700 uppercase tracking-wider border-b border-slate-100 pb-2">
+              <ClipboardList className="h-3.5 w-3.5 text-indigo-600" />
+              <span>Resumen de esta semana</span>
+            </div>
+            <div className="text-xs text-slate-600 space-y-1.5 leading-relaxed">
+              <p>• <span className="font-semibold">Recordatorios enviados:</span> {weeklySummary.reminders_sent}</p>
+              <p>• <span className="font-semibold">Mensajes escalados:</span> {weeklySummary.escalations}</p>
+              <p>• <span className="font-semibold">Botón de emergencia:</span> {weeklySummary.emergency_presses}</p>
+              <p>• <span className="font-semibold">Alertas de bienestar:</span> {weeklySummary.wellness_alerts}</p>
+            </div>
+            <p className="text-[10px] text-slate-400 pt-1 border-t border-slate-50">Se reinicia cada domingo. Recibirás un push recordándote revisar este resumen.</p>
+          </div>
+        )}
       </div>
 
       <div className="bg-indigo-50/70 border border-indigo-200/30 rounded-2xl p-4 space-y-2 text-[11px] text-indigo-900 leading-normal font-medium">
