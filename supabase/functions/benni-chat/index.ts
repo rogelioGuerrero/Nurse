@@ -10,6 +10,7 @@ const ALLOWED_ORIGINS = [
   "https://biencuidar.agtisa.com",
   "https://localnurse.netlify.app",
   "https://zqgtkrqfyhcvgagjhbnv.supabase.co",
+  "http://localhost:3000",
 ];
 
 function corsHeaders(origin?: string) {

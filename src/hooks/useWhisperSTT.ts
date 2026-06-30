@@ -58,7 +58,9 @@ export function useWhisperSTT({
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       try {
         mediaRecorderRef.current.stop();
-      } catch {}
+      } catch (e) {
+        console.error('[useWhisperSTT] mediaRecorder.stop() error:', e);
+      }
     }
   }, []);
 
@@ -116,6 +118,7 @@ export function useWhisperSTT({
         : '';
 
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      mediaRecorderRef.current = recorder;
       audioChunksRef.current = [];
 
       recorder.ondataavailable = (event) => {
@@ -141,7 +144,6 @@ export function useWhisperSTT({
         const chunks = audioChunksRef.current;
         if (chunks.length > 0) {
           const blob = new Blob(chunks, { type: mimeType || 'audio/webm' });
-          // Only transcribe if recording was long enough (at least 500ms of audio)
           if (blob.size > 1000) {
             transcribeAudio(blob);
           }
@@ -169,8 +171,8 @@ export function useWhisperSTT({
         // Calculate average volume
         const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
 
-        if (avg > 10) {
-          // Sound detected
+        if (avg > 20) {
+          // Sound detected (threshold 20 to filter background noise)
           lastSoundRef.current = Date.now();
         } else {
           // Silence — check if threshold exceeded
