@@ -67,18 +67,22 @@ async function verifyCSSPRegistration(registration: string): Promise<CSSPResult>
     const btnId = btnMatch ? btnMatch[1] : "frm1:j_idt45";
 
     const formData = new URLSearchParams();
+    const scrollState = "0,0";
+    const emptyValue = "";
+    const rppValue = "5";
+    const gridValue = "grid";
     formData.append(btnId, btnId);
     formData.append(`${formId}`, `${formId}`);
-    formData.append(`${formId}:nombre`, "");
-    formData.append(`${formId}:apellidos`, "");
-    formData.append(`${formId}:junta_focus`, "");
-    formData.append(`${formId}:junta_input`, "");
-    formData.append(`${formId}:profesion_focus`, "");
-    formData.append(`${formId}:profesion_input`, "");
+    formData.append(`${formId}:nombre`, emptyValue);
+    formData.append(`${formId}:apellidos`, emptyValue);
+    formData.append(`${formId}:junta_focus`, emptyValue);
+    formData.append(`${formId}:junta_input`, emptyValue);
+    formData.append(`${formId}:profesion_focus`, emptyValue);
+    formData.append(`${formId}:profesion_input`, emptyValue);
     formData.append(`${formId}:idProfesional`, registration);
-    formData.append(`${formId}:profesionales_rppDD`, "5");
-    formData.append(`${formId}:profesionales_scrollState`, "0,0");
-    formData.append(`${formId}:j_idt59`, "grid");
+    formData.append(`${formId}:profesionales_rppDD`, rppValue);
+    formData.append(`${formId}:profesionales_scrollState`, scrollState);
+    formData.append(`${formId}:j_idt59`, gridValue);
     formData.append("javax.faces.ViewState", viewState);
     formData.append("javax.faces.partial.ajax", "true");
     formData.append("javax.faces.source", btnId);
@@ -140,6 +144,55 @@ async function verifyCSSPRegistration(registration: string): Promise<CSSPResult>
     const message = err instanceof Error ? err.message : "Error desconocido";
     return { found: false, error: `Error de conexión con CSSP: ${message}` };
   }
+}
+
+/**
+ * Genera variantes de un número CSSP para intentar búsquedas alternativas.
+ * Útil cuando el usuario ingresa el número con prefijos o formatos incorrectos.
+ */
+function generateCsspVariants(registration: string): string[] {
+  const variants: string[] = [];
+  const original = registration.trim().toUpperCase();
+
+  // 1. Original
+  variants.push(original);
+
+  // 2. Remover prefijos comunes (JVPE, CSSP, etc.)
+  const withoutPrefix = original.replace(/^(JVPE|CSSP|ENF|LIC|TEC|AUX)-?/i, "");
+  if (withoutPrefix !== original) {
+    variants.push(withoutPrefix);
+  }
+
+  // 3. Extraer solo números (4+ dígitos)
+  const numbersOnly = original.replace(/[^0-9]/g, "");
+  if (numbersOnly.length >= 4 && numbersOnly !== original) {
+    variants.push(numbersOnly);
+  }
+
+  // 4. Si tiene formato tipo "JVPE-TE-22811", intentar "TE-22811"
+  const parts = original.split("-");
+  if (parts.length >= 3) {
+    // Remover primer prefijo, mantener el resto
+    const withoutFirstPrefix = parts.slice(1).join("-");
+    if (withoutFirstPrefix !== original) {
+      variants.push(withoutFirstPrefix);
+    }
+  }
+
+  // 5. Reemplazar guiones con espacios
+  const withSpaces = original.replace(/-/g, " ");
+  if (withSpaces !== original) {
+    variants.push(withSpaces);
+  }
+
+  // 6. Remover espacios y guiones (compacto)
+  const compact = original.replace(/[-\s]/g, "");
+  if (compact !== original && compact.length >= 4) {
+    variants.push(compact);
+  }
+
+  // Eliminar duplicados manteniendo orden
+  return [...new Set(variants)];
 }
 
 /**
@@ -253,7 +306,8 @@ async function notifyAdminDuplicate(
 }
 
 /**
- * Ejecuta verifyCSSPRegistration con reintentos.
+ * Ejecuta verifyCSSPRegistration con reintentos y variantes.
+ * Si el número original no se encuentra, prueba variantes automáticamente.
  * Si hay un mismatch, reintenta hasta 3 veces para descartar falsos positivos
  * causados por errores transitorios del scraping (sesión JSF, parseo, etc).
  * Solo retorna un mismatch si todas las tentativas concuerdan en que hay discrepancia.
@@ -262,82 +316,103 @@ async function verifyWithRetries(
   registration: string,
   nurseName?: string,
   nurseLevel?: string
-): Promise<{ result: CSSPResult; mismatches: string[]; attempts: number }> {
+): Promise<{ result: CSSPResult; mismatches: string[]; attempts: number; usedVariant?: string }> {
   const MAX_ATTEMPTS = 3;
   let lastResult: CSSPResult = { found: false };
   let lastMismatches: string[] = [];
+  let usedVariant: string | undefined = undefined;
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const result = await verifyCSSPRegistration(registration);
-    lastResult = result;
+  // Generar variantes del número CSSP
+  const variants = generateCsspVariants(registration);
 
-    // Si hay error de conexión, reintentar
-    if (result.error) {
+  // Intentar cada variante hasta encontrar una que funcione
+  for (const variant of variants) {
+    let variantAttempts = 0;
+
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      variantAttempts++;
+      const result = await verifyCSSPRegistration(variant);
+      lastResult = result;
+
+      // Si hay error de conexión, reintentar misma variante
+      if (result.error) {
+        if (attempt < MAX_ATTEMPTS) {
+          await new Promise(r => setTimeout(r, 1500 * attempt));
+          continue;
+        }
+        // Error persistente con esta variante, probar siguiente
+        break;
+      }
+
+      // Si se encontró, verificar mismatches
+      if (result.found) {
+        if (variant !== registration) {
+          usedVariant = variant;
+        }
+
+        const mismatches: string[] = [];
+
+        if (nurseName && result.name) {
+          const normalize = (s: string) => s.toUpperCase().trim()
+            .replace(/[ÁÀ]/g, "A").replace(/[ÉÈ]/g, "E").replace(/[ÍÌ]/g, "I")
+            .replace(/[ÓÒ]/g, "O").replace(/[ÚÙ]/g, "U")
+            .replace(/\s+(DE|DEL|LA|LAS|LOS|Y)\s+/g, " ")
+            .replace(/\s+/g, " ").trim();
+          const csspName = normalize(result.name);
+          const givenName = normalize(nurseName);
+          const csspParts = csspName.split(" ").filter(p => p.length > 2);
+          const givenParts = givenName.split(" ").filter(p => p.length > 2);
+          const matchedParts = givenParts.filter(p => csspParts.includes(p));
+          result.name_match = matchedParts.length >= Math.ceil(givenParts.length * 0.5);
+          if (!result.name_match) {
+            mismatches.push(`Nombre no coincide (registrado: "${nurseName}", CSSP: "${result.name}")`);
+          }
+        }
+
+        if (nurseLevel && result.profession) {
+          const profMap: Record<string, string[]> = {
+            "Licenciada": ["LIC. EN ENFERMERIA", "LICENCIADA"],
+            "Tecnóloga": ["TECNOLOGO", "TECNOLOGA"],
+            "Técnica": ["TECNICO", "TECNICA"],
+            "Auxiliar": ["AUXILIAR"],
+          };
+          const expected = profMap[nurseLevel] || [];
+          const csspProfUpper = result.profession.toUpperCase();
+          result.profession_match = expected.some(e => csspProfUpper.includes(e));
+          if (!result.profession_match) {
+            mismatches.push(`Profesión no coincide (registrada como: "${nurseLevel}", CSSP: "${result.profession}")`);
+          }
+        }
+
+        // Si no hay mismatches, retornar inmediatamente (verificado)
+        if (mismatches.length === 0) {
+          return { result, mismatches: [], attempts: variantAttempts, usedVariant };
+        }
+
+        // Hay mismatches — si no es el último intento, reintentar misma variante
+        lastMismatches = mismatches;
+        if (attempt < MAX_ATTEMPTS) {
+          await new Promise(r => setTimeout(r, 1500 * attempt));
+          continue;
+        }
+
+        // Todos los intentos de esta variante tienen mismatches
+        return { result, mismatches: lastMismatches, attempts: variantAttempts, usedVariant };
+      }
+
+      // No se encontró con esta variante, reintentar (puede ser sesión expirada)
       if (attempt < MAX_ATTEMPTS) {
         await new Promise(r => setTimeout(r, 1500 * attempt));
         continue;
       }
-      return { result, mismatches: [], attempts: attempt };
-    }
 
-    // Si no se encontró, reintentar (puede ser sesión expirada)
-    if (!result.found) {
-      if (attempt < MAX_ATTEMPTS) {
-        await new Promise(r => setTimeout(r, 1500 * attempt));
-        continue;
-      }
-      return { result, mismatches: [], attempts: attempt };
-    }
-
-    // Se encontró — verificar mismatches
-    const mismatches: string[] = [];
-
-    if (nurseName && result.name) {
-      const normalize = (s: string) => s.toUpperCase().trim()
-        .replace(/[ÁÀ]/g, "A").replace(/[ÉÈ]/g, "E").replace(/[ÍÌ]/g, "I")
-        .replace(/[ÓÒ]/g, "O").replace(/[ÚÙ]/g, "U")
-        .replace(/\s+(DE|DEL|LA|LAS|LOS|Y)\s+/g, " ")
-        .replace(/\s+/g, " ").trim();
-      const csspName = normalize(result.name);
-      const givenName = normalize(nurseName);
-      const csspParts = csspName.split(" ").filter(p => p.length > 2);
-      const givenParts = givenName.split(" ").filter(p => p.length > 2);
-      const matchedParts = givenParts.filter(p => csspParts.includes(p));
-      result.name_match = matchedParts.length >= Math.ceil(givenParts.length * 0.5);
-      if (!result.name_match) {
-        mismatches.push(`Nombre no coincide (registrado: "${nurseName}", CSSP: "${result.name}")`);
-      }
-    }
-
-    if (nurseLevel && result.profession) {
-      const profMap: Record<string, string[]> = {
-        "Licenciada": ["LIC. EN ENFERMERIA", "LICENCIADA"],
-        "Tecnóloga": ["TECNOLOGO", "TECNOLOGA"],
-        "Técnica": ["TECNICO", "TECNICA"],
-        "Auxiliar": ["AUXILIAR"],
-      };
-      const expected = profMap[nurseLevel] || [];
-      const csspProfUpper = result.profession.toUpperCase();
-      result.profession_match = expected.some(e => csspProfUpper.includes(e));
-      if (!result.profession_match) {
-        mismatches.push(`Profesión no coincide (registrada como: "${nurseLevel}", CSSP: "${result.profession}")`);
-      }
-    }
-
-    // Si no hay mismatches, retornar inmediatamente (verificado)
-    if (mismatches.length === 0) {
-      return { result, mismatches: [], attempts: attempt };
-    }
-
-    // Hay mismatches — si no es el último intento, reintentar
-    lastMismatches = mismatches;
-    if (attempt < MAX_ATTEMPTS) {
-      await new Promise(r => setTimeout(r, 1500 * attempt));
-      continue;
+      // Esta variante no funcionó, probar siguiente
+      break;
     }
   }
 
-  return { result: lastResult, mismatches: lastMismatches, attempts: MAX_ATTEMPTS };
+  // Ninguna variante funcionó
+  return { result: lastResult, mismatches: lastMismatches, attempts: MAX_ATTEMPTS, usedVariant };
 }
 
 /**
@@ -481,8 +556,8 @@ Deno.serve(async (req: Request) => {
     }
     // --- Fin verificación duplicado ---
 
-    // Ejecutar verificación con reintentos
-    const { result, mismatches, attempts } = await verifyWithRetries(cssp_registration, nurse_name, nurse_level);
+    // Ejecutar verificación con reintentos y variantes
+    const { result, mismatches, attempts, usedVariant } = await verifyWithRetries(cssp_registration, nurse_name, nurse_level);
 
     const now = new Date().toISOString();
 
@@ -511,7 +586,7 @@ Deno.serve(async (req: Request) => {
 
     if (result.found) {
       if (mismatches.length > 0) {
-        const notes = `Verificación CSSP con discrepancias (${attempts} intentos): ${mismatches.join("; ")}`;
+        const notes = `Verificación CSSP con discrepancias (${attempts} intentos)${usedVariant ? ` (variante usada: ${usedVariant})` : ""}: ${mismatches.join("; ")}`;
         await supabase
           .from("nurses")
           .update({
@@ -537,27 +612,42 @@ Deno.serve(async (req: Request) => {
             data: result,
             mismatches,
             attempts,
+            usedVariant,
           }),
           { status: 200, headers: { "Content-Type": "application/json" } }
         );
       }
 
+      const notes = `Verificado automáticamente (${attempts} intento${attempts > 1 ? "s" : ""})${usedVariant ? ` (variante usada: ${usedVariant})` : ""}. Nombre: ${result.name || "N/A"}, Profesión: ${result.profession || "N/A"}`;
       await supabase
         .from("nurses")
         .update({
           cssp_verification_status: "auto_verified",
           cssp_verified: true,
           cssp_verification_date: now,
-          cssp_verification_notes: `Verificado automáticamente (${attempts} intento${attempts > 1 ? "s" : ""}). Nombre: ${result.name || "N/A"}, Profesión: ${result.profession || "N/A"}`,
+          cssp_verification_notes: notes,
         })
         .eq("id", nurse_id);
+
+      // Si se usó una variante diferente, enviar correo para que actualice su número
+      if (usedVariant && usedVariant !== cssp_registration) {
+        await sendCsspEmail(
+          supabase,
+          nurse_id,
+          "actualización de número CSSP recomendada",
+          `Tu registro CSSP fue verificado exitosamente usando el formato "${usedVariant}". Por favor actualiza tu número de registro en tu perfil a este formato correcto: ${usedVariant}. Ingresa a https://biencuidar.agtisa.com, ve a "Mi Perfil" y corrige tu número CSSP.`
+        );
+      }
 
       return new Response(
         JSON.stringify({
           status: "auto_verified",
-          message: "Registro CSSP verificado automáticamente",
+          message: usedVariant && usedVariant !== cssp_registration
+            ? `Registro CSSP verificado automáticamente usando la variante "${usedVariant}". Se envió correo para que actualices tu número.`
+            : "Registro CSSP verificado automáticamente",
           data: result,
           attempts,
+          usedVariant,
         }),
         { status: 200, headers: { "Content-Type": "application/json" } }
       );

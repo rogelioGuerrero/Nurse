@@ -13,24 +13,26 @@ interface NurseEmailRequest {
 function buildBaseHtml(nurse: NurseEmailRequest): string {
   return `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #1e293b;">
   <p>Hola ${nurse.nurse_name},</p>
-  <p>Detectamos un problema con tu número de registro CSSP <strong>${nurse.cssp_registration}</strong> en BienCuidar.</p>
-  <p><strong>Problema:</strong> ${nurse.problem_type}<br>${nurse.problem_detail}</p>
-  <p>Ingresá a <a href="https://biencuidar.agtisa.com">biencuidar.agtisa.com</a>, entrá en <strong>"Mi Perfil"</strong> y corregí tu número CSSP.</p>
+  <p>Tenemos un detalle con tu número de registro CSSP <strong>${nurse.cssp_registration}</strong> en BienCuidar.</p>
+  <p><strong>Qué pasó:</strong> ${nurse.problem_type}<br>${nurse.problem_detail}</p>
+  <p>Por favor, ingresá a <a href="https://biencuidar.agtisa.com">biencuidar.agtisa.com</a>, andá a <strong>"Mi Perfil"</strong> y corregí tu número CSSP así podés seguir recibiendo ofertas de trabajo.</p>
   <p style="font-size: 13px; color: #94a3b8; margin-top: 24px;">BienCuidar — Plataforma de cuidado de salud en El Salvador<br>info@agtisa.com</p>
 </div>`;
 }
 
 async function humanizeWithGroq(nurse: NurseEmailRequest, baseHtml: string): Promise<string> {
-  const systemPrompt = `Sos el asistente de comunicaciones de BienCuidar. Recibís un correo en HTML y lo reescribís para que suene más cálido y humano, sin cambiar la información.
+  const systemPrompt = `Sos el asistente de comunicaciones de BienCuidar. Reescribí el correo HTML para que suene empático y amable, sin cambiar la información.
 
 REGLAS:
 1. NO agregues información nueva. NO inventes nada.
 2. Mantené todas las etiquetas HTML del original.
-3. Solo suavizá el tono. Hacé que suene más amable pero sobrio.
+3. Tono empático y colaborativo, NO crítico ni acusatorio. La enfermera cometió un error inocente, ayúdala a corregirlo.
 4. Usá voseo salvadoreño.
 5. Máximo 120 palabras.
-6. NO menciones IA ni tecnología.
-7. Devolvé solo el HTML, sin explicaciones.`;
+6. NO usés mayúsculas innecesarias (solo primera letra de oración y nombres propios).
+7. Idioma: español por defecto. NO uses inglés a menos que sea estrictamente necesario.
+8. NO menciones IA ni tecnología.
+9. Devolvé solo el HTML, sin explicaciones.`;
 
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
