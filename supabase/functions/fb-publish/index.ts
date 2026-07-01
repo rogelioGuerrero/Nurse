@@ -25,6 +25,7 @@ interface PublishRequest {
   text?: string;
   generateText?: boolean;
   imageUrl?: string;
+  imageBase64?: string;
 }
 
 async function generatePostText(topic: string): Promise<string> {
@@ -124,6 +125,51 @@ async function publishTextWithPhoto(
   return photoId;
 }
 
+async function uploadPhotoByBase64(
+  pageId: string,
+  pageToken: string,
+  base64Data: string,
+  caption: string,
+): Promise<string> {
+  const boundary = "----FormBoundary" + Math.random().toString(36).slice(2);
+  const binary = atob(base64Data);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+  const parts = [
+    new TextEncoder().encode(
+      `--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="access_token"\r\n\r\n` +
+        `${pageToken}\r\n` +
+        `--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="caption"\r\n\r\n` +
+        `${caption}\r\n` +
+        `--${boundary}\r\n` +
+        `Content-Disposition: form-data; name="source"; filename="ad.jpg\r\n` +
+        `Content-Type: image/jpeg\r\n\r\n`
+    ),
+    bytes,
+    new TextEncoder().encode(`\r\n--${boundary}--\r\n`),
+  ];
+
+  const body = new Uint8Array(parts.reduce((sum, p) => sum + p.length, 0));
+  let offset = 0;
+  for (const part of parts) { body.set(part, offset); offset += part.length; }
+
+  const response = await fetch(`${FB_GRAPH_URL}/${pageId}/photos`, {
+    method: "POST",
+    headers: { "Content-Type": `multipart/form-data; boundary=${boundary}` },
+    body,
+  });
+
+  if (!response.ok) {
+    const errText = await response.text();
+    throw new Error(`Facebook photo upload error: ${response.status} - ${errText}`);
+  }
+  const data = await response.json();
+  return data.id;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders(req.headers.get("Origin") || undefined) });
@@ -163,14 +209,17 @@ Deno.serve(async (req: Request) => {
 
     let postId: string;
 
-    if (body.imageUrl) {
+    if (body.imageBase64) {
+      postId = await uploadPhotoByBase64(pageId, pageToken, body.imageBase64, postText);
+    } else if (body.imageUrl) {
       postId = await publishTextWithPhoto(pageId, pageToken, postText, body.imageUrl);
     } else {
       postId = await publishTextOnly(pageId, pageToken, postText);
     }
 
+    const hasImage = !!(body.imageBase64 || body.imageUrl);
     return new Response(
-      JSON.stringify({ success: true, postId, text: postText, hasImage: !!body.imageUrl }),
+      JSON.stringify({ success: true, postId, text: postText, hasImage }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) } },
     );
   } catch (err) {
