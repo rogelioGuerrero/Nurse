@@ -384,11 +384,13 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
     }
   }, [whisperSTT.isRecording, whisperSTT.isTranscribing]);
 
-  // === Handle Whisper errors — fall back to Web Speech API ===
+  // === Handle Whisper errors — fall back to Web Speech API for this interaction only ===
   useEffect(() => {
     if (whisperSTT.error && !whisperFailedRef.current) {
-      console.warn('[BenniVoz] Whisper error, switching to fallback:', whisperSTT.error);
+      console.warn('[BenniVoz] Whisper error, using Web Speech fallback for this interaction:', whisperSTT.error);
       whisperFailedRef.current = true;
+      // Reset after 30s so next interaction tries Whisper again
+      setTimeout(() => { whisperFailedRef.current = false; }, 30_000);
     }
   }, [whisperSTT.error]);
 
