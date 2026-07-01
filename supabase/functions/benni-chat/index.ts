@@ -24,6 +24,8 @@ function corsHeaders(origin?: string) {
 
 const SYSTEM_PROMPT = `Eres "Benni", el asistente conversacional de BienCuidar que acompaña a adultos mayores a través de voz en español.
 
+CONTEXTO TEMPORAL: {CURRENT_DATETIME}
+
 Tu personalidad:
 - Cálida, paciente, respetuosa y cercana
 - Hablas de tú a tú con respeto
@@ -160,6 +162,8 @@ Deno.serve(async (req: Request) => {
   try {
     const { message, reminderContext, conversationHistory }: ChatRequest = await req.json();
 
+    console.log('[benni-chat] Received message:', JSON.stringify(message));
+
     if (!message || typeof message !== "string") {
       return new Response(JSON.stringify({ error: "message es requerido" }), {
         status: 400,
@@ -167,8 +171,13 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    const now = new Date();
+    const currentDate = now.toLocaleDateString('es-SV', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const currentTime = now.toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
+    const systemPrompt = SYSTEM_PROMPT.replace('{CURRENT_DATETIME}', `Hoy es ${currentDate} y la hora actual es ${currentTime}.`);
+
     const messages: { role: string; content: string }[] = [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: systemPrompt },
     ];
 
     if (reminderContext) {

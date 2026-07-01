@@ -87,6 +87,8 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
   const inactivityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const whisperFailedRef = useRef(false);
   const handleUserMessageRef = useRef<(text: string) => void>(() => {});
+  const [debugSteps, setDebugSteps] = useState<{ step: string; status: 'pending' | 'ok' | 'error'; detail: string }[]>([]);
+  const [showDebug, setShowDebug] = useState(false);
 
   useEffect(() => {
     if (!('speechSynthesis' in window)) {
@@ -326,6 +328,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
     onTranscript: (text) => {
       silenceCountRef.current = 0;
       setTranscript(text);
+      setDebugSteps(prev => [...prev, { step: '1. Whisper STT', status: 'ok', detail: `"${text}"` }]);
       handleUserMessageRef.current(text);
     },
     onSilence: () => {
@@ -357,6 +360,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
     // Try Whisper first
     setIsListening(true);
     setTranscript('');
+    setDebugSteps([{ step: '0. Grabando audio', status: 'pending', detail: 'Escuchando micrófono...' }]);
 
     try {
       await whisperSTT.startRecording();
@@ -478,6 +482,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
     }
 
     try {
+      setDebugSteps(prev => [...prev, { step: '2. Enviando a Groq', status: 'pending', detail: `"${userText}"` }]);
       const { data, error } = await supabase.functions.invoke('benni-chat', {
         body: {
           message: userText,
@@ -492,6 +497,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
 
       const responseType = data.type || 'chat';
       const spokenText = data.spoken || data.content || '';
+      setDebugSteps(prev => [...prev, { step: '3. Respuesta de Groq', status: 'ok', detail: `type: ${responseType} | "${spokenText}"` }]);
       const aiTurn: ConversationTurn = { role: 'assistant', content: spokenText, time: new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }) };
       const updatedConv = [...conversationRef.current, aiTurn];
       conversationRef.current = updatedConv;
@@ -560,7 +566,9 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
         });
       } else {
         // Normal chat response
+        setDebugSteps(prev => [...prev, { step: '4. Benni hablando (TTS)', status: 'pending', detail: `"${spokenText}"` }]);
         speak(spokenText, () => {
+          setDebugSteps(prev => prev.map(s => s.step === '4. Benni hablando (TTS)' ? { ...s, status: 'ok' } : s));
           if (isFarewell) {
             setConversation([]);
             conversationRef.current = [];
@@ -572,6 +580,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
       }
     } catch (err) {
       console.error('benni-chat error:', err);
+      setDebugSteps(prev => [...prev, { step: '3. Respuesta de Groq', status: 'error', detail: err instanceof Error ? err.message : 'Error desconocido' }]);
       setIsThinking(false);
       const fallback = 'No te escuché bien, ¿puedes repetirlo?';
       const aiTurn: ConversationTurn = { role: 'assistant', content: fallback, time: new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }) };
@@ -1026,6 +1035,33 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
             </select>
           </div>
         </details>
+      )}
+
+      {/* Debug panel */}
+      <button
+        onClick={() => setShowDebug(!showDebug)}
+        className="mt-2 text-xs text-indigo-400/60 hover:text-indigo-300"
+      >
+        {showDebug ? 'Ocultar debug' : 'Mostrar debug'}
+      </button>
+      {showDebug && debugSteps.length > 0 && (
+        <div className="mt-2 w-full max-w-md space-y-2 bg-black/40 rounded-xl p-3 border border-white/10">
+          {debugSteps.map((s, i) => (
+            <div key={i} className="flex items-start gap-2 text-xs">
+              <span className={
+                s.status === 'ok' ? 'text-green-400' :
+                s.status === 'error' ? 'text-red-400' :
+                'text-yellow-400 animate-pulse'
+              }>
+                {s.status === 'ok' ? '✓' : s.status === 'error' ? '✗' : '⏳'}
+              </span>
+              <div className="flex-1">
+                <span className="text-slate-300 font-medium">{s.step}</span>
+                <p className="text-slate-400 mt-0.5">{s.detail}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
