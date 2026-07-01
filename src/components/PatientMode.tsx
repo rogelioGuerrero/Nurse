@@ -18,6 +18,7 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
   const [conversation, setConversation] = useState<ConversationTurn[]>([]);
   const [subtitle, setSubtitle] = useState<string>('');
   const [isEscalating, setIsEscalating] = useState(false);
+  const [showQuickPhrases, setShowQuickPhrases] = useState(false);
 
   const recognitionRef = useRef<any>(null);
   const modeRef = useRef<OrbState>('idle');
@@ -256,6 +257,8 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
       }
     },
     silenceThresholdMs: 3000,
+    minRecordingMs: 1500,
+    prompt: conversationRef.current.slice(-4).map(t => t.text).join(' '),
   });
 
   // === Web Speech API fallback (used when Whisper fails) ===
@@ -361,8 +364,12 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
     if (whisperSTT.error && !whisperFailedRef.current) {
       console.warn('[PatientMode] Whisper error, using Web Speech fallback for this interaction:', whisperSTT.error);
       whisperFailedRef.current = true;
+      setShowQuickPhrases(true);
       // Reset after 30s so next interaction tries Whisper again
-      setTimeout(() => { whisperFailedRef.current = false; }, 30_000);
+      setTimeout(() => {
+        whisperFailedRef.current = false;
+        setShowQuickPhrases(false);
+      }, 30_000);
     }
   }, [whisperSTT.error]);
 
@@ -402,6 +409,14 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
       setSubtitle('');
     });
   }, [escalate, speak, sendHeartbeat]);
+
+  // === Quick phrase buttons (fallback when STT fails) ===
+  const handleQuickPhrase = useCallback((phrase: string) => {
+    sendHeartbeat('quick_phrase');
+    setShowQuickPhrases(false);
+    setSubtitle(phrase);
+    handleUserMessageRef.current(phrase);
+  }, [sendHeartbeat]);
 
   // === Cleanup ===
   useEffect(() => {
@@ -509,6 +524,31 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
         </button>
       </div>
 
+      {/* Quick phrase buttons — shown when STT fails */}
+      {showQuickPhrases && orbState === 'idle' && (
+        <div className="px-8 w-full max-w-md mb-4">
+          <p className="text-white/40 text-xs text-center mb-3">Toca una opción para hablar con Benni</p>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              'Hola Benni',
+              '¿Qué hora es?',
+              '¿Qué día es hoy?',
+              'Cuéntame un cuento',
+              'Llama a mi familia',
+              'Háblame de mi familia',
+            ].map((phrase) => (
+              <button
+                key={phrase}
+                onClick={() => handleQuickPhrase(phrase)}
+                className="bg-indigo-600/40 hover:bg-indigo-500/50 active:scale-95 text-white text-sm font-medium px-4 py-4 rounded-2xl transition-all border border-indigo-400/20"
+              >
+                {phrase}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Bottom: emergency button + subtitle + hint */}
       <div className="pb-16 px-8 w-full max-w-md text-center min-h-[120px] flex flex-col justify-end items-center">
         {subtitle ? (
@@ -517,8 +557,8 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
           <p className="text-white/30 text-sm mb-3">
             {orbState === 'idle' && (hasSTT || !whisperFailedRef.current ? 'Toca para hablar' : 'Esperando mensajes...')}
             {orbState === 'speaking' && 'Toca para silenciar'}
-            {orbState === 'listening' && 'Escuchando...'}
-            {orbState === 'transcribing' && 'Transcribiendo...'}
+            {orbState === 'listening' && 'Te escuento, habla ahora...'}
+            {orbState === 'transcribing' && (whisperSTT.retryCount > 0 ? 'Un momento, te escucho...' : 'Transcribiendo...')}
             {orbState === 'thinking' && 'Pensando...'}
           </p>
         )}

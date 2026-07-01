@@ -36,7 +36,11 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    console.log(`[stt] Audio received: ${audioFile.name} | size: ${audioFile.size} bytes | type: ${audioFile.type}`);
+    // Optional: prompt context and temperature from frontend
+    const prompt = formData.get("prompt") as string | null;
+    const temperature = parseFloat(formData.get("temperature") as string || "0.2");
+
+    console.log(`[stt] Audio received: ${audioFile.name} | size: ${audioFile.size} bytes | type: ${audioFile.type} | prompt: ${prompt ? 'yes' : 'no'}`);
 
     let lastError: string | null = null;
     let lastStatus = 500;
@@ -47,6 +51,10 @@ Deno.serve(async (req: Request) => {
       groqFormData.append("model", "whisper-large-v3-turbo");
       groqFormData.append("language", "es");
       groqFormData.append("response_format", "json");
+      groqFormData.append("temperature", String(temperature));
+      if (prompt) {
+        groqFormData.append("prompt", prompt);
+      }
 
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), GROQ_TIMEOUT_MS);

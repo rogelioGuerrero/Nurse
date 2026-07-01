@@ -89,6 +89,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
   const handleUserMessageRef = useRef<(text: string) => void>(() => {});
   const [debugSteps, setDebugSteps] = useState<{ step: string; status: 'pending' | 'ok' | 'error'; detail: string }[]>([]);
   const [showDebug, setShowDebug] = useState(false);
+  const [showQuickPhrases, setShowQuickPhrases] = useState(false);
 
   useEffect(() => {
     if (!('speechSynthesis' in window)) {
@@ -345,6 +346,8 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
       }
     },
     silenceThresholdMs: 3000,
+    minRecordingMs: 1500,
+    prompt: conversationRef.current.slice(-4).map(t => t.content).join(' '),
   });
 
   // === Listening — tries Whisper first, falls back to Web Speech API ===
@@ -389,8 +392,12 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
     if (whisperSTT.error && !whisperFailedRef.current) {
       console.warn('[BenniVoz] Whisper error, using Web Speech fallback for this interaction:', whisperSTT.error);
       whisperFailedRef.current = true;
+      setShowQuickPhrases(true);
       // Reset after 30s so next interaction tries Whisper again
-      setTimeout(() => { whisperFailedRef.current = false; }, 30_000);
+      setTimeout(() => {
+        whisperFailedRef.current = false;
+        setShowQuickPhrases(false);
+      }, 30_000);
     }
   }, [whisperSTT.error]);
 
@@ -670,6 +677,12 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
     if (inactivityTimeoutRef.current) clearTimeout(inactivityTimeoutRef.current);
   };
 
+  const handleQuickPhrase = useCallback((phrase: string) => {
+    setShowQuickPhrases(false);
+    setTranscript(phrase);
+    handleUserMessageRef.current(phrase);
+  }, []);
+
   if (!isSupported) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
@@ -735,7 +748,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
               </div>
               <div className="text-center space-y-1">
                 <p className="text-white text-lg font-bold">Te escucho</p>
-                <p className="text-emerald-300 text-sm">Habla ahora...</p>
+                <p className="text-emerald-300 text-sm">{whisperSTT.isTranscribing && whisperSTT.retryCount > 0 ? 'Un momento, te escucho...' : 'Habla ahora...'}</p>
               </div>
               {transcript && (
                 <div className="bg-white/10 rounded-2xl px-4 py-3 max-w-sm">
@@ -765,6 +778,30 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
             </button>
           )}
         </div>
+
+        {showQuickPhrases && !isSpeaking && !isListening && !isThinking && !isEscalating && (
+          <div className="w-full max-w-md mb-4">
+            <p className="text-slate-400 text-xs text-center mb-3">Toca una opción para hablar con Benni</p>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                'Hola Benni',
+                '¿Qué hora es?',
+                '¿Qué día es hoy?',
+                'Cuéntame un cuento',
+                'Llama a mi familia',
+                'Háblame de mi familia',
+              ].map((phrase) => (
+                <button
+                  key={phrase}
+                  onClick={() => handleQuickPhrase(phrase)}
+                  className="bg-indigo-600/40 hover:bg-indigo-500/50 active:scale-95 text-white text-sm font-medium px-4 py-4 rounded-2xl transition-all border border-indigo-400/20"
+                >
+                  {phrase}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="w-full max-w-md space-y-2 pb-4">
           {conversation.length > 0 && (
@@ -919,7 +956,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
             </div>
             <div className="text-center space-y-1">
               <p className="text-white text-lg font-bold">Te escucho</p>
-              <p className="text-emerald-300 text-sm">Habla ahora...</p>
+              <p className="text-emerald-300 text-sm">{whisperSTT.isTranscribing && whisperSTT.retryCount > 0 ? 'Un momento, te escucho...' : 'Habla ahora...'}</p>
             </div>
             {transcript && (
               <div className="bg-white/10 rounded-2xl px-4 py-3 max-w-sm">
@@ -953,6 +990,30 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
           Detener
         </button>
       </div>
+
+      {showQuickPhrases && !isSpeaking && !isListening && !isThinking && !isEscalating && (
+        <div className="w-full max-w-md mb-4">
+          <p className="text-slate-400 text-xs text-center mb-3">Toca una opción para hablar con Benni</p>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              'Hola Benni',
+              '¿Qué hora es?',
+              '¿Qué día es hoy?',
+              'Cuéntame un cuento',
+              'Llama a mi familia',
+              'Háblame de mi familia',
+            ].map((phrase) => (
+              <button
+                key={phrase}
+                onClick={() => handleQuickPhrase(phrase)}
+                className="bg-indigo-600/40 hover:bg-indigo-500/50 active:scale-95 text-white text-sm font-medium px-4 py-4 rounded-2xl transition-all border border-indigo-400/20"
+              >
+                {phrase}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="w-full max-w-md space-y-2 pb-4">
         {conversation.length > 0 && (

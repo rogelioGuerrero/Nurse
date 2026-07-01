@@ -7,6 +7,7 @@ interface UseWhisperSTTOptions {
   silenceThresholdMs?: number;
   minRecordingMs?: number;
   maxRecordingMs?: number;
+  prompt?: string;
 }
 
 interface UseWhisperSTTReturn {
@@ -35,6 +36,7 @@ export function useWhisperSTT({
   silenceThresholdMs = 3000,
   minRecordingMs = DEFAULT_MIN_RECORDING_MS,
   maxRecordingMs = DEFAULT_MAX_RECORDING_MS,
+  prompt,
 }: UseWhisperSTTOptions): UseWhisperSTTReturn {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -54,10 +56,12 @@ export function useWhisperSTT({
   const isRecordingRef = useRef(false);
   const onTranscriptRef = useRef(onTranscript);
   const onSilenceRef = useRef(onSilence);
+  const promptRef = useRef(prompt);
 
   // Keep refs updated without re-creating callbacks
   onTranscriptRef.current = onTranscript;
   onSilenceRef.current = onSilence;
+  promptRef.current = prompt;
 
   const stopRecording = useCallback(() => {
     isRecordingRef.current = false;
@@ -96,6 +100,9 @@ export function useWhisperSTT({
 
       const formData = new FormData();
       formData.append('audio', file);
+      if (promptRef.current) {
+        formData.append('prompt', promptRef.current);
+      }
 
       const res = await fetch(`${supabaseUrl}/functions/v1/stt`, {
         method: 'POST',
