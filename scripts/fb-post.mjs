@@ -7,7 +7,7 @@ const SUPABASE_ANON_KEY =
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/fb-publish`;
 
 const imagePath = process.argv[2];
-const message = process.argv[3];
+const message = process.argv[3].replace(/\\n/g, "\n");
 
 if (!imagePath || !message) {
   console.error("Uso: node scripts/fb-post.mjs <ruta-imagen> <mensaje>");
