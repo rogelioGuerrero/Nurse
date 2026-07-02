@@ -395,15 +395,15 @@ export const PlanReview: FC = () => {
                 <p className="text-[10px] font-bold text-slate-600 uppercase">Política de cancelación</p>
                 <div className="flex items-start gap-1.5 text-[10px] text-slate-500">
                   <span className="text-emerald-500 font-bold">✓</span>
-                  <span>Cancela sin costo hasta <strong>12 horas antes</strong> de la hora pactada.</span>
+                  <span>Reembolso del 100% si la enfermera no se presenta</span>
                 </div>
                 <div className="flex items-start gap-1.5 text-[10px] text-slate-500">
-                  <span className="text-amber-500 font-bold">50%</span>
-                  <span>Si cancelas con <strong>menos de 12 horas</strong> de anticipación, se cobra el 50% del turno por costo de oportunidad y gestión administrativa.</span>
+                  <span className="text-emerald-500 font-bold">✓</span>
+                  <span>Cancela sin costo hasta 12 horas antes del inicio</span>
                 </div>
                 <div className="flex items-start gap-1.5 text-[10px] text-slate-500">
-                  <span className="text-emerald-500 font-bold">100%</span>
-                  <span>Si la enfermera <strong>no llega</strong>, recibes reembolso del 100% del turno.</span>
+                  <span className="text-amber-500 font-bold">✓</span>
+                  <span>Se cobra el 50% si cancelas con menos de 12 horas de anticipación</span>
                 </div>
               </div>
             )}
