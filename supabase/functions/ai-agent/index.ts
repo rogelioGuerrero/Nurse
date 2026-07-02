@@ -108,6 +108,39 @@ interface AgentRequest {
   client_memory?: Record<string, any>;
 }
 
+// ===== RATE LIMITING (per IP) =====
+const MAX_HISTORY_MESSAGES = 20;
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 10;
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX_REQUESTS) return false;
+  entry.count++;
+  return true;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateLimitMap) {
+    if (now > entry.resetAt) rateLimitMap.delete(ip);
+  }
+}, RATE_LIMIT_WINDOW_MS);
+
+function getClientIp(req: Request): string {
+  const forwarded = req.headers.get('x-forwarded-for');
+  if (forwarded) return forwarded.split(',')[0].trim();
+  const realIp = req.headers.get('x-real-ip');
+  if (realIp) return realIp;
+  return 'unknown';
+}
+
 // ===== TOOL IMPLEMENTATIONS =====
 
 async function getMyProfile(supabase: any, userId: string, role: string) {
@@ -572,7 +605,9 @@ async function extractMemory(supabase: any, userId: string, existingMemory: any,
       const merged = { ...existingMemory, ...extracted };
       await supabase.from('agent_memory').upsert({ user_id: userId, memory: merged });
     }
-  } catch {}
+  } catch (err: any) {
+    console.log(`[ai-agent] extractMemory error: ${err.message}`);
+  }
 }
 
 // ===== FAQ CONTEXT =====
@@ -634,9 +669,18 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    console.log(`[ai-agent] === START | channel: ${channel} | email: ${user_email} | msg: ${message.slice(0, 80)}`);
+    // Rate limiting
+    const clientIp = getClientIp(req);
+    if (!checkRateLimit(clientIp)) {
+      console.log(`[ai-agent] Rate limited: ${clientIp}`);
+      return new Response(JSON.stringify({ error: 'Demasiadas solicitudes. Intenta nuevamente en un minuto.' }), {
+        status: 429, headers: { 'Content-Type': 'application/json', ...corsHeaders, 'Retry-After': '60' },
+      });
+    }
 
-    // 0. Jailbreak detection (NVIDIA NIM)
+    console.log(`[ai-agent] === START | channel: ${channel} | email: ${user_email} | ip: ${clientIp} | msg: ${message.slice(0, 80)}`);
+
+    // 0. Jailbreak detection (Groq)
     const jailbreakCheck = await checkJailbreak(message);
     if (jailbreakCheck.isJailbreak) {
       console.log(`[ai-agent] Jailbreak detected — blocking request`);
@@ -731,9 +775,10 @@ REGLAS:
 - Si no sabés, decí: "No tengo esa información. Escribinos a info@agtisa.com".
 - Respondé preguntas generales con la información de arriba.${memoryContext}`;
 
+    const trimmedHistory = (history || []).slice(-MAX_HISTORY_MESSAGES);
     const messages: any[] = [
       { role: 'system', content: systemPrompt },
-      ...history.map((h) => ({ role: h.role, content: h.content })),
+      ...trimmedHistory.map((h) => ({ role: h.role, content: h.content })),
       { role: 'user', content: message },
     ];
 
@@ -787,7 +832,11 @@ REGLAS:
         const errText = await groqRes.text();
         console.log(`[ai-agent] Groq call ${rounds + 1} FAILED: ${groqRes.status} | ${errText.slice(0, 200)}`);
         const fallbackReply = buildFallbackReply(toolResults);
-        if (userId) extractMemory(supabase, userId, persistentMemory, message, fallbackReply);
+        if (userId) {
+          const piiFallback = await detectPII(message);
+          const safeMsg = piiFallback.found ? piiFallback.cleaned : message;
+          extractMemory(supabase, userId, persistentMemory, safeMsg, fallbackReply);
+        }
         console.log(`[ai-agent] === END (fallback) | ${Date.now() - startTime}ms | tools: ${rounds}`);
         return new Response(JSON.stringify({ reply: fallbackReply, role, tools_used: true, channel, fallback: true }), {
           status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -820,7 +869,9 @@ REGLAS:
     }
 
     if (userId) {
-      extractMemory(supabase, userId, persistentMemory, message, reply);
+      const piiInput = await detectPII(message);
+      const safeMessage = piiInput.found ? piiInput.cleaned : message;
+      extractMemory(supabase, userId, persistentMemory, safeMessage, reply);
     }
 
     console.log(`[ai-agent] === END | ${Date.now() - startTime}ms | tools: ${rounds} | reply: ${reply.slice(0, 80)}`);
