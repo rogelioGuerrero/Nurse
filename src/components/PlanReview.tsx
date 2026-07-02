@@ -402,8 +402,8 @@ export const PlanReview: FC = () => {
                   <span>Si cancelas con <strong>menos de 12 horas</strong> de anticipación, se cobra el 50% del turno por costo de oportunidad y gestión administrativa.</span>
                 </div>
                 <div className="flex items-start gap-1.5 text-[10px] text-slate-500">
-                  <span className="text-rose-500 font-bold">0%</span>
-                  <span>Si la enfermera <strong>no llega</strong>, no pagas nada. Reembolso total.</span>
+                  <span className="text-emerald-500 font-bold">100%</span>
+                  <span>Si la enfermera <strong>no llega</strong>, recibes reembolso del 100% del turno.</span>
                 </div>
               </div>
             )}
