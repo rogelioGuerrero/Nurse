@@ -2,7 +2,7 @@ import { useMemo, useState, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { calculateNurseNet } from '../data/standardRates';
 import type { CareRequest, Nurse, Profile, CareOffer } from '../types';
-import { SHIFTS, type ShiftType } from '../types';
+import { SHIFTS, type ShiftType, type WeekDay } from '../types';
 import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User, Sun, Moon, FileText, Send } from 'lucide-react';
 import { FamilyTrustBadge } from './FamilyTrustBadge';
 
@@ -72,14 +72,10 @@ export const NurseInbox: FC = () => {
     [nurses, currentUser]
   );
 
-  // Requests where this nurse hasn't offered on any slot — sorted by most recent
-  const availableRequests = useMemo(() => {
-    if (!myNurse) return [];
-    return careRequests
-      .filter(req => req.status === 'open')
-      .filter(req => !careOffers.some(o => o.request_id === req.id && o.nurse_id === myNurse.id))
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [careRequests, careOffers, myNurse]);
+  // Nurse availability sets (empty = no filter, e.g. nurse hasn't configured yet)
+  const nurseShifts = useMemo(() => new Set(myNurse?.available_shifts || []), [myNurse]);
+  const nurseDays = useMemo(() => new Set(myNurse?.available_days || []), [myNurse]);
+  const nurseSpecs = useMemo(() => new Set(myNurse?.specialization || []), [myNurse]);
 
   // Check if nurse's assignment_availability is compatible with request's expected_duration
   const isDurationCompatible = (req: CareRequest): boolean => {
@@ -95,6 +91,23 @@ export const NurseInbox: FC = () => {
     }
     return true;
   };
+
+  // Check if a specific slot matches nurse's shift and day availability
+  const isSlotAvailable = (slot: { date: string; shift: ShiftType }): boolean => {
+    const shiftOk = nurseShifts.size === 0 || nurseShifts.has(slot.shift);
+    const dayOk = nurseDays.size === 0 || nurseDays.has(new Date(slot.date + 'T00:00:00').getDay() as WeekDay);
+    return shiftOk && dayOk;
+  };
+
+  // Requests where this nurse hasn't offered — all open requests, sorted by most recent
+  // (soft filter: show everything, mark non-matching slots visually)
+  const availableRequests = useMemo(() => {
+    if (!myNurse) return [];
+    return careRequests
+      .filter(req => req.status === 'open')
+      .filter(req => !careOffers.some(o => o.request_id === req.id && o.nurse_id === myNurse.id))
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [careRequests, careOffers, myNurse]);
 
   // This nurse's offers — excluding accepted (go to Servicios) and declined/rejected older than 48h
   const myOffersList = useMemo(() => {
@@ -277,6 +290,7 @@ export const NurseInbox: FC = () => {
                     const offer = getOfferForSlot(req.id, idx);
                     const responded = hasOffered(req.id, idx);
                     const dateConflict = isDateBooked(slot.date) && !responded;
+                    const slotAvail = isSlotAvailable(slot);
                     const shiftInfo = SHIFTS[slot.shift as ShiftType] || SHIFTS.day;
                     const nurseRate = offer ? Number(offer.offered_rate) : (myNurse.shift_rate || 25);
                     const wantsInvoicing = req.wants_invoice;
@@ -318,6 +332,13 @@ export const NurseInbox: FC = () => {
                           <div className="text-[10px] font-bold text-amber-600 flex items-center gap-1 pl-14">
                             <AlertCircle className="h-3 w-3" />
                             Ya tienes una visita aceptada este día
+                          </div>
+                        )}
+
+                        {!slotAvail && !responded && (
+                          <div className="text-[10px] font-medium text-slate-400 flex items-center gap-1 pl-14">
+                            <Clock className="h-3 w-3" />
+                            Turno no habitual para ti
                           </div>
                         )}
 
