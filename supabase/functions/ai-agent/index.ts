@@ -65,6 +65,47 @@ async function detectPII(text: string): Promise<{ cleaned: string; found: boolea
   }
 }
 
+const CLINICAL_SAFETY_POLICY = `# Clinical Content Safety Policy for BienCuidar
+
+## INSTRUCTIONS
+Classify whether the assistant's response contains unsafe medical content that could harm a patient if followed without professional supervision. Return a JSON object with your decision and reasoning.
+
+## DEFINITIONS
+- **Unsafe Dosage**: Specific medication doses (e.g., "take 500mg of paracetamol") without a prescription context
+- **Definitive Diagnosis**: Stating a medical diagnosis as certain (e.g., "you have diabetes") without clinical evaluation
+- **Harmful Instructions**: Procedures that could cause injury if performed without training (e.g., "inject yourself like this")
+- **Self-medication Recommendation**: Suggesting over-the-counter drugs or treatments for a described symptom
+
+## VIOLATES (1)
+- Specific medication dosages or "take X mg of Y"
+- Definitive medical diagnoses presented as certain
+- Step-by-step medical procedures that require professional training
+- Recommendations to self-medicate or buy specific medications
+- Instructions that could cause harm if followed without supervision
+
+## SAFE (0)
+- General health education (e.g., "stay hydrated", "rest")
+- Encouraging professional consultation (e.g., "consult your doctor")
+- Emotional support and empathy
+- Administrative information (scheduling, bookings, platform usage)
+- Non-specific wellness advice
+
+## EXAMPLES
+Example 1 (Violation): "Tomá 2 pastillas de ibuprofeno de 400mg cada 8 horas"
+Answer: {"violation": 1, "category": "Unsafe Dosage", "rationale": "Specific medication dosage without prescription context"}
+
+Example 2 (Violation): "Los síntomas que describís indican que tenés diabetes tipo 2"
+Answer: {"violation": 1, "category": "Definitive Diagnosis", "rationale": "Definitive diagnosis without clinical evaluation"}
+
+Example 3 (Safe): "Es importante que consultés con tu médico sobre esos síntomas"
+Answer: {"violation": 0, "category": null, "rationale": "Encourages professional consultation"}
+
+Example 4 (Safe): "Mantenete hidratada y descansá bien durante el turno"
+Answer: {"violation": 0, "category": null, "rationale": "General wellness advice"}
+
+Content to classify: {{USER_INPUT}}
+Answer (JSON only):`;
+
 async function checkContentSafety(text: string): Promise<{ isSafe: boolean; reason?: string }> {
   if (!GROQ_API_KEY) return { isSafe: true };
   try {
@@ -72,21 +113,29 @@ async function checkContentSafety(text: string): Promise<{ isSafe: boolean; reas
       method: "POST",
       headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
+        model: "openai/gpt-oss-safeguard-20b",
         messages: [
-          { role: "system", content: "Eres un filtro de seguridad clínica. Analiza la respuesta del asistente. Si contiene: dosis específicas de medicamentos, diagnósticos médicos definitivos, instrucciones que podrían causar daño si se siguen sin supervisión profesional, o recomendaciones de automedicación, responde 'UNSAFE: <razón>'. Si es segura, responde 'SAFE'." },
+          { role: "system", content: CLINICAL_SAFETY_POLICY },
           { role: "user", content: text },
         ],
-        max_tokens: 100,
+        max_tokens: 200,
         temperature: 0,
       }),
     });
     if (!res.ok) { console.log(`[ai-agent] content safety skipped: ${res.status}`); return { isSafe: true }; }
     const data = await res.json();
-    const content = (data.choices[0]?.message?.content || "").trim();
-    const isUnsafe = content.toUpperCase().startsWith("UNSAFE");
-    const reason = isUnsafe ? content.split(":")[1]?.trim() : undefined;
-    console.log(`[ai-agent] content safety: ${isUnsafe ? 'UNSAFE' : 'SAFE'}${reason ? ' — ' + reason : ''}`);
+    const raw = (data.choices[0]?.message?.content || "").trim();
+    let isUnsafe = false;
+    let reason: string | undefined;
+    try {
+      const parsed = JSON.parse(raw.replace(/^```json\s*/i, '').replace(/\s*```$/i, ''));
+      isUnsafe = parsed.violation === 1;
+      reason = isUnsafe ? `${parsed.category}: ${parsed.rationale}` : undefined;
+    } catch {
+      isUnsafe = raw.toLowerCase().includes('"violation": 1') || raw.toLowerCase().includes("unsafe");
+      reason = isUnsafe ? raw.slice(0, 120) : undefined;
+    }
+    console.log(`[ai-agent] content safety (gpt-oss-safeguard-20b): ${isUnsafe ? 'UNSAFE' : 'SAFE'}${reason ? ' — ' + reason : ''}`);
     return { isSafe: !isUnsafe, reason };
   } catch (err: any) {
     console.log(`[ai-agent] content safety error: ${err.message}`);
