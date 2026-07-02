@@ -1,4 +1,4 @@
-import { useState, useMemo, type FC } from 'react';
+import { useState, useMemo, useEffect, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { getAllSpecializations } from '../data/standardRates';
 import { SHIFTS, type ShiftType, type ExpectedDuration } from '../types';
@@ -51,6 +51,10 @@ export const CareRequestForm: FC = () => {
   const [published, setPublished] = useState(false);
   const [patientName, setPatientName] = useState('');
   const [wantsInvoice, setWantsInvoice] = useState(false);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step]);
 
   const toggleConditionTag = (tag: string) => {
     setConditionTags(prev =>
