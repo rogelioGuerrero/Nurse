@@ -1,6 +1,7 @@
 import { type FC } from 'react';
 import { Receipt, X, Phone, MessageCircle, CreditCard, FileText, Building2 } from 'lucide-react';
 import { PLATFORM_SETTINGS } from '../data/platformSettings';
+import { PLATFORM_COMMISSION, IVA_RATE, RETENTION_RATE } from '../data/standardRates';
 
 interface SummarySlot {
   date: string;
@@ -32,9 +33,10 @@ export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyN
 
   const nurseName = slots[0]?.nurseName || 'Enfermera';
   const whatsappLink = nursePhone ? `https://wa.me/503${nursePhone.replace(/[^0-9]/g, '')}` : null;
-  const isrRetention = totalPrice * 0.10;
-  const managementFee = 5.65;
-  const nursePayout = totalPrice - isrRetention;
+  const nurseRateTotal = slots.reduce((sum, s) => sum + s.nurseRate, 0);
+  const managementFee = PLATFORM_COMMISSION * (1 + IVA_RATE) * slots.length;
+  const isrRetention = nurseRateTotal * RETENTION_RATE;
+  const nursePayout = nurseRateTotal - isrRetention;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" id="payment-summary-modal">
@@ -89,14 +91,15 @@ export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyN
               </div>
 
               <div className="bg-white rounded-lg p-3 space-y-1 text-[11px] border border-indigo-100">
-                <div className="flex justify-between"><span className="text-slate-600">Total servicio:</span><span className="font-bold text-slate-700">${totalPrice.toFixed(2)}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">ISR retenido (10%):</span><span className="font-bold text-rose-600">-${isrRetention.toFixed(2)}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">Gestión + IVA:</span><span className="font-bold text-slate-600">${managementFee.toFixed(2)}</span></div>
-                <div className="border-t border-slate-200 pt-1 flex justify-between"><span className="font-bold text-slate-700">Enfermera recibe:</span><span className="font-black text-emerald-600">${nursePayout.toFixed(2)}</span></div>
+                <div className="flex justify-between"><span className="text-slate-600">Tarifa enfermera:</span><span className="font-bold text-slate-700">${nurseRateTotal.toFixed(2)}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Gestión + IVA:</span><span className="font-bold text-slate-600">+${managementFee.toFixed(2)}</span></div>
+                <div className="border-t border-slate-200 pt-1 flex justify-between"><span className="font-bold text-slate-700">Total a pagar:</span><span className="font-black text-indigo-700">${totalPrice.toFixed(2)}</span></div>
+                <div className="border-t border-slate-200 pt-1 mt-1 flex justify-between"><span className="text-slate-500">ISR retenido (10%):</span><span className="font-bold text-rose-600">-${isrRetention.toFixed(2)}</span></div>
+                <div className="flex justify-between"><span className="font-bold text-slate-700">Enfermera recibe:</span><span className="font-black text-emerald-600">${nursePayout.toFixed(2)}</span></div>
               </div>
 
               <p className="text-[10px] text-indigo-600 leading-relaxed pl-6">
-                BienCuidar retiene el ISR, entera a Hacienda y emite la factura. Transfiere el total (${(totalPrice + managementFee).toFixed(2)}) a la cuenta arriba.
+                BienCuidar retiene el ISR, entera a Hacienda y emite la factura. Transfiere el total (${totalPrice.toFixed(2)}) a la cuenta arriba.
               </p>
 
               {nursePhone && (
