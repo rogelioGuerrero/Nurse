@@ -707,6 +707,47 @@ BOOKINGS Y TURNOS:
 - Check-in y check-out se registran en la app
 - El pago se coordina directamente (pago directo) o a través de BienCuidar (con factura)`;
 
+// ===== AGENT LLM CALL (GPT-OSS 120B primary, llama-3.3-70b fallback) =====
+
+const PRIMARY_MODEL = 'openai/gpt-oss-120b';
+const FALLBACK_MODEL = 'llama-3.3-70b-versatile';
+
+async function callAgentLLM(messages: any[], tools?: any[], temperature = 0.3, maxTokens = 600): Promise<{ ok: boolean; data?: any; model?: string; error?: string; status?: number }> {
+  for (const model of [PRIMARY_MODEL, FALLBACK_MODEL]) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 20_000);
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, messages, tools: tools?.length > 0 ? tools : undefined, tool_choice: tools?.length > 0 ? 'auto' : undefined, temperature, max_tokens: maxTokens }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) {
+        const errText = await res.text();
+        console.log(`[ai-agent] LLM ${model} FAILED: ${res.status} | ${errText.slice(0, 200)}`);
+        if (model === PRIMARY_MODEL && (res.status === 429 || res.status >= 500)) {
+          console.log(`[ai-agent] Falling back to ${FALLBACK_MODEL}...`);
+          continue;
+        }
+        return { ok: false, error: errText, status: res.status, model };
+      }
+      const data = await res.json();
+      console.log(`[ai-agent] LLM ${model} OK | tool_calls: ${data.choices[0].message.tool_calls?.length || 0}`);
+      return { ok: true, data, model };
+    } catch (err: any) {
+      console.log(`[ai-agent] LLM ${model} error: ${err.message}`);
+      if (model === PRIMARY_MODEL) {
+        console.log(`[ai-agent] Falling back to ${FALLBACK_MODEL}...`);
+        continue;
+      }
+      return { ok: false, error: err.message, model };
+    }
+  }
+  return { ok: false, error: 'All LLM models failed' };
+}
+
 // ===== MAIN AGENT =====
 
 Deno.serve(async (req: Request) => {
@@ -866,31 +907,18 @@ REGLAS:
       { role: 'user', content: message },
     ];
 
-    console.log(`[ai-agent] Groq call 1 | model: llama-3.3-70b | msgs: ${messages.length}`);
-    let groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages,
-        tools: tools.length > 0 ? tools : undefined,
-        tool_choice: tools.length > 0 ? 'auto' : undefined,
-        temperature: 0.3,
-        max_tokens: 600,
-      }),
-    });
+    console.log(`[ai-agent] LLM call 1 | primary: ${PRIMARY_MODEL} | msgs: ${messages.length}`);
+    const llmResult = await callAgentLLM(messages, tools, 0.3, 600);
 
-    if (!groqRes.ok) {
-      const err = await groqRes.text();
-      console.log(`[ai-agent] Groq call 1 FAILED: ${groqRes.status} | ${err.slice(0, 200)}`);
-      return new Response(JSON.stringify({ error: `Groq error: ${err}` }), {
+    if (!llmResult.ok) {
+      console.log(`[ai-agent] LLM call 1 FAILED (all models): ${llmResult.error}`);
+      return new Response(JSON.stringify({ error: `LLM error: ${llmResult.error}` }), {
         status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
     }
 
-    let groqData = await groqRes.json();
-    let assistantMessage = groqData.choices[0].message;
-    console.log(`[ai-agent] Groq call 1 OK | tool_calls: ${assistantMessage.tool_calls?.length || 0}`);
+    let assistantMessage = llmResult.data.choices[0].message;
+    console.log(`[ai-agent] LLM call 1 OK | model: ${llmResult.model} | tool_calls: ${assistantMessage.tool_calls?.length || 0}`);
 
     const toolResults: Array<{ name: string; result: any }> = [];
 
@@ -919,15 +947,10 @@ REGLAS:
         toolResults.push({ name: toolName, result });
         messages.push({ role: 'tool', tool_call_id: toolCall.id, content: JSON.stringify(result) });
       }
-      console.log(`[ai-agent] Groq call ${rounds + 1} | msgs: ${messages.length}`);
-      groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages, tools: tools.length > 0 ? tools : undefined, temperature: 0.3, max_tokens: 600 }),
-      });
-      if (!groqRes.ok) {
-        const errText = await groqRes.text();
-        console.log(`[ai-agent] Groq call ${rounds + 1} FAILED: ${groqRes.status} | ${errText.slice(0, 200)}`);
+      console.log(`[ai-agent] LLM call ${rounds + 1} | msgs: ${messages.length}`);
+      const loopResult = await callAgentLLM(messages, tools, 0.3, 600);
+      if (!loopResult.ok) {
+        console.log(`[ai-agent] LLM call ${rounds + 1} FAILED (all models): ${loopResult.error}`);
         const fallbackReply = buildFallbackReply(toolResults);
         if (userId) {
           const piiFallback = await detectPII(message);
@@ -939,9 +962,9 @@ REGLAS:
           status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }
-      groqData = await groqRes.json();
+      groqData = loopResult.data;
       assistantMessage = groqData.choices[0].message;
-      console.log(`[ai-agent] Groq call ${rounds + 1} OK | tool_calls: ${assistantMessage.tool_calls?.length || 0} | has content: ${!!assistantMessage.content}`);
+      console.log(`[ai-agent] LLM call ${rounds + 1} OK | model: ${loopResult.model} | tool_calls: ${assistantMessage.tool_calls?.length || 0} | has content: ${!!assistantMessage.content}`);
     }
 
     let reply = assistantMessage.content;
