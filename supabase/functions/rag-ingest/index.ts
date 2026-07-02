@@ -1,11 +1,17 @@
-// @ts-nocheck — Deno Edge Function: RAG Ingest
-// Abstract RAG toolkit: ingest URLs/PDFs, chunk, embed with NVIDIA NIM, store in pgvector
+// @ts-nocheck — Deno Edge Function: RAG Ingest (Groq-powered ETL)
+// Pipeline: Extract (Groq Vision + regex) → Transform (Groq LLM enrich) → Load (Cohere embed → pgvector)
 // Works with any Supabase project. Configurable via env vars.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+// Groq config (ETL: vision extraction + LLM enrichment)
+const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+const GROQ_VISION_MODEL = Deno.env.get("GROQ_VISION_MODEL") || "meta-llama/llama-3.2-90b-vision-preview";
+const GROQ_LLM_MODEL = Deno.env.get("GROQ_LLM_MODEL") || "llama-3.3-70b-versatile";
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 // Embedding provider: "cohere" (default) | "nvidia"
 const EMBEDDING_PROVIDER = Deno.env.get("RAG_EMBEDDING_PROVIDER") || "cohere";
@@ -17,6 +23,7 @@ const EMBEDDING_MODEL = Deno.env.get("RAG_EMBEDDING_MODEL") || (EMBEDDING_PROVID
 const EMBEDDING_DIMENSIONS = parseInt(Deno.env.get("RAG_EMBEDDING_DIMENSIONS") || "1024");
 const CHUNK_SIZE = parseInt(Deno.env.get("RAG_CHUNK_SIZE") || "800");
 const CHUNK_OVERLAP = parseInt(Deno.env.get("RAG_CHUNK_OVERLAP") || "100");
+const RAG_ENRICH_ENABLED = Deno.env.get("RAG_ENRICH_ENABLED") !== "false"; // default: true
 const COHERE_EMBED_URL = "https://api.cohere.com/v2/embed";
 const NVIDIA_NIM_URL = "https://integrate.api.nvidia.com/v1/embeddings";
 
@@ -27,9 +34,164 @@ const corsHeaders = {
 };
 
 interface IngestRequest {
-  urls: string[];
+  urls?: string[];
+  images?: string[]; // base64-encoded images for Groq Vision extraction
+  texts?: string[];  // raw text to ingest directly (bypass extraction)
   project?: string;
   metadata?: Record<string, any>;
+}
+
+interface EnrichedChunk {
+  text: string;
+  category?: string;
+  questions?: string[];
+}
+
+// ===== GROQ VISION: Extract text from images =====
+
+async function extractTextWithGroqVision(imageBase64: string): Promise<string> {
+  if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY not configured for vision extraction");
+
+  const mimeType = imageBase64.startsWith("iVBORw0") ? "image/png" : "image/jpeg";
+  const dataUrl = imageBase64.startsWith("data:") ? imageBase64 : `data:${mimeType};base64,${imageBase64}`;
+
+  const res = await fetch(GROQ_API_URL, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${GROQ_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: GROQ_VISION_MODEL,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Extrae TODO el texto legible de esta imagen de forma fiel y completa. Mantén la estructura original (secciones, tablas, listas). Si es un documento médico, legal o administrativo, preserva nombres, fechas, números, dosis y valores exactos. No interpretes ni resumas — solo extrae el texto tal como aparece." },
+            { type: "image_url", image_url: { url: dataUrl } },
+          ],
+        },
+      ],
+      max_tokens: 4000,
+      temperature: 0,
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Groq Vision error: ${res.status} — ${err.slice(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const text = data.choices[0]?.message?.content || "";
+  console.log(`[rag-ingest] Groq Vision extracted ${text.length} chars`);
+  return text;
+}
+
+// ===== GROQ LLM: Enrich chunks (clean + structure + synthetic questions) =====
+
+async function enrichWithGroq(rawText: string): Promise<EnrichedChunk[]> {
+  if (!GROQ_API_KEY || !RAG_ENRICH_ENABLED) {
+    // Fallback: use mechanical chunking
+    const chunks = chunkText(rawText, CHUNK_SIZE, CHUNK_OVERLAP);
+    return chunks.map((c) => ({ text: c }));
+  }
+
+  const prompt = `Eres un motor de procesamiento de documentos para un sistema RAG médico-legal.
+
+Recibes texto extraído de un documento (página web, PDF, imagen escaneada). Tu trabajo:
+
+1. LIMPIAR: corrige errores de OCR, normaliza formatos (ej: "850mg" → "850 mg"), elimina ruido (marcas de agua, headers repetidos, sellos).
+2. ESTRUCTURAR: divide el texto en chunks semánticos por tema (no por tamaño fijo). Cada chunk debe ser autocontenido y coherente.
+3. ENRIQUECER: para cada chunk, genera 2-3 preguntas que ese chunk respondería (mejora el retrieval vectorial).
+
+Reglas:
+- Máximo ${CHUNK_SIZE} caracteres por chunk.
+- Preserva TODOS los datos exactos: nombres, fechas, números, dosis, montos, artículos legales.
+- Si el texto ya está limpio y bien estructurado, divídelo con mínima intervención.
+- No inventes información. Solo limpia y estructura lo que ya está.
+
+Devuelve EXCLUSIVAMENTE un JSON array, sin markdown ni explicaciones:
+[
+  {
+    "text": "texto limpio del chunk",
+    "category": "categoria|diagnostico|medicamentos|cuidados|legal|administrativo|general",
+    "questions": ["pregunta 1?", "pregunta 2?"]
+  }
+]
+
+Texto a procesar:
+---
+${rawText.slice(0, 12000)}
+---`;
+
+  try {
+    const res = await fetch(GROQ_API_URL, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: GROQ_LLM_MODEL,
+        messages: [
+          { role: "system", content: "Eres un motor de ETL para RAG. Devuelves solo JSON válido, sin markdown ni texto adicional." },
+          { role: "user", content: prompt },
+        ],
+        max_tokens: 8000,
+        temperature: 0,
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      console.log(`[rag-ingest] Groq enrich error: ${res.status} — ${err.slice(0, 200)}, falling back to mechanical chunking`);
+      const chunks = chunkText(rawText, CHUNK_SIZE, CHUNK_OVERLAP);
+      return chunks.map((c) => ({ text: c }));
+    }
+
+    const data = await res.json();
+    const raw = data.choices[0]?.message?.content || "";
+
+    let enriched: EnrichedChunk[];
+    try {
+      const parsed = JSON.parse(raw);
+      enriched = Array.isArray(parsed) ? parsed : (parsed.chunks || parsed.data || [parsed]);
+    } catch {
+      // Try to extract JSON array from text
+      const match = raw.match(/\[[\s\S]*\]/);
+      if (match) {
+        enriched = JSON.parse(match[0]);
+      } else {
+        console.log(`[rag-ingest] Groq enrich: could not parse JSON, falling back to mechanical`);
+        const chunks = chunkText(rawText, CHUNK_SIZE, CHUNK_OVERLAP);
+        return chunks.map((c) => ({ text: c }));
+      }
+    }
+
+    // Validate and sanitize
+    enriched = enriched
+      .filter((c: any) => c.text && c.text.length > 30)
+      .map((c: any) => ({
+        text: String(c.text).slice(0, CHUNK_SIZE * 2),
+        category: c.category || "general",
+        questions: Array.isArray(c.questions) ? c.questions.slice(0, 3) : [],
+      }));
+
+    if (enriched.length === 0) {
+      console.log(`[rag-ingest] Groq enrich: no valid chunks, falling back`);
+      const chunks = chunkText(rawText, CHUNK_SIZE, CHUNK_OVERLAP);
+      return chunks.map((c) => ({ text: c }));
+    }
+
+    console.log(`[rag-ingest] Groq enrich: ${enriched.length} chunks | categories: ${enriched.map((c) => c.category).join(",")}`);
+    return enriched;
+  } catch (err: any) {
+    console.log(`[rag-ingest] Groq enrich exception: ${err.message}, falling back to mechanical chunking`);
+    const chunks = chunkText(rawText, CHUNK_SIZE, CHUNK_OVERLAP);
+    return chunks.map((c) => ({ text: c }));
+  }
 }
 
 // ===== TEXT EXTRACTION =====
@@ -283,40 +445,59 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { urls, project = "default", metadata = {} }: IngestRequest = await req.json();
+    const { urls = [], images = [], texts = [], project = "default", metadata = {} }: IngestRequest = await req.json();
 
-    if (!urls || !Array.isArray(urls) || urls.length === 0) {
-      return new Response(JSON.stringify({ error: "Se requiere al menos una URL" }), {
+    const totalInputs = urls.length + images.length + texts.length;
+    if (totalInputs === 0) {
+      return new Response(JSON.stringify({ error: "Se requiere al menos una URL, imagen (base64) o texto" }), {
         status: 400,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       });
     }
 
-    console.log(`[rag-ingest] START | project: ${project} | urls: ${urls.length}`);
+    console.log(`[rag-ingest] START | project: ${project} | urls: ${urls.length} | images: ${images.length} | texts: ${texts.length} | enrich: ${RAG_ENRICH_ENABLED}`);
 
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
     const results: any[] = [];
 
+    // ===== Process URLs =====
     for (const url of urls) {
       try {
-        console.log(`[rag-ingest] Processing: ${url}`);
+        console.log(`[rag-ingest] Processing URL: ${url}`);
 
-        // 1. Extract text
-        const { text, sourceType } = await extractTextFromURL(url);
+        // 1. Extract text (regex-based)
+        const { text: rawText, sourceType } = await extractTextFromURL(url);
 
-        if (!text || text.length < 50) {
+        if (!rawText || rawText.length < 50) {
           console.log(`[rag-ingest] Skipping ${url} — insufficient text`);
-          results.push({ url, status: "skipped", reason: "insufficient_text" });
+          results.push({ source: url, status: "skipped", reason: "insufficient_text" });
           continue;
         }
 
-        // 2. Chunk
-        const chunks = chunkText(text, CHUNK_SIZE, CHUNK_OVERLAP);
-        console.log(`[rag-ingest] ${url} → ${chunks.length} chunks`);
+        // Check if PDF extraction failed → try Groq Vision if it's an image-based PDF
+        let textToProcess = rawText;
+        let finalSourceType = sourceType;
+        if (rawText.includes("[PDF: unable to extract text") && GROQ_API_KEY) {
+          console.log(`[rag-ingest] PDF text extraction failed, trying Groq Vision fallback`);
+          // Re-fetch as base64 and send to Groq Vision
+          const pdfRes = await fetch(url);
+          const arrayBuffer = await pdfRes.arrayBuffer();
+          const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+          try {
+            textToProcess = await extractTextWithGroqVision(base64);
+            finalSourceType = "pdf_vision";
+          } catch (visionErr: any) {
+            console.log(`[rag-ingest] Groq Vision fallback failed: ${visionErr.message}`);
+          }
+        }
 
-        if (chunks.length === 0) {
-          results.push({ url, status: "skipped", reason: "no_chunks" });
+        // 2. Enrich + chunk with Groq LLM
+        const enrichedChunks = await enrichWithGroq(textToProcess);
+        console.log(`[rag-ingest] ${url} → ${enrichedChunks.length} enriched chunks`);
+
+        if (enrichedChunks.length === 0) {
+          results.push({ source: url, status: "skipped", reason: "no_chunks" });
           continue;
         }
 
@@ -327,18 +508,31 @@ Deno.serve(async (req: Request) => {
           .eq("source_url", url)
           .eq("project", project);
 
-        // 4. Generate embeddings
-        const embeddings = await generateEmbeddings(chunks);
+        // 4. Build embedding texts (chunk text + synthetic questions for better retrieval)
+        const embeddingTexts = enrichedChunks.map((c) =>
+          c.questions && c.questions.length > 0
+            ? `${c.text}\n\nPreguntas que responde: ${c.questions.join(" ")}`
+            : c.text
+        );
 
-        // 5. Store in pgvector
-        const rows = chunks.map((chunkText, i) => ({
+        // 5. Generate embeddings
+        const embeddings = await generateEmbeddings(embeddingTexts);
+
+        // 6. Store in pgvector
+        const rows = enrichedChunks.map((chunk, i) => ({
           project,
           source_url: url,
-          source_type: sourceType,
+          source_type: finalSourceType,
           chunk_index: i,
-          chunk_text: chunkText,
+          chunk_text: chunk.text,
           embedding: embeddings[i],
-          metadata: { ...metadata, ingested_at: new Date().toISOString() },
+          metadata: {
+            ...metadata,
+            category: chunk.category || "general",
+            questions: chunk.questions || [],
+            enriched_with_groq: RAG_ENRICH_ENABLED && !!GROQ_API_KEY,
+            ingested_at: new Date().toISOString(),
+          },
         }));
 
         const { error: insertError } = await supabase
@@ -347,29 +541,179 @@ Deno.serve(async (req: Request) => {
 
         if (insertError) {
           console.log(`[rag-ingest] Insert error for ${url}: ${insertError.message}`);
-          results.push({ url, status: "error", error: insertError.message });
+          results.push({ source: url, status: "error", error: insertError.message });
         } else {
           console.log(`[rag-ingest] ${url} → ${rows.length} chunks stored`);
-          results.push({ url, status: "success", chunks: rows.length, source_type: sourceType });
+          results.push({ source: url, status: "success", chunks: rows.length, source_type: finalSourceType, enriched: true });
         }
       } catch (err: any) {
-        console.log(`[rag-ingest] Error processing ${url}: ${err.message}`);
-        results.push({ url, status: "error", error: err.message });
+        console.log(`[rag-ingest] Error processing URL ${url}: ${err.message}`);
+        results.push({ source: url, status: "error", error: err.message });
+      }
+    }
+
+    // ===== Process Images (base64 → Groq Vision → enrich → embed) =====
+    for (let idx = 0; idx < images.length; idx++) {
+      const imgRef = `image_${idx}`;
+      try {
+        console.log(`[rag-ingest] Processing image ${idx + 1}/${images.length}`);
+
+        // 1. Extract text with Groq Vision
+        const rawText = await extractTextWithGroqVision(images[idx]);
+
+        if (!rawText || rawText.length < 30) {
+          console.log(`[rag-ingest] Skipping ${imgRef} — insufficient text from vision`);
+          results.push({ source: imgRef, status: "skipped", reason: "insufficient_text" });
+          continue;
+        }
+
+        // 2. Enrich + chunk with Groq LLM
+        const enrichedChunks = await enrichWithGroq(rawText);
+        console.log(`[rag-ingest] ${imgRef} → ${enrichedChunks.length} enriched chunks`);
+
+        if (enrichedChunks.length === 0) {
+          results.push({ source: imgRef, status: "skipped", reason: "no_chunks" });
+          continue;
+        }
+
+        // 3. Delete existing chunks for this image reference
+        const imageSourceUrl = metadata.source_label || `groq-vision://${imgRef}`;
+        await supabase
+          .from("rag_documents")
+          .delete()
+          .eq("source_url", imageSourceUrl)
+          .eq("project", project);
+
+        // 4. Build embedding texts
+        const embeddingTexts = enrichedChunks.map((c) =>
+          c.questions && c.questions.length > 0
+            ? `${c.text}\n\nPreguntas que responde: ${c.questions.join(" ")}`
+            : c.text
+        );
+
+        // 5. Generate embeddings
+        const embeddings = await generateEmbeddings(embeddingTexts);
+
+        // 6. Store in pgvector
+        const rows = enrichedChunks.map((chunk, i) => ({
+          project,
+          source_url: imageSourceUrl,
+          source_type: "image_vision",
+          chunk_index: i,
+          chunk_text: chunk.text,
+          embedding: embeddings[i],
+          metadata: {
+            ...metadata,
+            category: chunk.category || "general",
+            questions: chunk.questions || [],
+            enriched_with_groq: true,
+            extraction_model: GROQ_VISION_MODEL,
+            ingested_at: new Date().toISOString(),
+          },
+        }));
+
+        const { error: insertError } = await supabase
+          .from("rag_documents")
+          .insert(rows);
+
+        if (insertError) {
+          console.log(`[rag-ingest] Insert error for ${imgRef}: ${insertError.message}`);
+          results.push({ source: imgRef, status: "error", error: insertError.message });
+        } else {
+          console.log(`[rag-ingest] ${imgRef} → ${rows.length} chunks stored`);
+          results.push({ source: imgRef, status: "success", chunks: rows.length, source_type: "image_vision", enriched: true });
+        }
+      } catch (err: any) {
+        console.log(`[rag-ingest] Error processing ${imgRef}: ${err.message}`);
+        results.push({ source: imgRef, status: "error", error: err.message });
+      }
+    }
+
+    // ===== Process raw texts (bypass extraction, still enrich) =====
+    for (let idx = 0; idx < texts.length; idx++) {
+      const textRef = `text_${idx}`;
+      const sourceUrl = metadata.source_label || `text://${textRef}`;
+      try {
+        console.log(`[rag-ingest] Processing text ${idx + 1}/${texts.length}`);
+
+        if (!texts[idx] || texts[idx].length < 50) {
+          results.push({ source: textRef, status: "skipped", reason: "insufficient_text" });
+          continue;
+        }
+
+        // 1. Enrich + chunk with Groq LLM
+        const enrichedChunks = await enrichWithGroq(texts[idx]);
+        console.log(`[rag-ingest] ${textRef} → ${enrichedChunks.length} enriched chunks`);
+
+        if (enrichedChunks.length === 0) {
+          results.push({ source: textRef, status: "skipped", reason: "no_chunks" });
+          continue;
+        }
+
+        // 2. Delete existing chunks
+        await supabase
+          .from("rag_documents")
+          .delete()
+          .eq("source_url", sourceUrl)
+          .eq("project", project);
+
+        // 3. Build embedding texts
+        const embeddingTexts = enrichedChunks.map((c) =>
+          c.questions && c.questions.length > 0
+            ? `${c.text}\n\nPreguntas que responde: ${c.questions.join(" ")}`
+            : c.text
+        );
+
+        // 4. Generate embeddings
+        const embeddings = await generateEmbeddings(embeddingTexts);
+
+        // 5. Store in pgvector
+        const rows = enrichedChunks.map((chunk, i) => ({
+          project,
+          source_url: sourceUrl,
+          source_type: "text",
+          chunk_index: i,
+          chunk_text: chunk.text,
+          embedding: embeddings[i],
+          metadata: {
+            ...metadata,
+            category: chunk.category || "general",
+            questions: chunk.questions || [],
+            enriched_with_groq: RAG_ENRICH_ENABLED && !!GROQ_API_KEY,
+            ingested_at: new Date().toISOString(),
+          },
+        }));
+
+        const { error: insertError } = await supabase
+          .from("rag_documents")
+          .insert(rows);
+
+        if (insertError) {
+          console.log(`[rag-ingest] Insert error for ${textRef}: ${insertError.message}`);
+          results.push({ source: textRef, status: "error", error: insertError.message });
+        } else {
+          console.log(`[rag-ingest] ${textRef} → ${rows.length} chunks stored`);
+          results.push({ source: textRef, status: "success", chunks: rows.length, source_type: "text", enriched: true });
+        }
+      } catch (err: any) {
+        console.log(`[rag-ingest] Error processing ${textRef}: ${err.message}`);
+        results.push({ source: textRef, status: "error", error: err.message });
       }
     }
 
     const successCount = results.filter((r) => r.status === "success").length;
     const totalChunks = results.reduce((sum, r) => sum + (r.chunks || 0), 0);
 
-    console.log(`[rag-ingest] END | success: ${successCount}/${urls.length} | total chunks: ${totalChunks}`);
+    console.log(`[rag-ingest] END | success: ${successCount}/${totalInputs} | total chunks: ${totalChunks}`);
 
     return new Response(JSON.stringify({
       success: true,
       project,
       results,
-      total_urls: urls.length,
+      total_inputs: totalInputs,
       total_success: successCount,
       total_chunks: totalChunks,
+      enrichment: RAG_ENRICH_ENABLED && !!GROQ_API_KEY ? "groq" : "mechanical",
     }), {
       status: 200,
       headers: { "Content-Type": "application/json", ...corsHeaders },
