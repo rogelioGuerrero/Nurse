@@ -106,6 +106,20 @@ interface AgentRequest {
   channel?: 'email' | 'chat';
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   client_memory?: Record<string, any>;
+  confirmed_action?: { tool: string; args: any };
+}
+
+// ===== HUMAN-IN-THE-LOOP: Destructive tools require confirmation =====
+const DESTRUCTIVE_TOOLS = new Set(['send_push_notification', 'send_email']);
+
+function buildConfirmationDescription(toolName: string, args: any): string {
+  if (toolName === 'send_push_notification') {
+    return `enviar una notificación push a ${args.target} con el título "${args.title}" y mensaje "${args.body}"`;
+  }
+  if (toolName === 'send_email') {
+    return `enviar un correo a ${args.to} con asunto "${args.subject}" y mensaje "${args.body}"`;
+  }
+  return `ejecutar ${toolName}`;
 }
 
 // ===== RATE LIMITING (per IP) =====
@@ -661,7 +675,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { message, user_email, channel = 'chat', history = [], client_memory = {} }: AgentRequest = await req.json();
+    const { message, user_email, channel = 'chat', history = [], client_memory = {}, confirmed_action }: AgentRequest = await req.json();
 
     if (!message || !user_email) {
       return new Response(JSON.stringify({ error: 'Faltan message o user_email' }), {
@@ -703,7 +717,29 @@ Deno.serve(async (req: Request) => {
     const { userId, role, userName, memory: persistentMemory, authMethod } = auth;
     const tools = role === 'nurse' ? NURSE_TOOLS : role === 'user' ? FAMILY_TOOLS : role === 'admin' ? ADMIN_TOOLS : VISITOR_TOOLS;
 
-    console.log(`[ai-agent] User: ${userName} | role: ${role} | tools: ${tools.length} | auth: ${authMethod} | history: ${history.length}`);
+    console.log(`[ai-agent] User: ${userName} | role: ${role} | tools: ${tools.length} | auth: ${authMethod} | history: ${history.length}${confirmed_action ? ' | confirmed_action: ' + confirmed_action.tool : ''}`);
+
+    // Handle confirmed destructive action (human-in-the-loop)
+    if (confirmed_action && confirmed_action.tool && DESTRUCTIVE_TOOLS.has(confirmed_action.tool)) {
+      console.log(`[ai-agent] Executing confirmed action: ${confirmed_action.tool}`);
+      const result = await executeTool(confirmed_action.tool, supabase, userId, role, confirmed_action.args);
+      let reply = buildFallbackReply([{ name: confirmed_action.tool, result }]);
+      const safetyCheck = await checkContentSafety(reply);
+      if (!safetyCheck.isSafe) {
+        reply = `Lo siento, no puedo proporcionar ese tipo de información médica específica. Te recomiendo consultar con un profesional de la salud o escribirnos a info@agtisa.com para orientación.`;
+      }
+      const piiCheck = await detectPII(reply);
+      if (piiCheck.found) reply = piiCheck.cleaned;
+      if (userId) {
+        const piiInput = await detectPII(message);
+        const safeMessage = piiInput.found ? piiInput.cleaned : message;
+        extractMemory(supabase, userId, persistentMemory, safeMessage, reply);
+      }
+      console.log(`[ai-agent] === END (confirmed) | ${Date.now() - startTime}ms | tool: ${confirmed_action.tool}`);
+      return new Response(JSON.stringify({ reply, role, tools_used: true, channel }), {
+        status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
 
     const memoryContext = Object.keys(persistentMemory).length > 0 || Object.keys(client_memory).length > 0
       ? `\n\nMEMORIA DEL USUARIO (usá esto como contexto, no lo menciones directamente):\nPersistente: ${JSON.stringify(persistentMemory)}\nDispositivo: ${JSON.stringify(client_memory)}`
@@ -818,6 +854,19 @@ REGLAS:
       for (const toolCall of assistantMessage.tool_calls) {
         const toolName = toolCall.function.name;
         const args = toolCall.function.arguments ? JSON.parse(toolCall.function.arguments) : {};
+
+        // Human-in-the-loop: intercept destructive tools for confirmation
+        if (DESTRUCTIVE_TOOLS.has(toolName)) {
+          const desc = buildConfirmationDescription(toolName, args);
+          const confirmReply = `Voy a ${desc}. ¿Confirmás? (responde sí o no)`;
+          console.log(`[ai-agent] Confirmation required for: ${toolName}`);
+          console.log(`[ai-agent] === END (confirm gate) | ${Date.now() - startTime}ms`);
+          return new Response(JSON.stringify({
+            reply: confirmReply, role, tools_used: true, channel,
+            pending_confirmation: { tool: toolName, args },
+          }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        }
+
         const result = await executeTool(toolName, supabase, userId, role, args);
         toolResults.push({ name: toolName, result });
         messages.push({ role: 'tool', tool_call_id: toolCall.id, content: JSON.stringify(result) });

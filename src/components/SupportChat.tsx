@@ -152,6 +152,7 @@ export const SupportChat: FC<{ userRole?: string; userEmail?: string }> = ({ use
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [showEmailFallback, setShowEmailFallback] = useState(false);
+  const [pendingConfirmation, setPendingConfirmation] = useState<{ tool: string; args: any } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sessionIdRef = useRef<string | null>(null);
   const userMessagesRef = useRef<Array<{ role: string; content: string }>>([]);
@@ -278,6 +279,7 @@ export const SupportChat: FC<{ userRole?: string; userEmail?: string }> = ({ use
             channel: 'chat',
             history: userMessagesRef.current.slice(-12).map(m => ({ role: m.role, content: m.content })),
             client_memory: clientMemory,
+            ...(pendingConfirmation ? { confirmed_action: pendingConfirmation } : {}),
           }),
         });
 
@@ -285,6 +287,13 @@ export const SupportChat: FC<{ userRole?: string; userEmail?: string }> = ({ use
 
         const data = await response.json();
         assistantReply = data.reply || 'No pude procesar tu consulta. Escribinos a info@agtisa.com.';
+
+        // Handle pending confirmation from destructive tools
+        if (data.pending_confirmation) {
+          setPendingConfirmation(data.pending_confirmation);
+        } else {
+          setPendingConfirmation(null);
+        }
 
         // Save conversation context to localStorage
         try {
