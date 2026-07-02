@@ -44,7 +44,7 @@ async function detectPII(text: string): Promise<{ cleaned: string; found: boolea
       method: "POST",
       headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
+        model: "openai/gpt-oss-20b",
         messages: [
           { role: "system", content: "Detecta datos personales (DUI, teléfono, email, dirección, número de seguro) en el texto. Reemplázalos con [REDACTED]. Devuelve SOLO el texto limpio, sin explicaciones." },
           { role: "user", content: text },
@@ -659,7 +659,7 @@ async function extractMemory(supabase: any, userId: string, existingMemory: any,
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'llama-3.1-8b-instant', messages: [{ role: 'user', content: extractPrompt }], temperature: 0, max_tokens: 200, response_format: { type: 'json_object' } }),
+      body: JSON.stringify({ model: 'openai/gpt-oss-20b', messages: [{ role: 'user', content: extractPrompt }], temperature: 0, max_tokens: 200, response_format: { type: 'json_object' } }),
     });
     if (res.ok) {
       const data = await res.json();
