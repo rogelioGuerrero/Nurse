@@ -6,6 +6,7 @@ import { TermsAndConditions } from './TermsAndConditions';
 import { validateCSSPRegistration } from '../lib/csspValidation';
 import { verifyCSSP } from '../lib/csspVerify';
 import { DEPARTMENTS, DEPARTMENTS_WITH_MUNICIPALITIES } from '../data/districts';
+import { validatePasswordStrength, getPasswordStrengthColor, getPasswordStrengthLabel } from '../lib/passwordValidation';
 
 interface AuthFormProps {
   mode: 'login' | 'register';
@@ -46,8 +47,11 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
   };
 
   const validatePassword = (value: string): boolean => {
-    return value.length >= 6;
+    return value.length >= 8;
   };
+
+  const passwordCheck = validatePasswordStrength(password);
+  const showPasswordStrength = authMode === 'register' && password.length > 0;
 
   const handleRegister = async () => {
     setError('');
@@ -62,8 +66,9 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
       return;
     }
 
-    if (!validatePassword(password)) {
-      setError('La contraseña debe tener al menos 6 caracteres');
+    const pwdCheck = validatePasswordStrength(password);
+    if (!pwdCheck.valid) {
+      setError(pwdCheck.message);
       return;
     }
 
@@ -234,7 +239,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
     }
 
     if (!validatePassword(password)) {
-      setError('Ingresa tu contraseña');
+      setError('Ingresa tu contraseña (mínimo 8 caracteres)');
       return;
     }
 
@@ -421,11 +426,17 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••"
-                  minLength={6}
+                  placeholder="••••••••"
+                  minLength={8}
                   className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
                 />
               </div>
+              {showPasswordStrength && (
+                <div className={`flex items-center justify-between px-3 py-1.5 rounded-lg border text-[10px] font-bold ${getPasswordStrengthColor(passwordCheck.strength)}`}>
+                  <span>{passwordCheck.message}</span>
+                  <span>{getPasswordStrengthLabel(passwordCheck.strength)}</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -442,8 +453,8 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
                   type="password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="••••••"
-                  minLength={6}
+                  placeholder="••••••••"
+                  minLength={8}
                   className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
                 />
               </div>
