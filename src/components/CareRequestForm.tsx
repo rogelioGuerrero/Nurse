@@ -644,47 +644,6 @@ export const CareRequestForm: FC = () => {
             </div>
           </div>
 
-          {/* Invoice preference */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-indigo-600 shrink-0" />
-              <p className="text-xs font-bold text-slate-700">¿Necesitas factura electrónica?</p>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setWantsInvoice(false)}
-                className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
-                  !wantsInvoice
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                Sin factura
-              </button>
-              <button
-                type="button"
-                onClick={() => setWantsInvoice(true)}
-                className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold transition cursor-pointer ${
-                  wantsInvoice
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-100'
-                }`}
-              >
-                Con factura
-              </button>
-            </div>
-            {wantsInvoice ? (
-              <p className="text-[10px] text-indigo-600 leading-relaxed">
-                El pago se realiza por transferencia a BienCuidar. Te emitiremos comprobante legal (Factura o Crédito Fiscal) por el total del servicio, válido para deducir Impuesto sobre la Renta o reembolso de seguro médico. El total incluye el pago de la enfermera y nuestra tarifa de gestión fiscal y administrativa de US$5 (más IVA).
-              </p>
-            ) : (
-              <p className="text-[10px] text-slate-500 leading-relaxed">
-                Pago directo a la enfermera. BienCuidar no emite factura ni tiene responsabilidad fiscal.
-              </p>
-            )}
-          </div>
-
           <div className="flex gap-3">
             <button
               type="button"
@@ -700,9 +659,31 @@ export const CareRequestForm: FC = () => {
               className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-200 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer"
             >
               <Send className="h-5 w-5" />
-              Enviar solicitud
+              Publicar solicitud
             </button>
           </div>
+
+          {/* Checkbox de factura */}
+          <label className="flex items-center gap-2.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={wantsInvoice}
+              onChange={(e) => setWantsInvoice(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+            />
+            <span className="text-xs font-bold text-slate-700">Necesito factura</span>
+          </label>
+          {wantsInvoice && (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-indigo-600 shrink-0" />
+                <p className="text-xs font-bold text-indigo-800">Factura electrónica</p>
+              </div>
+              <p className="text-[10px] text-indigo-600 leading-relaxed">
+                El pago se realiza por transferencia a BienCuidar. Te emitiremos comprobante legal (Factura o Crédito Fiscal) por el total del servicio, válido para deducir Impuesto sobre la Renta o reembolso de seguro médico. El total incluye el pago de la enfermera y nuestra tarifa de gestión fiscal y administrativa de US$5 (más IVA).
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
