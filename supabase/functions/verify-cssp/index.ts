@@ -422,8 +422,9 @@ async function verifyWithRetries(
 async function sendCsspEmail(
   supabase: ReturnType<typeof createClient>,
   nurseId: string,
-  problemType: string,
-  problemDetail: string
+  templateType: string,
+  problemDetail: string,
+  usedVariant?: string
 ): Promise<void> {
   try {
     // Obtener email y nombre de la enfermera desde profiles
@@ -456,8 +457,9 @@ async function sendCsspEmail(
         nurse_email: profile.email,
         cssp_registration: nurse.cssp_registration,
         cssp_level: nurse.cssp_level || "",
-        problem_type: problemType,
+        template_type: templateType,
         problem_detail: problemDetail,
+        used_variant: usedVariant,
       }),
     });
 
@@ -470,7 +472,7 @@ async function sendCsspEmail(
           cssp_email_sent_at: new Date().toISOString(),
         })
         .eq("id", nurseId);
-      console.log(`Correo enviado a ${profile.email} por: ${problemType}`);
+      console.log(`Correo enviado a ${profile.email} template: ${templateType}`);
     } else {
       console.error(`Error enviando correo: ${await response.text()}`);
     }
@@ -601,8 +603,8 @@ Deno.serve(async (req: Request) => {
         await sendCsspEmail(
           supabase,
           nurse_id,
-          "discrepancias en la verificación CSSP",
-          `Tu número de registro CSSP fue encontrado pero hay discrepancias: ${mismatches.join("; ")}. Por favor corrige tus datos en https://biencuidar.agtisa.com`
+          "cssp_discrepancy",
+          `Tu número de registro fue encontrado pero hay discrepancias: ${mismatches.join("; ")}.`
         );
 
         return new Response(
@@ -634,8 +636,9 @@ Deno.serve(async (req: Request) => {
         await sendCsspEmail(
           supabase,
           nurse_id,
-          "actualización de número CSSP recomendada",
-          `Tu registro CSSP fue verificado exitosamente usando el formato "${usedVariant}". Por favor actualiza tu número de registro en tu perfil a este formato correcto: ${usedVariant}. Ingresa a https://biencuidar.agtisa.com, ve a "Mi Perfil" y corrige tu número CSSP.`
+          "cssp_variant",
+          `Tu registro fue verificado usando el formato "${usedVariant}". Actualizá tu número en tu perfil a este formato.`,
+          usedVariant
         );
       }
 
@@ -668,8 +671,8 @@ Deno.serve(async (req: Request) => {
     await sendCsspEmail(
       supabase,
       nurse_id,
-      "número CSSP no encontrado en el portal",
-      `El número ${cssp_registration} no fue encontrado en el portal del CSSP. Verifica que el número sea correcto y actualízalo en https://biencuidar.agtisa.com`
+      "cssp_not_found",
+      `El número ${cssp_registration} no fue encontrado en el portal del CSSP. Verificá que el número sea correcto.`
     );
 
     return new Response(
