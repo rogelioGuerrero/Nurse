@@ -15,11 +15,31 @@
  *              ← REESCRIBIR        ← RECHAZADO
  *   ← BUSCAR_MAS ─────┘
  * 
- * Uso: $env:GROQ_API_KEY="gsk_..."; node scripts/groq-news.mjs "tema" @scripts/editorial-angle.txt "próximo tema"
+ * Uso: node scripts/groq-news.mjs "tema" @scripts/editorial-angle.txt "próximo tema"
+ * (GROQ_API_KEY se lee automáticamente desde .env si no está en el entorno)
  * Salida: scripts/generated-article.txt + scripts/gemini-prompt.txt
  */
 
 import { writeFileSync, readFileSync, mkdirSync } from "fs";
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+
+// Cargar .env automáticamente si GROQ_API_KEY no está en el entorno
+function loadEnv() {
+  if (process.env.GROQ_API_KEY) return;
+  try {
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const envPath = resolve(__dirname, "..", ".env");
+    const envContent = readFileSync(envPath, "utf-8");
+    for (const line of envContent.split("\n")) {
+      const match = line.match(/^([A-Z_]+)=(.*)$/);
+      if (match && !process.env[match[1]]) {
+        process.env[match[1]] = match[2].replace(/^"|"$/g, "");
+      }
+    }
+  } catch {}
+}
+loadEnv();
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -57,7 +77,9 @@ const TRUSTED_DOMAINS = [
 
 if (!GROQ_API_KEY) {
   console.error("Error: GROQ_API_KEY no encontrada.");
-  console.error('Setear: $env:GROQ_API_KEY="gsk_tu_key"');
+  console.error("Opciones:");
+  console.error('  1. Crear archivo .env con GROQ_API_KEY=gsk_tu_key');
+  console.error('  2. O setear: $env:GROQ_API_KEY="gsk_tu_key"');
   process.exit(1);
 }
 
