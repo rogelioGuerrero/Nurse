@@ -7,12 +7,19 @@ const SUPABASE_ANON_KEY =
 const EDGE_FUNCTION_URL = `${SUPABASE_URL}/functions/v1/fb-publish`;
 
 const imagePath = process.argv[2];
-const message = process.argv[3].replace(/\\n/g, "\n");
+const messageArg = process.argv[3];
 
-if (!imagePath || !message) {
-  console.error("Uso: node scripts/fb-post.mjs <ruta-imagen> <mensaje>");
+if (!imagePath || !messageArg) {
+  console.error("Uso: node scripts/fb-post.mjs <ruta-imagen> <mensaje|@archivo>");
+  console.error("  Ejemplo con texto:  node scripts/fb-post.mjs foto.png \"Hola mundo\"");
+  console.error("  Ejemplo con archivo: node scripts/fb-post.mjs foto.png @scripts/generated-article.txt");
   process.exit(1);
 }
+
+// If message starts with @, read from file (avoids PowerShell encoding issues)
+const message = messageArg.startsWith("@")
+  ? readFileSync(messageArg.slice(1), "utf-8").replace(/\\n/g, "\n")
+  : messageArg.replace(/\\n/g, "\n");
 
 async function main() {
   // 1. Leer y comprimir imagen
