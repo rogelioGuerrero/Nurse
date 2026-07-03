@@ -18,4 +18,5 @@ supabase-rag-toolkit/
 # Temp files from groq-news pipeline
 scripts/generated-article.txt
 scripts/test-compound.json
+scripts/gemini-prompt.txt
 .gitignore.tmp
