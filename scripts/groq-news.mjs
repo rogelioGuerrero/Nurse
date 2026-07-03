@@ -156,11 +156,13 @@ async function agentWrite(research, feedback = null) {
   console.log("[Agente 2/5] Llama 3.3 redactando borrador en español...");
   if (feedback) console.log(`Aplicando feedback: ${feedback.slice(0, 100)}\n`);
 
-  const angle = feedback
-    ? `FEEDBACK DEL REVISOR (aplica estos cambios en el ángulo narrativo): ${feedback}`
-    : ANGLE
-      ? `ÁNGULO EDITORIAL (definido por el editor humano): ${ANGLE}`
-      : `ÁNGULO EDITORIAL: Busca la historia humana detrás del tema. Empieza con un gancho que haga a la persona detenerse a leer. Por ejemplo: una historia concreta, una pregunta que incomode, un dato que sorprenda. No seas genérico.`;
+  const angle = ANGLE
+    ? `ÁNGULO EDITORIAL (definido por el editor humano, MANTÉN ESTE TONO Y GANCHO SIEMPRE): ${ANGLE}`
+    : `ÁNGULO EDITORIAL: Busca la historia humana detrás del tema. Empieza con un gancho que haga a la persona detenerse a leer. Por ejemplo: una historia concreta, una pregunta que incomode, un dato que sorprenda. No seas genérico.`;
+
+  const feedbackSection = feedback
+    ? `\nFEEDBACK DEL REVISOR (corrige datos o hechos, pero NO suavices el ángulo editorial ni el tono): ${feedback}\n`
+    : "";
 
   const prompt = `Eres el redactor jefe de BienCuidar, una plataforma salvadoreña que conecta familias con enfermeras profesionales para cuidado de salud en casa.
 
@@ -170,16 +172,18 @@ ${research}
 Redacta un post de Facebook en español sobre: ${TOPIC}
 
 ${angle}
-
+${feedbackSection}
 Reglas:
 - NO uses markdown (no **negritas**, no ##, no bullets con -)
 - Usa 2-3 emojis profesionales (🩺 💙 🌐 🤝 ❤️‍🩹)
-- Tono empático, profesional y cercano. NO condescendiente.
+- Tono empático, profesional y cercano. NO condescendiente. NO suavices el mensaje.
 - 150-200 palabras MAXIMO
-- Estructura: gancho narrativo + 1 dato real + 1 consejo práctico + CTA
+- Estructura: gancho narrativo + 1 dato real + 1 reflexión o consejo práctico + CTA
 - Si los datos están en inglés, tradúcelos al español
-- NO inventes estadísticas. Solo usa las que aparecen en la investigación.
+- NO inventes estadísticas. Solo usa las que aparecen en la investigación o en el ángulo editorial.
 - El gancho debe visibilizar el problema, no sensacionalizarlo
+- MANTÉN el tono del ángulo editorial aunque haya feedback del revisor. El feedback corrige datos, no cambia el enfoque narrativo.
+- Si el ángulo editorial incluye datos específicos (ej: "70% no cotiza", "13% pensión"), ÚSALOS en el texto. No los omitas.
 
 Termina con: Publicá tu necesidad de cuido en https://biencuidar.agtisa.com
 Incluye 3 hashtags al final.
@@ -226,7 +230,7 @@ Responde EXACTAMENTE en este formato:
   * BUSCAR_MAS: faltan datos importantes, el buscador necesita buscar más (explica qué buscar)`;
 
   const data = await callGroq("llama-3.3-70b-versatile", prompt, {
-    max_tokens: 500,
+    max_tokens: 800,
     temperature: 0.3,
   });
 
