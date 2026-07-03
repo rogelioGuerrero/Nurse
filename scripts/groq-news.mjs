@@ -19,7 +19,7 @@
  * Salida: scripts/generated-article.txt + scripts/gemini-prompt.txt
  */
 
-import { writeFileSync, readFileSync } from "fs";
+import { writeFileSync, readFileSync, mkdirSync } from "fs";
 
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -181,7 +181,7 @@ Reglas:
 - NO inventes estadísticas. Solo usa las que aparecen en la investigación.
 - El gancho debe visibilizar el problema, no sensacionalizarlo
 
-Termina con: Publicá tu necesidad gratis en https://biencuidar.agtisa.com
+Termina con: Publicá tu necesidad de cuido en https://biencuidar.agtisa.com
 Incluye 3 hashtags al final.
 
 Devuelve SOLO el texto.`;
@@ -257,7 +257,7 @@ Tu trabajo como editor:
 Mantén:
 - Sin markdown
 - 2-3 emojis profesionales
-- Termina con: Publicá tu necesidad gratis en https://biencuidar.agtisa.com
+- Termina con: Publicá tu necesidad de cuido en https://biencuidar.agtisa.com
 - 3 hashtags al final
 
 Devuelve SOLO el texto final listo para publicar.`;
@@ -283,7 +283,7 @@ Checklist (responde sí/no a cada uno):
 2. ¿No tiene markdown (**, ##, -)?
 3. ¿Tiene 150-200 palabras?
 4. ¿Tiene 2-3 emojis profesionales?
-5. ¿Termina con "Publicá tu necesidad gratis en https://biencuidar.agtisa.com"?
+5. ¿Termina con "Publicá tu necesidad de cuido en https://biencuidar.agtisa.com"?
 6. ¿Tiene 3 hashtags?
 7. ¿No tiene datos inventados (dice "según" o cita fuente)?
 8. ¿Tono profesional y empático?
@@ -528,7 +528,7 @@ class MoAGraph {
 
     // Insertar teaser antes del CTA si existe
     if (this.state.teaser) {
-      const ctaIndex = article.indexOf("Publicá tu necesidad gratis");
+      const ctaIndex = article.indexOf("Publicá tu necesidad de cuido");
       if (ctaIndex > -1) {
         article = article.slice(0, ctaIndex) + this.state.teaser + "\n" + article.slice(ctaIndex);
       } else {
@@ -537,6 +537,15 @@ class MoAGraph {
     }
 
     writeFileSync(OUTPUT_FILE, article, "utf-8");
+
+    // Guardar copia histórica
+    const date = new Date().toISOString().slice(0, 10);
+    const slug = this.state.topic.slice(0, 40).replace(/[^a-z0-9]/gi, "-").toLowerCase();
+    const archiveDir = "scripts/articles";
+    mkdirSync(archiveDir, { recursive: true });
+    const archivePath = `${archiveDir}/${date}_${slug}.txt`;
+    writeFileSync(archivePath, article, "utf-8");
+    console.log(`Archivo histórico: ${archivePath}`);
 
     const geminiPrompt = generateGeminiPrompt(article);
     writeFileSync(GEMINI_PROMPT_FILE, geminiPrompt, "utf-8");

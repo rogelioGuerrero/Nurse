@@ -20,4 +20,5 @@ scripts/generated-article.txt
 scripts/test-compound.json
 scripts/gemini-prompt.txt
 scripts/editorial-angle.txt
+scripts/articles/
 .gitignore.tmp
