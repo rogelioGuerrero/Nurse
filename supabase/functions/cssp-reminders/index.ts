@@ -332,6 +332,12 @@ Deno.serve(async (req: Request) => {
     }
 
     // ===== 3. INACTIVITY ALERTS =====
+    // Solo enviar alertas de inactividad si ya hay solicitudes de cuidado en la plataforma
+    const { count: totalCareRequests } = await supabase
+      .from("care_requests").select("*", { count: "exact", head: true })
+      .not("family_id", "in", notInDemo);
+
+    if ((totalCareRequests || 0) > 0) {
     const { data: inactiveNurses } = await supabase
       .from("nurses")
       .select(`
@@ -387,6 +393,9 @@ Deno.serve(async (req: Request) => {
           }
         }
       }
+    }
+    } else {
+      console.log("[cssp-reminders] Inactivity alerts skipped — no care requests yet");
     }
 
     // ===== 4. ADMIN DAILY SUMMARY =====
