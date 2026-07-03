@@ -10,12 +10,12 @@
  * Agente 5 (Aprueba):  Llama 3.3 70b QA final (formato, CTA, hashtags)
  * 
  * Graph:
- *   SEARCH → WRITE → REVIEW → EDIT → APPROVE → END
+ *   SEARCH → WRITE → REVIEW → EDIT → APPROVE → TEASER → END
  *              ↑        |         |        |
  *              ← REESCRIBIR        ← RECHAZADO
  *   ← BUSCAR_MAS ─────┘
  * 
- * Uso: $env:GROQ_API_KEY="gsk_..."; node scripts/groq-news.mjs "tema" @scripts/editorial-angle.txt
+ * Uso: $env:GROQ_API_KEY="gsk_..."; node scripts/groq-news.mjs "tema" @scripts/editorial-angle.txt "próximo tema"
  * Salida: scripts/generated-article.txt + scripts/gemini-prompt.txt
  */
 
@@ -28,12 +28,18 @@ const GEMINI_PROMPT_FILE = "scripts/gemini-prompt.txt";
 
 const TOPIC = process.argv[2] || "burnout cuidadores adultos mayores";
 const ANGLE_RAW = process.argv[3] || "";
+const NEXT_TOPIC_RAW = process.argv[4] || "";
 const MAX_ITERATIONS = 2;
 
 // Leer ángulo desde archivo si empieza con @ (evita corrupción UTF-8 de PowerShell)
 const ANGLE = ANGLE_RAW.startsWith("@")
   ? readFileSync(ANGLE_RAW.slice(1), "utf-8").trim()
   : ANGLE_RAW;
+
+// Leer próximo tema desde archivo si empieza con @
+const NEXT_TOPIC = NEXT_TOPIC_RAW.startsWith("@")
+  ? readFileSync(NEXT_TOPIC_RAW.slice(1), "utf-8").trim()
+  : NEXT_TOPIC_RAW;
 
 // Fuentes autorizadas para búsqueda web
 const TRUSTED_DOMAINS = [
@@ -320,6 +326,38 @@ Article context (for visual inspiration):
 ${article.slice(0, 300)}`;
 }
 
+// ── Generar teaser/cliffhanger para el próximo artículo ──
+async function generateTeaser(article, nextTopic) {
+  if (!nextTopic) return "";
+
+  console.log("[Teaser] Generando cliffhanger para próximo tema...\n");
+
+  const prompt = `Eres el redactor jefe de BienCuidar (plataforma salvadoreña de enfermería en casa).
+
+ARTÍCULO ACTUAL:
+${article.slice(0, 400)}
+
+PRÓXIMO TEMA: ${nextTopic}
+
+Genera un teaser de 1-2 líneas (máximo 30 palabras) que:
+- Cree expectativa sobre el próximo tema
+- Haga una pregunta provocativa que invite a comentar
+- Tono conversacional y cercano, NO comercial
+- NO incluyas CTA ni hashtags
+- NO uses markdown
+
+Ejemplo de formato: "La semana que viene: [pregunta provocativa]. Te leemos en el próximo análisis."
+
+Devuelve SOLO el teaser.`;
+
+  const data = await callGroq("llama-3.3-70b-versatile", prompt, {
+    max_tokens: 100,
+    temperature: 0.8,
+  });
+
+  return cleanMarkdown(data.choices[0]?.message?.content || "").trim();
+}
+
 // ── State Graph: definición del estado compartido ──
 // Cada nodo lee lo que necesita, procesa, valida, y escribe su resultado.
 
@@ -328,11 +366,13 @@ class MoAGraph {
     this.state = {
       topic: TOPIC,
       angle: ANGLE,
+      nextTopic: NEXT_TOPIC,
       research: "",
       draft: "",
       review: "",
       editedArticle: "",
       qaResult: "",
+      teaser: "",
       iteration: 1,
       searchFeedback: null,
       writeFeedback: null,
@@ -434,6 +474,19 @@ class MoAGraph {
       return "EDIT";
     }
 
+    // Aprobado → generar teaser si hay próximo tema
+    return this.state.nextTopic ? "TEASER" : "END";
+  }
+
+  // ── Nodo 6: TEASER (cliffhanger para próximo artículo) ──
+  async nodeTeaser() {
+    this.logNode("TEASER");
+    const teaser = await generateTeaser(this.state.editedArticle, this.state.nextTopic);
+    if (teaser) {
+      this.validate("TEASER", teaser, 20);
+      this.state.teaser = teaser;
+      console.log(`Teaser: "${teaser}"\n`);
+    }
     return "END";
   }
 
@@ -445,6 +498,7 @@ class MoAGraph {
       REVIEW: () => this.nodeReview(),
       EDIT: () => this.nodeEdit(),
       APPROVE: () => this.nodeApprove(),
+      TEASER: () => this.nodeTeaser(),
     };
 
     let current = "SEARCH";
@@ -470,7 +524,18 @@ class MoAGraph {
     }
 
     // Guardar resultado
-    const article = this.state.editedArticle;
+    let article = this.state.editedArticle;
+
+    // Insertar teaser antes del CTA si existe
+    if (this.state.teaser) {
+      const ctaIndex = article.indexOf("Publicá tu necesidad gratis");
+      if (ctaIndex > -1) {
+        article = article.slice(0, ctaIndex) + this.state.teaser + "\n" + article.slice(ctaIndex);
+      } else {
+        article = article + "\n" + this.state.teaser;
+      }
+    }
+
     writeFileSync(OUTPUT_FILE, article, "utf-8");
 
     const geminiPrompt = generateGeminiPrompt(article);
@@ -479,9 +544,10 @@ class MoAGraph {
     const elapsed = ((Date.now() - this.t0) / 1000).toFixed(1);
 
     console.log("═══════════════════════════════════════════════════");
-    console.log("ARTÍCULO GENERADO (MoA State Graph: 5 agentes)");
+    console.log("ARTÍCULO GENERADO (MoA State Graph: 5 agentes + teaser)");
     console.log(`Nodos ejecutados: ${this.state.nodeHistory.join(" → ")}`);
     console.log(`Iteraciones: ${this.state.iteration}`);
+    if (this.state.teaser) console.log(`Teaser: "${this.state.teaser}"`);
     console.log("═══════════════════════════════════════════════════\n");
     console.log(article);
     console.log("\n═══════════════════════════════════════════════════");
