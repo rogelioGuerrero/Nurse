@@ -179,7 +179,15 @@ async function agentWrite(research, feedback = null) {
   if (feedback) console.log(`Aplicando feedback: ${feedback.slice(0, 100)}\n`);
 
   const angle = ANGLE
-    ? `ÁNGULO EDITORIAL (definido por el editor humano, MANTÉN ESTE TONO Y GANCHO SIEMPRE): ${ANGLE}`
+    ? `ÁNGULO EDITORIAL (definido por el editor humano — SIGUE ESTAS INSTRUCCIONES):
+${ANGLE}
+
+INSTRUCCIONES DE USO DEL ÁNGULO:
+- GANCHO: abre el post con esta frase o pregunta. Es lo primero que lee el usuario.
+- TONO: mantiene esta actitud durante todo el post. No la suavices.
+- AUDIENCIA: escribe como si le hablaras a esta persona directamente.
+- DATOS_CLAVE: verifica estos datos con la investigación. Si se confirman, úsalos. Si no, busca equivalentes.
+- CIERRE: termina el post con esto antes del CTA.`
     : `ÁNGULO EDITORIAL: Busca la historia humana detrás del tema. Empieza con un gancho que haga a la persona detenerse a leer. Por ejemplo: una historia concreta, una pregunta que incomode, un dato que sorprenda. No seas genérico.`;
 
   const feedbackSection = feedback
@@ -234,7 +242,7 @@ ${draft}
 
 Verifica:
 1. ¿Las estadísticas coinciden con la investigación? ¿Hay datos inventados?
-2. ¿Hay claims sin fuente?
+2. ¿Hay claims sin fuente? IMPORTANTE: un claim es aceptable si tiene referencia verificable (DOI, URL, nombre de medio/publicación, institución académica o gubernamental). NO rechaces un dato solo porque no esté en la lista de fuentes autorizadas del buscador. The Lancet, Nature, Science, Reuters, BBC, NYT, INEGI, UN Women, Banco Mundial, CEPAL, OIT y publicaciones académicas peer-reviewed son fuentes válidas. Solo marca como "sin fuente" los datos que no tienen NINGUNA referencia identificable.
 3. ¿El tono es apropiado para una página de salud profesional?
 4. ¿Hay errores médicos o información peligrosa?
 5. ¿El ángulo narrativo visibiliza el problema o lo sensacionaliza?
