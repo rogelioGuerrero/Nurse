@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, type FC } from 'react';
 import { useApp } from '../context/AppContext';
-import { SHIFTS, type ShiftType, type ExpectedDuration, type PatientAgeRange, type PatientGender } from '../types';
+import { SHIFTS, type ShiftType, type ExpectedDuration, type PatientAgeRange, type PatientGender, type CareRequest } from '../types';
 import { MapPin, Calendar, Trash2, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Moon, Clock, FileText, AlertCircle, RotateCcw, XCircle, Inbox, Heart, User, AlertTriangle } from 'lucide-react';
 import { getTimeRemaining } from '../data/platformSettings';
 import { triageRequest, type TriageResult } from '../lib/triage';
@@ -68,6 +68,7 @@ export const CareRequestForm: FC = () => {
   const [triageResult, setTriageResult] = useState<TriageResult | null>(null);
   const [triageConfirmed, setTriageConfirmed] = useState(false);
   const [triageError, setTriageError] = useState(false);
+  const [republishingRequest, setRepublishingRequest] = useState<CareRequest | null>(null);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -222,7 +223,14 @@ export const CareRequestForm: FC = () => {
 
   const handleSubmit = () => {
     if (!canSubmit || !currentUser) return;
-    handleTriage();
+    if (republishingRequest) {
+      const dayCount = selectedDays.length;
+      const deducedDuration: ExpectedDuration = dayCount <= 3 ? 'shifts' : dayCount <= 15 ? 'up_to_2_weeks' : 'up_to_1_month';
+      republisheCareRequest(republishingRequest.id, slots, deducedDuration);
+      setPublished(true);
+    } else {
+      handleTriage();
+    }
   };
 
   const handleNewRequest = () => {
@@ -242,6 +250,30 @@ export const CareRequestForm: FC = () => {
     setTriageResult(null);
     setTriageConfirmed(false);
     setTriageError(false);
+    setRepublishingRequest(null);
+  };
+
+  const handleRepublishWithDates = (req: CareRequest) => {
+    setRepublishingRequest(req);
+    setPublished(false);
+    setPatientName(req.patient_name);
+    setPatientAgeRange(req.patient_age_range || '');
+    setPatientGender(req.patient_gender || '');
+    setNotes(req.notes || '');
+    setWantsInvoice(req.wants_invoice);
+    setLocationName(req.location_name);
+    setGpsCoords(req.lat && req.lng ? { lat: req.lat, lng: req.lng } : null);
+    setTriageResult(req.nurse_summary ? {
+      specialization_suggested: req.specialization_needed,
+      specialization_confidence: 1,
+      urgency: req.urgency || 'medium',
+      patient_data: req.patient_data || { diagnosis: '', autonomy: 'no reportado', allergies: 'no reportado', medications: 'no reportado', emergency_contact: 'no reportado' },
+      nurse_summary: req.nurse_summary,
+    } : null);
+    setTriageConfirmed(false);
+    setTriageError(false);
+    setSelectedDays([]);
+    setStep(2);
   };
 
   /* ── Hooks must run before any conditional return ── */
@@ -253,6 +285,7 @@ export const CareRequestForm: FC = () => {
   }, [careRequests, currentUser]);
 
   const activeRequests = myRequests.filter(r => r.status === 'open');
+  const finishedRequests = myRequests.filter(r => r.status === 'expired' || r.status === 'closed' || r.status === 'matched');
 
   /* ── Triage confirmation state ── */
   if (triageLoading) {
@@ -438,41 +471,52 @@ export const CareRequestForm: FC = () => {
             </div>
           )}
 
-          {expiredRequests.length > 0 && (
+          {finishedRequests.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-wider">
                 <AlertCircle className="h-3.5 w-3.5" />
                 <span>Finalizadas</span>
               </div>
-              {expiredRequests.map(req => {
+              {finishedRequests.map(req => {
                 const offersCount = careOffers.filter(o => o.request_id === req.id).length;
+                const hadAcceptedOffer = careOffers.some(o => o.request_id === req.id && o.status === 'accepted');
                 const isExpired = req.status === 'expired';
+                const isMatched = req.status === 'matched';
+                const statusLabel = isExpired ? 'Expirada' : isMatched ? 'Atendida' : 'Cerrada';
+                const statusColor = isExpired ? 'bg-rose-100 text-rose-600' : isMatched ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-500';
+                const statusDesc = isExpired
+                  ? (offersCount > 0 ? 'No decidiste a tiempo' : 'Sin respuesta de enfermeras')
+                  : isMatched
+                    ? 'Servicio completado'
+                    : 'Cerrada manualmente';
                 return (
-                  <div key={req.id} className={`bg-slate-50 border rounded-2xl p-3 space-y-2 ${isExpired ? 'border-slate-200' : 'border-slate-200'}`}>
+                  <div key={req.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold text-slate-600 truncate">{req.patient_condition}</p>
+                        <p className="text-xs font-bold text-slate-600 truncate">{req.patient_name}</p>
                         <p className="text-[10px] text-slate-400">{req.slots.length} turno(s) · {req.location_name}</p>
                       </div>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
-                        isExpired ? 'bg-rose-100 text-rose-600' : 'bg-slate-200 text-slate-500'
-                      }`}>
-                        {isExpired ? 'Expirada' : 'Cerrada'}
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${statusColor}`}>
+                        {statusLabel}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-slate-400">
-                        {isExpired
-                          ? (offersCount > 0 ? 'No decidiste a tiempo' : 'Sin respuesta de enfermeras')
-                          : 'Cerrada manualmente'}
-                      </span>
-                      {isExpired && (
+                      <span className="text-[10px] text-slate-400">{statusDesc}</span>
+                      {hadAcceptedOffer || isMatched ? (
                         <button
-                          onClick={() => republisheCareRequest(req.id)}
+                          onClick={() => handleNewRequest()}
                           className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition flex items-center gap-1 cursor-pointer"
                         >
                           <RotateCcw className="h-3 w-3" />
-                          Republicar
+                          Solicitar de nuevo
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => handleRepublishWithDates(req)}
+                          className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition flex items-center gap-1 cursor-pointer"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          Republicar con nuevas fechas
                         </button>
                       )}
                     </div>
@@ -506,6 +550,25 @@ export const CareRequestForm: FC = () => {
           </div>
         ))}
       </div>
+
+      {/* Republishing banner */}
+      {republishingRequest && step >= 2 && (
+        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <RotateCcw className="h-4 w-4 text-indigo-600 flex-shrink-0" />
+            <div>
+              <p className="text-xs font-bold text-indigo-700">Republicando solicitud</p>
+              <p className="text-[10px] text-indigo-500">{republishingRequest.patient_name} · {republishingRequest.specialization_needed}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => handleNewRequest()}
+            className="text-[10px] font-bold text-slate-400 hover:text-rose-600 transition cursor-pointer"
+          >
+            Cancelar
+          </button>
+        </div>
+      )}
 
       {/* Step 1: Need */}
       {step === 1 && (

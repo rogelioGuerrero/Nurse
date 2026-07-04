@@ -4,7 +4,7 @@
  */
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type FC, type ReactNode } from 'react';
-import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareRequestStatus, CareOffer, CareOfferStatus, ShiftType, NurseReview, FamilyReview } from '../types';
+import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareRequestStatus, CareRequestSlot, ExpectedDuration, CareOffer, CareOfferStatus, ShiftType, NurseReview, FamilyReview } from '../types';
 import { INITIAL_NURSES } from '../data/nurses';
 import { supabase } from '../lib/supabase';
 import { getResponseDeadline } from '../data/platformSettings';
@@ -61,7 +61,7 @@ interface AppContextType {
   careRequests: CareRequest[];
   createCareRequest: (data: Omit<CareRequest, 'id' | 'user_id' | 'created_at' | 'status' | 'response_deadline'>) => CareRequest;
   closeCareRequest: (requestId: string) => void;
-  republisheCareRequest: (requestId: string) => void;
+  republisheCareRequest: (requestId: string, newSlots?: CareRequestSlot[], newDuration?: ExpectedDuration) => void;
   careOffers: CareOffer[];
   createCareOffer: (data: Omit<CareOffer, 'id' | 'created_at' | 'status'> & { status?: CareOffer['status'] }) => CareOffer;
   withdrawCareOffer: (offerId: string) => void;
@@ -506,7 +506,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('request_id', requestId).eq('status', 'pending').then(({ error }) => { if (error) console.warn('closeCareRequest offers sync error:', error.message); });
   }, []);
 
-  const republisheCareRequest = useCallback((requestId: string) => {
+  const republisheCareRequest = useCallback((requestId: string, newSlots?: CareRequestSlot[], newDuration?: ExpectedDuration) => {
     const original = careRequests.find(r => r.id === requestId);
     if (!original) return;
     const now = new Date().toISOString();
@@ -514,6 +514,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       ...original,
       id: crypto.randomUUID(),
       status: 'open',
+      slots: newSlots || original.slots,
+      expected_duration: newDuration || original.expected_duration,
       response_deadline: getResponseDeadline(now),
       created_at: now,
     };
