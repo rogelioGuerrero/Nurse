@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, type FC } from 'react';
 import { useApp } from '../context/AppContext';
 import { SHIFTS, type ShiftType, type ExpectedDuration, type PatientAgeRange, type PatientGender, type CareRequest } from '../types';
-import { MapPin, Calendar, Trash2, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Moon, Clock, FileText, AlertCircle, RotateCcw, XCircle, Inbox, Heart, User, AlertTriangle } from 'lucide-react';
+import { MapPin, Calendar, Trash2, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Moon, Clock, FileText, AlertCircle, RotateCcw, XCircle, Inbox, Heart, User } from 'lucide-react';
 import { getTimeRemaining } from '../data/platformSettings';
 import { triageRequest, type TriageResult } from '../lib/triage';
 
@@ -328,12 +328,6 @@ export const CareRequestForm: FC = () => {
               <span className="text-[10px] font-bold text-slate-400 uppercase">Especialidad:</span>
               <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded-full">{triageResult.specialization_suggested}</span>
             </div>
-            {triageResult.urgency === 'high' && (
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-1.5 rounded-lg">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                Atención prioritaria sugerida
-              </div>
-            )}
           </div>
 
           <div className="space-y-2">

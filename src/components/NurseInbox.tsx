@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { calculateNurseNet } from '../data/standardRates';
 import type { CareRequest, Nurse, Profile, CareOffer } from '../types';
 import { SHIFTS, type ShiftType, type WeekDay } from '../types';
-import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User, Sun, Moon, FileText, Send, AlertTriangle, Stethoscope } from 'lucide-react';
+import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User, Sun, Moon, FileText, Send, Stethoscope } from 'lucide-react';
 import { FamilyTrustBadge } from './FamilyTrustBadge';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -261,6 +261,16 @@ export const NurseInbox: FC = () => {
 
                   {/* Patient info */}
                   <div className="bg-slate-50 rounded-xl p-3 space-y-2">
+                    {/* Patient age + gender */}
+                    {(req.patient_age_range || req.patient_gender) && (
+                      <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                        <User className="h-3 w-3 text-slate-400" />
+                        {req.patient_age_range && <span className="font-bold">{req.patient_age_range}</span>}
+                        {req.patient_gender === 'male' && <span>Hombre</span>}
+                        {req.patient_gender === 'female' && <span>Mujer</span>}
+                      </div>
+                    )}
+
                     {/* AI summary for nurses */}
                     {req.nurse_summary ? (
                       <div className="space-y-1.5">
@@ -290,14 +300,6 @@ export const NurseInbox: FC = () => {
                             <span className="font-bold">Alergias:</span> {req.patient_data.allergies}
                           </p>
                         )}
-                      </div>
-                    )}
-
-                    {/* Urgency badge */}
-                    {req.urgency === 'high' && (
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-lg">
-                        <AlertTriangle className="h-3 w-3" />
-                        Atención prioritaria
                       </div>
                     )}
 
