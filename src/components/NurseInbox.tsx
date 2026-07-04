@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { calculateNurseNet } from '../data/standardRates';
 import type { CareRequest, Nurse, Profile, CareOffer } from '../types';
 import { SHIFTS, type ShiftType, type WeekDay } from '../types';
-import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User, Sun, Moon, FileText, Send } from 'lucide-react';
+import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User, Sun, Moon, FileText, Send, AlertTriangle, Stethoscope } from 'lucide-react';
 import { FamilyTrustBadge } from './FamilyTrustBadge';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -260,11 +260,47 @@ export const NurseInbox: FC = () => {
                   </div>
 
                   {/* Patient info */}
-                  <div className="bg-slate-50 rounded-xl p-3 space-y-1.5">
-                    <div className="flex items-center gap-2 text-xs">
-                      <Heart className="h-3.5 w-3.5 text-rose-400 flex-shrink-0" />
-                      <span className="font-bold text-slate-700">{req.patient_condition}</span>
-                    </div>
+                  <div className="bg-slate-50 rounded-xl p-3 space-y-2">
+                    {/* AI summary for nurses */}
+                    {req.nurse_summary ? (
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <Stethoscope className="h-3.5 w-3.5 text-indigo-500 flex-shrink-0" />
+                          <span className="text-[10px] font-bold text-indigo-600 uppercase">Resumen clínico</span>
+                        </div>
+                        <p className="text-xs text-slate-700 leading-relaxed">{req.nurse_summary}</p>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 text-xs">
+                        <Heart className="h-3.5 w-3.5 text-rose-400 flex-shrink-0" />
+                        <span className="font-bold text-slate-700">{req.patient_condition}</span>
+                      </div>
+                    )}
+
+                    {/* Patient data details */}
+                    {req.patient_data && (req.patient_data.medications !== 'no reportado' || req.patient_data.allergies !== 'no reportado') && (
+                      <div className="pt-1.5 border-t border-slate-200 space-y-1">
+                        {req.patient_data.medications && req.patient_data.medications !== 'no reportado' && (
+                          <p className="text-[10px] text-slate-500">
+                            <span className="font-bold">Medicamentos:</span> {req.patient_data.medications}
+                          </p>
+                        )}
+                        {req.patient_data.allergies && req.patient_data.allergies !== 'no reportado' && (
+                          <p className="text-[10px] text-slate-500">
+                            <span className="font-bold">Alergias:</span> {req.patient_data.allergies}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Urgency badge */}
+                    {req.urgency === 'high' && (
+                      <div className="flex items-center gap-1.5 text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-1 rounded-lg">
+                        <AlertTriangle className="h-3 w-3" />
+                        Atención prioritaria
+                      </div>
+                    )}
+
                     {req.notes && (
                       <p className="text-xs text-slate-500 italic pl-5">Nota: {req.notes}</p>
                     )}

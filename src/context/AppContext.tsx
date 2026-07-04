@@ -227,7 +227,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       if (filteredRequests) setCareRequests(filteredRequests.map((r: any) => ({
         ...r,
         wants_invoice: r.wants_invoice ?? false,
-        slots: typeof r.slots === 'string' ? JSON.parse(r.slots) : r.slots || []
+        slots: typeof r.slots === 'string' ? JSON.parse(r.slots) : r.slots || [],
+        patient_data: r.patient_data ? (typeof r.patient_data === 'string' ? JSON.parse(r.patient_data) : r.patient_data) : undefined,
       })));
 
       // Care offers: filter by request ownership or nurse ownership
@@ -476,6 +477,11 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       user_id: currentUser.id,
       patient_name: data.patient_name,
       patient_condition: data.patient_condition,
+      patient_age_range: data.patient_age_range || null,
+      patient_gender: data.patient_gender || null,
+      patient_data: data.patient_data ? JSON.stringify(data.patient_data) : null,
+      nurse_summary: data.nurse_summary || null,
+      urgency: data.urgency || null,
       specialization_needed: data.specialization_needed,
       slots: JSON.stringify(data.slots),
       location_name: data.location_name,

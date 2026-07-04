@@ -130,11 +130,17 @@ export interface CareRequestSlot {
 
 export type ExpectedDuration = 'shifts' | 'up_to_2_weeks' | 'up_to_1_month' | 'unsure';
 
+export type PatientAgeRange = '0-17' | '18-40' | '41-60' | '61-75' | '76+';
+export type PatientGender = 'male' | 'female';
+export type UrgencyLevel = 'low' | 'medium' | 'high';
+
 export interface CareRequest {
   id: string;
   user_id: string; // family profile who posted
   patient_name: string;
   patient_condition: string;
+  patient_age_range?: PatientAgeRange;
+  patient_gender?: PatientGender;
   patient_data?: {
     diagnosis: string;
     autonomy: string;
@@ -142,6 +148,8 @@ export interface CareRequest {
     medications: string;
     emergency_contact: string;
   };
+  nurse_summary?: string; // AI-generated summary for nurses
+  urgency?: UrgencyLevel; // AI-classified urgency level
   specialization_needed: string; // e.g., "Geriatría"
   slots: CareRequestSlot[]; // multiple dates/times needed
   location_name: string;
