@@ -58,28 +58,28 @@ const DOMAINS = [
     id: "D2",
     name: "Política pública y derechos",
     question: "¿Qué hace el Estado por el cuidado?",
-    prompt: "Find 2026 news about elderly care policies, pension reforms, caregiver rights legislation, long-term care laws, or government programs for aging populations globally and in Latin America. Return specific facts with dates and sources. Be concise.",
+    prompt: "Find 2026 news about elderly care policies, pension reforms, caregiver rights legislation, long-term care laws, or government programs for aging populations. Include European Union models (France, Germany, Spain, Sweden) as advanced referents in care policy, long-term care insurance, and caregiver rights. Also cover Latin America and El Salvador. Return specific facts with dates and sources. Be concise.",
     tools: ["web_search"],
   },
   {
     id: "D3",
     name: "Mercado laboral de cuidado",
     question: "¿Hay quien cuide? ¿En qué condiciones?",
-    prompt: "Find 2026 news about nursing shortage, caregiver labor market, wages, migration of healthcare workers, supply and demand of home care services, or working conditions of caregivers. Return specific facts with dates and sources. Be concise.",
+    prompt: "Find 2026 news about nursing shortage, caregiver labor market, wages, migration of healthcare workers, supply and demand of home care services, or working conditions of caregivers. Include European Union data on caregiver labor regulation, professionalization, and wages as referents. Also cover Latin America and El Salvador. Return specific facts with dates and sources. Be concise.",
     tools: ["web_search"],
   },
   {
     id: "D4",
     name: "Economía familiar",
     question: "¿Qué le cuesta a la familia el cuidado?",
-    prompt: "Find 2026 news about family spending on elderly care, out-of-pocket healthcare costs, financial impact on caregivers, gender gap in caregiving, lost income, or economic burden of informal care. Return specific facts with dates and sources. Be concise.",
+    prompt: "Find 2026 news about family spending on elderly care, out-of-pocket healthcare costs, financial impact on caregivers, gender gap in caregiving, lost income, or economic burden of informal care. Include European Union studies on economic impact of care and public financing models as referents. Also cover Latin America and El Salvador. Return specific facts with dates and sources. Be concise.",
     tools: ["web_search"],
   },
   {
     id: "D6",
     name: "Cuidador informal, género y demografía",
     question: "¿Quién cuida? ¿Qué costo personal paga? ¿Qué dicen los datos poblacionales?",
-    prompt: "Find recent data about informal caregivers: who provides unpaid care (gender, age), young people not in education or employment (NEET/Nini) who end up as caregivers, demographic projections for aging populations in Latin America, labor force participation gaps for caregivers, and gender disparities in unpaid care work. Return specific facts with dates and sources. Be concise.",
+    prompt: "Find recent data about informal caregivers: who provides unpaid care (gender, age), young people not in education or employment (NEET/Nini) who end up as caregivers, demographic projections for aging populations, labor force participation gaps for caregivers, and gender disparities in unpaid care work. Include European Union research on informal care, caregiver burnout studies, and gender care gap as referents. Also cover Latin America and El Salvador. Return specific facts with dates and sources. Be concise.",
     tools: ["web_search", "wolfram_alpha"],
   },
 ];
@@ -233,7 +233,7 @@ Tu trabajo: extraer los 3 datos o hallazgos más relevantes para BienCuidar. Par
 
 Descarta:
 - Datos sin fecha identificable (más viejos que 2025)
-- Datos de países desarrollados sin conexión a LatAm/SV (a menos que sean tendencia global clara)
+- Datos de países desarrollados sin conexión a LatAm/SV (EXCEPCIÓN: modelos europeos de cuidado — Francia, Alemania, España, Suecia — que sirven como referentes avanzados. Conservarlos marcando "REFERENTE UE" en RELEVANCIA)
 - Promociones de productos específicos (no es publicidad)
 - Datos con fecha imposible (posterior a julio 2026)
 
@@ -347,6 +347,7 @@ Criterios ESTRICTOS:
 - NO descartes temas ya publicados: si un tema ya fue tratado, propón un NUEVO ÁNGULO. Marca "ángulo nuevo sobre serie #N ya tratada". Los temas del cuidado no son infinitos: volver con otra mirada es legítimo.
 - PREFIERE ángulos que visibilicen problemas invisibles
 - CONSIDERA la realidad de El Salvador y América Latina
+- USA modelos europeos (Francia, Alemania, España, Suecia) como REFERENTES de hacia dónde debe transitar LatAm, NO como la realidad local. El contraste es poderoso: "Alemania tiene seguro de cuidado desde 1995, El Salvador ni lo discute"
 - TEMAS específicos: "el cuidador que no puede enfermarse" > "burnout del cuidador"
 - TONO BienCuidar: empático pero directo, no sensacionalista
 - ADVERTENCIA: los datos del scout NO están verificados. Las fechas pueden ser inexactas. El MoA (groq-news.mjs) hará la investigación real con fuentes autorizadas. El ángulo editorial que el humano escriba NO debe citar fechas específicas del scout — debe definir TONO y ENFOQUE, no datos. Los datos los aporta el MoA
