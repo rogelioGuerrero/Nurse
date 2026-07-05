@@ -16,6 +16,5 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["supabase/functions/**", "scripts/**", "test-results/**"]
+  "exclude": ["supabase/functions/**"]
 }
