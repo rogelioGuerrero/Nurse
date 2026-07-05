@@ -21,6 +21,7 @@ scripts/test-compound.json
 scripts/gemini-prompt.txt
 scripts/editorial-angle.txt
 scripts/articles/
+scripts/groq-news.mjs
 scripts/analysis-output.txt
 public/img/
 .gitignore.tmp
