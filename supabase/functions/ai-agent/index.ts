@@ -1,6 +1,7 @@
 ﻿// @ts-nocheck — Deno Edge Function (runs on Supabase, not Node.js)
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import webPush from "https://esm.sh/web-push@3.6.7";
+import { callGroqRaw, callGroqLight, callGroqSafety, PRIMARY_MODEL, FALLBACK_MODEL, SAFETY_MODEL } from "../_shared/groq.ts";
 
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
@@ -13,23 +14,13 @@ const NVIDIA_NIM_API_KEY = Deno.env.get("NVIDIA_NIM_API_KEY");
 async function checkJailbreak(userMessage: string): Promise<{ isJailbreak: boolean; confidence: number }> {
   if (!GROQ_API_KEY) return { isJailbreak: false, confidence: 0 };
   try {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "meta-llama/llama-prompt-guard-2-86m",
-        messages: [
-          { role: "user", content: userMessage },
-        ],
-        max_tokens: 20,
-        temperature: 0,
-      }),
-    });
-    if (!res.ok) { console.log(`[ai-agent] jailbreak check skipped: ${res.status}`); return { isJailbreak: false, confidence: 0 }; }
-    const data = await res.json();
-    const content = (data.choices[0]?.message?.content || "").toLowerCase().trim();
-    const isJailbreak = content.includes("unsafe") || content.includes("jailbreak") || content.includes("injection");
-    console.log(`[ai-agent] jailbreak check (prompt-guard-2): ${isJailbreak} | response: ${content.slice(0, 80)}`);
+    const content = await callGroqSafety(
+      [{ role: "user", content: userMessage }],
+      { maxTokens: 20, temperature: 0 },
+    );
+    const lower = content.toLowerCase().trim();
+    const isJailbreak = lower.includes("unsafe") || lower.includes("jailbreak") || lower.includes("injection");
+    console.log(`[ai-agent] jailbreak check (safeguard-20b): ${isJailbreak} | response: ${lower.slice(0, 80)}`);
     return { isJailbreak, confidence: isJailbreak ? 0.99 : 0.01 };
   } catch (err: any) {
     console.log(`[ai-agent] jailbreak check error: ${err.message}`);
@@ -40,22 +31,13 @@ async function checkJailbreak(userMessage: string): Promise<{ isJailbreak: boole
 async function detectPII(text: string): Promise<{ cleaned: string; found: boolean }> {
   if (!GROQ_API_KEY) return { cleaned: text, found: false };
   try {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "openai/gpt-oss-20b",
-        messages: [
-          { role: "system", content: "Detecta datos personales (DUI, teléfono, email, dirección, número de seguro) en el texto. Reemplázalos con [REDACTED]. Devuelve SOLO el texto limpio, sin explicaciones." },
-          { role: "user", content: text },
-        ],
-        max_tokens: 800,
-        temperature: 0,
-      }),
-    });
-    if (!res.ok) { console.log(`[ai-agent] PII check skipped: ${res.status}`); return { cleaned: text, found: false }; }
-    const data = await res.json();
-    const cleaned = data.choices[0]?.message?.content || text;
+    const cleaned = await callGroqLight(
+      [
+        { role: "system", content: "Detecta datos personales (DUI, teléfono, email, dirección, número de seguro) en el texto. Reemplázalos con [REDACTED]. Devuelve SOLO el texto limpio, sin explicaciones." },
+        { role: "user", content: text },
+      ],
+      { maxTokens: 800, temperature: 0 },
+    );
     const found = cleaned.includes("[REDACTED]");
     console.log(`[ai-agent] PII check: found=${found}`);
     return { cleaned, found };
@@ -109,22 +91,13 @@ Answer (JSON only):`;
 async function checkContentSafety(text: string): Promise<{ isSafe: boolean; reason?: string }> {
   if (!GROQ_API_KEY) return { isSafe: true };
   try {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { "Authorization": `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "openai/gpt-oss-safeguard-20b",
-        messages: [
-          { role: "system", content: CLINICAL_SAFETY_POLICY },
-          { role: "user", content: text },
-        ],
-        max_tokens: 200,
-        temperature: 0,
-      }),
-    });
-    if (!res.ok) { console.log(`[ai-agent] content safety skipped: ${res.status}`); return { isSafe: true }; }
-    const data = await res.json();
-    const raw = (data.choices[0]?.message?.content || "").trim();
+    const raw = await callGroqSafety(
+      [
+        { role: "system", content: CLINICAL_SAFETY_POLICY },
+        { role: "user", content: text },
+      ],
+      { maxTokens: 200, temperature: 0 },
+    );
     let isUnsafe = false;
     let reason: string | undefined;
     try {
@@ -656,17 +629,13 @@ async function authenticateUser(req: Request, supabase: any, userEmail: string) 
 async function extractMemory(supabase: any, userId: string, existingMemory: any, userMessage: string, reply: string) {
   try {
     const extractPrompt = `Extraé información clave del mensaje del usuario (nombre del paciente, fechas, preferencias, quejas). Respondé solo JSON. Mensaje: "${userMessage}". Memoria actual: ${JSON.stringify(existingMemory)}`;
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'openai/gpt-oss-20b', messages: [{ role: 'user', content: extractPrompt }], temperature: 0, max_tokens: 200, response_format: { type: 'json_object' } }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      const extracted = JSON.parse(data.choices[0].message.content);
-      const merged = { ...existingMemory, ...extracted };
-      await supabase.from('agent_memory').upsert({ user_id: userId, memory: merged });
-    }
+    const content = await callGroqLight(
+      [{ role: "user", content: extractPrompt }],
+      { temperature: 0, maxTokens: 200, responseFormat: { type: "json_object" } },
+    );
+    const extracted = JSON.parse(content);
+    const merged = { ...existingMemory, ...extracted };
+    await supabase.from('agent_memory').upsert({ user_id: userId, memory: merged });
   } catch (err: any) {
     console.log(`[ai-agent] extractMemory error: ${err.message}`);
   }
@@ -707,45 +676,22 @@ BOOKINGS Y TURNOS:
 - Check-in y check-out se registran en la app
 - El pago se coordina directamente (pago directo) o a través de BienCuidar (con factura)`;
 
-// ===== AGENT LLM CALL (GPT-OSS 120B primary, GPT-OSS 20B fallback) =====
-
-const PRIMARY_MODEL = 'openai/gpt-oss-120b';
-const FALLBACK_MODEL = 'openai/gpt-oss-20b';
+// ===== AGENT LLM CALL (uses shared callGroqRaw with fallback) =====
 
 async function callAgentLLM(messages: any[], tools?: any[], temperature = 0.3, maxTokens = 600): Promise<{ ok: boolean; data?: any; model?: string; error?: string; status?: number }> {
-  for (const model of [PRIMARY_MODEL, FALLBACK_MODEL]) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 20_000);
-      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model, messages, tools: tools?.length > 0 ? tools : undefined, tool_choice: tools?.length > 0 ? 'auto' : undefined, temperature, max_tokens: maxTokens }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      if (!res.ok) {
-        const errText = await res.text();
-        console.log(`[ai-agent] LLM ${model} FAILED: ${res.status} | ${errText.slice(0, 200)}`);
-        if (model === PRIMARY_MODEL && (res.status === 429 || res.status >= 500)) {
-          console.log(`[ai-agent] Falling back to ${FALLBACK_MODEL}...`);
-          continue;
-        }
-        return { ok: false, error: errText, status: res.status, model };
-      }
-      const data = await res.json();
-      console.log(`[ai-agent] LLM ${model} OK | tool_calls: ${data.choices[0].message.tool_calls?.length || 0}`);
-      return { ok: true, data, model };
-    } catch (err: any) {
-      console.log(`[ai-agent] LLM ${model} error: ${err.message}`);
-      if (model === PRIMARY_MODEL) {
-        console.log(`[ai-agent] Falling back to ${FALLBACK_MODEL}...`);
-        continue;
-      }
-      return { ok: false, error: err.message, model };
-    }
+  const result = await callGroqRaw(messages, {
+    tools: tools?.length > 0 ? tools : undefined,
+    toolChoice: tools?.length > 0 ? 'auto' : undefined,
+    temperature,
+    maxTokens,
+    timeoutMs: 20_000,
+  });
+  if (result.ok) {
+    console.log(`[ai-agent] LLM ${result.model} OK | tool_calls: ${result.data.choices[0].message.tool_calls?.length || 0}`);
+  } else {
+    console.log(`[ai-agent] LLM failed: ${result.error}`);
   }
-  return { ok: false, error: 'All LLM models failed' };
+  return result;
 }
 
 // ===== MAIN AGENT =====
@@ -962,8 +908,7 @@ REGLAS:
           status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
       }
-      groqData = loopResult.data;
-      assistantMessage = groqData.choices[0].message;
+      assistantMessage = loopResult.data.choices[0].message;
       console.log(`[ai-agent] LLM call ${rounds + 1} OK | model: ${loopResult.model} | tool_calls: ${assistantMessage.tool_calls?.length || 0} | has content: ${!!assistantMessage.content}`);
     }
 

@@ -1,9 +1,6 @@
 // @ts-nocheck — Deno Edge Function
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "openai/gpt-oss-120b";
-const REQUEST_TIMEOUT_MS = 15000;
+import { callGroq } from "../_shared/groq.ts";
 
 const ALLOWED_ORIGINS = [
   "https://biencuidar.agtisa.com",
@@ -76,46 +73,14 @@ interface TriageRequest {
   situation: string;
 }
 
-async function callGroq(userContent: string): Promise<string> {
-  const apiKey = Deno.env.get("GROQ_API_KEY");
-  if (!apiKey) throw new Error("GROQ_API_KEY not configured");
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-  try {
-    const res = await fetch(GROQ_API_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: GROQ_MODEL,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userContent },
-        ],
-        temperature: 0.3,
-        max_tokens: 500,
-        response_format: { type: "json_object" },
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`Groq error ${res.status}: ${errText}`);
-    }
-
-    const data = await res.json();
-    return data.choices[0].message.content;
-  } catch (err) {
-    clearTimeout(timeoutId);
-    throw err;
-  }
+async function triageLLM(userContent: string): Promise<string> {
+  return callGroq(
+    [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: userContent },
+    ],
+    { temperature: 0.3, maxTokens: 500, responseFormat: { type: "json_object" } },
+  );
 }
 
 Deno.serve(async (req: Request) => {
@@ -140,7 +105,7 @@ Situación descrita por la familia:
 
 Genera el triaje en formato JSON.`;
 
-    const rawResponse = await callGroq(userContent);
+    const rawResponse = await triageLLM(userContent);
 
     let parsed;
     try {

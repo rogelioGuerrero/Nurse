@@ -1,13 +1,12 @@
 // @ts-nocheck — Deno Edge Function
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { callGroqLight } from "../_shared/groq.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
 const SENDER_EMAIL = "BienCuidar <info@agtisa.com>";
-const GROQ_MODEL = "openai/gpt-oss-120b";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -75,25 +74,13 @@ Categorías:
 
 Respondé solo JSON: {"category": "...", "reason": "breve explicación"}`;
 
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "openai/gpt-oss-20b",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0,
-      max_tokens: 150,
-      response_format: { type: "json_object" },
-    }),
-  });
+  const res = await callGroqLight(
+    [{ role: "user", content: prompt }],
+    { temperature: 0, maxTokens: 150, responseFormat: { type: "json_object" } },
+  );
 
-  if (!res.ok) {
-    console.log(`[email-inbound] Classify failed: ${res.status}`);
-    return { category: "sistema", reason: "classification_error" };
-  }
-  const data = await res.json();
   try {
-    return JSON.parse(data.choices[0].message.content);
+    return JSON.parse(res);
   } catch {
     return { category: "sistema", reason: "parse_error" };
   }

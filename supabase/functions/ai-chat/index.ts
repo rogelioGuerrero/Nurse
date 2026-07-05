@@ -1,10 +1,6 @@
 // @ts-nocheck — This file runs in Deno (Supabase Edge Functions), not in the browser/Node context
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "openai/gpt-oss-120b";
-const MAX_RETRIES = 2;
-const REQUEST_TIMEOUT_MS = 15000;
+import { callGroq } from "../_shared/groq.ts";
 
 const MAX_MESSAGES = 20;
 const MAX_MESSAGE_LENGTH = 4000;
@@ -36,8 +32,6 @@ interface ChatRequest {
   temperature?: number;
   maxTokens?: number;
 }
-
-// In-memory rate limiting per IP
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
 function checkRateLimit(ip: string): boolean {
@@ -68,71 +62,6 @@ function getClientIp(req: Request): string {
   const realIp = req.headers.get("x-real-ip");
   if (realIp) return realIp;
   return "unknown";
-}
-
-function isRetryable(status: number): boolean {
-  return status === 429 || (status >= 500 && status < 600);
-}
-
-async function callGroq(
-  messages: GroqMessage[],
-  temperature: number,
-  maxTokens: number,
-): Promise<string> {
-  const apiKey = Deno.env.get("GROQ_API_KEY");
-  if (!apiKey) {
-    throw new Error("GROQ_API_KEY not configured");
-  }
-
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-    try {
-      const response = await fetch(GROQ_API_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: GROQ_MODEL,
-          messages,
-          temperature,
-          max_tokens: maxTokens,
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        if (attempt < MAX_RETRIES && isRetryable(response.status)) {
-          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
-          continue;
-        }
-        throw new Error(`Groq API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      return data.choices[0].message.content;
-    } catch (err) {
-      clearTimeout(timeoutId);
-
-      if (err instanceof DOMException && err.name === "AbortError") {
-        throw new Error("Groq request timed out");
-      }
-
-      const isNetworkError = err instanceof TypeError;
-      if (attempt < MAX_RETRIES && isNetworkError) {
-        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
-        continue;
-      }
-      throw err;
-    }
-  }
-
-  throw new Error("Groq request failed after retries");
 }
 
 Deno.serve(async (req: Request) => {
@@ -204,8 +133,7 @@ Deno.serve(async (req: Request) => {
 
     const content = await callGroq(
       messages,
-      clampedTemp,
-      clampedMaxTokens,
+      { temperature: clampedTemp, maxTokens: clampedMaxTokens },
     );
 
     return new Response(

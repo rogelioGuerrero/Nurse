@@ -1,8 +1,7 @@
 // @ts-nocheck — This file runs in Deno (Supabase Edge Functions), not in the browser/Node context
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { callGroq } from "../_shared/groq.ts";
 
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "openai/gpt-oss-120b";
 const FB_GRAPH_URL = "https://graph.facebook.com/v19.0";
 
 const ALLOWED_ORIGINS = [
@@ -29,9 +28,6 @@ interface PublishRequest {
 }
 
 async function generatePostText(topic: string): Promise<string> {
-  const apiKey = Deno.env.get("GROQ_API_KEY");
-  if (!apiKey) throw new Error("GROQ_API_KEY not configured");
-
   const systemPrompt = `Sos el community manager de BienCuidar, una plataforma de intermediación que conecta familias que necesitan cuidado de salud en casa con enfermeras profesionales independientes en El Salvador.
 
 Tu tarea es escribir un post para Facebook que sea:
@@ -45,26 +41,13 @@ Tu tarea es escribir un post para Facebook que sea:
 
 Escribí solo el texto del post, sin explicaciones adicionales.`;
 
-  const response = await fetch(GROQ_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: `Escribí un post sobre: ${topic}` },
-      ],
-      temperature: 0.7,
-      max_tokens: 500,
-    }),
-  });
-
-  if (!response.ok) throw new Error(`Groq API error: ${response.status}`);
-  const data = await response.json();
-  return data.choices[0].message.content.trim();
+  return callGroq(
+    [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: `Escribí un post sobre: ${topic}` },
+    ],
+    { temperature: 0.7, maxTokens: 500 },
+  );
 }
 
 async function uploadPhotoByUrl(

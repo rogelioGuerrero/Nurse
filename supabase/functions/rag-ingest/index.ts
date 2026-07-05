@@ -3,6 +3,7 @@
 // Works with any Supabase project. Configurable via env vars.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { callGroq, PRIMARY_MODEL, FALLBACK_MODEL } from "../_shared/groq.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
@@ -10,7 +11,6 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 // Groq config (ETL: vision extraction + LLM enrichment)
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
 const GROQ_VISION_MODEL = Deno.env.get("GROQ_VISION_MODEL") || "meta-llama/llama-3.2-90b-vision-preview";
-const GROQ_LLM_MODEL = Deno.env.get("GROQ_LLM_MODEL") || "openai/gpt-oss-120b";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 // Embedding provider: "cohere" (default) | "nvidia"
@@ -126,33 +126,13 @@ ${rawText.slice(0, 12000)}
 ---`;
 
   try {
-    const res = await fetch(GROQ_API_URL, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${GROQ_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: GROQ_LLM_MODEL,
-        messages: [
-          { role: "system", content: "Eres un motor de ETL para RAG. Devuelves solo JSON válido, sin markdown ni texto adicional." },
-          { role: "user", content: prompt },
-        ],
-        max_tokens: 8000,
-        temperature: 0,
-        response_format: { type: "json_object" },
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.text();
-      console.log(`[rag-ingest] Groq enrich error: ${res.status} — ${err.slice(0, 200)}, falling back to mechanical chunking`);
-      const chunks = chunkText(rawText, CHUNK_SIZE, CHUNK_OVERLAP);
-      return chunks.map((c) => ({ text: c }));
-    }
-
-    const data = await res.json();
-    const raw = data.choices[0]?.message?.content || "";
+    const raw = await callGroq(
+      [
+        { role: "system", content: "Eres un motor de ETL para RAG. Devuelves solo JSON válido, sin markdown ni texto adicional." },
+        { role: "user", content: prompt },
+      ],
+      { temperature: 0, maxTokens: 8000, responseFormat: { type: "json_object" } },
+    );
 
     let enriched: EnrichedChunk[];
     try {
