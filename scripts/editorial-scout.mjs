@@ -5,9 +5,9 @@
  * Paso previo al pipeline MoA (groq-news.mjs).
  *
  * Arquitectura de 3 fases:
- * 1. SCAN:    Compound busca en 5 dominios fijos (web search, ~20s c/u)
- * 2. DIGEST:  Llama 3.3 destila cada dominio a 3 datos clave con fecha
- * 3. PROPOSE: Llama 3.3 sintetiza los 5 digests + artículos publicados + serie
+ * 1. SCAN:    Compound busca en 4 dominios fijos (web search, ~20s c/u)
+ * 2. DIGEST:  Qwen3-32B destila cada dominio a 3 datos clave con fecha
+ * 3. PROPOSE: Llama 3.3 70B sintetiza los 4 digests + artículos publicados + serie
  *             y propone 3-5 líneas editoriales con datos específicos
  *
  * Los 5 dominios fijos (vigas maestras):
@@ -252,7 +252,7 @@ DATO 2:
 DATO 3:
 ...`;
 
-  const data = await callGroq("openai/gpt-oss-120b", prompt, {
+  const data = await callGroq("qwen/qwen3-32b", prompt, {
     max_tokens: 600,
     temperature: 0.3,
   });
@@ -367,10 +367,10 @@ Cuál propuesta es más fuerte y por qué. Considera: impacto emocional, relevan
 ## NOTAS PARA EL EDITOR
 Tendencias observadas, temas ganando tracción, ángulos a explorar en el futuro, vacíos detectados en los dominios.`;
 
-  console.log("[Propose] GPT-OSS 120b sintetizando propuestas...");
+  console.log("[Propose] Llama 3.3 70B sintetizando propuestas...");
   console.log("  Esto puede tomar 30-60s...\n");
 
-  const data = await callGroq("openai/gpt-oss-120b", prompt, {
+  const data = await callGroq("llama-3.3-70b-versatile", prompt, {
     max_tokens: 2500,
     temperature: 0.6,
   });
