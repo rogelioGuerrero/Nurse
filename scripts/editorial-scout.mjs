@@ -6,8 +6,8 @@
  *
  * Arquitectura de 3 fases:
  * 1. SCAN:    Compound busca en 4 dominios fijos (web search, ~20s c/u)
- * 2. DIGEST:  Qwen3-32B destila cada dominio a 3 datos clave con fecha
- * 3. PROPOSE: Llama 3.3 70B sintetiza los 4 digests + artículos publicados + serie
+ * 2. DIGEST:  Qwen3-32B (fallback gpt-oss-120b) destila cada dominio a 3 datos clave con fecha
+ * 3. PROPOSE: GPT-OSS 120B sintetiza los 4 digests + artículos publicados + serie
  *             y propone 3-5 líneas editoriales con datos específicos
  *
  * Los 5 dominios fijos (vigas maestras):
@@ -252,10 +252,19 @@ DATO 2:
 DATO 3:
 ...`;
 
-  const data = await callGroq("qwen/qwen3-32b", prompt, {
-    max_tokens: 600,
-    temperature: 0.3,
-  });
+  let data;
+  try {
+    data = await callGroq("qwen/qwen3-32b", prompt, {
+      max_tokens: 600,
+      temperature: 0.3,
+    });
+  } catch (e) {
+    console.log("  Qwen3-32B no disponible, fallback a gpt-oss-120b...");
+    data = await callGroq("openai/gpt-oss-120b", prompt, {
+      max_tokens: 600,
+      temperature: 0.3,
+    });
+  }
 
   const digest = data?.choices[0]?.message?.content || "Error en digestión.";
   console.log(`  ✓ Digest: ${digest.length} chars`);
@@ -264,7 +273,7 @@ DATO 3:
 
 async function digestAll(scanResults) {
   console.log("\n═══════════════════════════════════════════════════");
-  console.log("FASE 2: DIGEST — Destilando cada dominio (Llama 3.3)");
+  console.log("FASE 2: DIGEST — Destilando cada dominio (Qwen3-32B)");
   console.log("═══════════════════════════════════════════════════\n");
 
   const digests = [];
@@ -283,7 +292,7 @@ async function digestAll(scanResults) {
 // ═══════════════════════════════════════════════════════════════
 async function proposeEditorialLines(digests) {
   console.log("\n═══════════════════════════════════════════════════");
-  console.log("FASE 3: PROPOSE — Síntesis editorial (Llama 3.3)");
+  console.log("FASE 3: PROPOSE — Síntesis editorial (GPT-OSS 120B)");
   console.log("═══════════════════════════════════════════════════\n");
 
   const published = getPublishedArticles();

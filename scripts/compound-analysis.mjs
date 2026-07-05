@@ -10,7 +10,7 @@
  *   Paso 1: Compound + Wolfram → datos demográficos curados
  *   Paso 2: Compound + Web search → datos locales (pensiones, SM, informalidad)
  *   Paso 3: Cálculo local (JS) → proyecciones y brecha
- *   Paso 4: Llama 3.3 → verificación cruzada + score de credibilidad
+ *   Paso 4: GPT-OSS 120B → verificación cruzada + score de credibilidad
  *   Paso 5: Reporte con H1/H2/H3 confirmada o refutada
  *
  * Uso: node scripts/compound-analysis.mjs
