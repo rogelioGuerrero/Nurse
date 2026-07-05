@@ -2,7 +2,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_MODEL = "openai/gpt-oss-120b";
 const FB_GRAPH_URL = "https://graph.facebook.com/v19.0";
 
 const ALLOWED_ORIGINS = [

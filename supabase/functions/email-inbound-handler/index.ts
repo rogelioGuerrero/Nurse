@@ -7,7 +7,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
 const SENDER_EMAIL = "BienCuidar <info@agtisa.com>";
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_MODEL = "openai/gpt-oss-120b";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -79,7 +79,7 @@ Respondé solo JSON: {"category": "...", "reason": "breve explicación"}`;
     method: "POST",
     headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "llama-3.1-8b-instant",
+      model: "openai/gpt-oss-20b",
       messages: [{ role: "user", content: prompt }],
       temperature: 0,
       max_tokens: 150,

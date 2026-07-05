@@ -398,7 +398,7 @@ VEREDICTO H3: [CONFIRMADA/REFUTADA/INCONCLUSA] - [razón]
 CREDIBILIDAD GLOBAL: [0-100]%`;
 
   const data = await callGroq(
-    "llama-3.3-70b-versatile",
+    "openai/gpt-oss-120b",
     prompt,
     { max_tokens: 1000, temperature: 0.2 },
     "Verificador"

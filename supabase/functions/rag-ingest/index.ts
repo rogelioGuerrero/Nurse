@@ -10,7 +10,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 // Groq config (ETL: vision extraction + LLM enrichment)
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
 const GROQ_VISION_MODEL = Deno.env.get("GROQ_VISION_MODEL") || "meta-llama/llama-3.2-90b-vision-preview";
-const GROQ_LLM_MODEL = Deno.env.get("GROQ_LLM_MODEL") || "llama-3.3-70b-versatile";
+const GROQ_LLM_MODEL = Deno.env.get("GROQ_LLM_MODEL") || "openai/gpt-oss-120b";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 // Embedding provider: "cohere" (default) | "nvidia"

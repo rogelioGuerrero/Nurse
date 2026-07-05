@@ -4,10 +4,10 @@
  * 5 agentes con feedback loops, estado compartido y validación por nodo.
  * 
  * Agente 1 (Busca):    Groq Compound busca datos en fuentes autorizadas
- * Agente 2 (Redacta):  Llama 3.3 70b escribe borrador con gancho narrativo
- * Agente 3 (Revisa):   Llama 3.3 70b fact-check + evaluación ética del ángulo
- * Agente 4 (Edita):    Llama 3.3 70b pulido editorial
- * Agente 5 (Aprueba):  Llama 3.3 70b QA final (formato, CTA, hashtags)
+ * Agente 2 (Redacta):  GPT-OSS 120b escribe borrador con gancho narrativo
+ * Agente 3 (Revisa):   GPT-OSS 120b fact-check + evaluación ética del ángulo
+ * Agente 4 (Edita):    GPT-OSS 120b pulido editorial
+ * Agente 5 (Aprueba):  GPT-OSS 120b QA final (formato, CTA, hashtags)
  * 
  * Graph:
  *   SEARCH → WRITE → REVIEW → EDIT → APPROVE → TEASER → END
@@ -49,7 +49,9 @@ const GEMINI_PROMPT_FILE = "scripts/gemini-prompt.txt";
 const TOPIC = process.argv[2] || "burnout cuidadores adultos mayores";
 const ANGLE_RAW = process.argv[3] || "";
 const NEXT_TOPIC_RAW = process.argv[4] || "";
-const MAX_ITERATIONS = 2;
+const MAX_SEARCH_ITERATIONS = 2;
+const MAX_REWRITE_ITERATIONS = 1;
+const MAX_EDIT_ITERATIONS = 2;
 
 // Leer ángulo desde archivo si empieza con @ (evita corrupción UTF-8 de PowerShell)
 const ANGLE = ANGLE_RAW.startsWith("@")
@@ -124,6 +126,286 @@ function cleanMarkdown(text) {
     .replace(/^[-*]\s+/gm, "• ");
 }
 
+function parseJSONResponse(text) {
+  try { return JSON.parse(text); } catch {}
+  const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (jsonMatch) {
+    try { return JSON.parse(jsonMatch[1].trim()); } catch {}
+  }
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start !== -1 && end !== -1) {
+    try { return JSON.parse(text.slice(start, end + 1)); } catch {}
+  }
+  return null;
+}
+
+function decisionToFeedback(decision) {
+  if (!decision) return "";
+  const parts = [];
+  if (decision.correcciones?.length) parts.push("Correcciones: " + decision.correcciones.join("; "));
+  if (decision.datos_faltantes) parts.push("Datos faltantes: " + decision.datos_faltantes);
+  if (decision.issues?.length) parts.push("Problemas: " + decision.issues.join("; "));
+  if (decision.feedback) parts.push("Feedback: " + decision.feedback);
+  if (decision.detalle_datos) parts.push("Detalle: " + decision.detalle_datos);
+  return parts.join("\n");
+}
+
+// ── Guardrails: validación declarativa por nodo ──
+const GUARDRAILS = {
+  SEARCH: [
+    { check: out => out && out.length > 100, msg: "Research muy corta" },
+    { check: out => out && /https?:\/\//.test(out), msg: "No hay URLs de fuentes" },
+  ],
+  WRITE: [
+    { check: out => out && out.length > 200, msg: "Borrador muy corto" },
+    { check: out => out && !/\*\*|##/.test(out), msg: "Tiene markdown" },
+    { check: out => out && out.includes("biencuidar.agtisa.com"), msg: "Falta CTA" },
+  ],
+  REVIEW: [
+    { check: out => out && out.veredicto !== undefined, msg: "Falta veredicto" },
+    { check: out => out && ["APROBADO", "REESCRIBIR", "BUSCAR_MAS"].includes(out.veredicto), msg: "Veredicto inválido" },
+  ],
+  EDIT: [
+    { check: out => out && out.length > 200, msg: "Artículo editado muy corto" },
+    { check: out => out && !/\*\*|##/.test(out), msg: "Tiene markdown" },
+    { check: out => out && out.includes("biencuidar.agtisa.com"), msg: "Falta CTA" },
+  ],
+  APPROVE: [
+    { check: out => out && out.veredicto !== undefined, msg: "Falta veredicto" },
+    { check: out => out && ["APROBADO", "RECHAZADO"].includes(out.veredicto), msg: "Veredicto inválido" },
+  ],
+  TEASER: [
+    { check: out => out && out.length > 20, msg: "Teaser muy corto" },
+    { check: out => out && out.length < 200, msg: "Teaser muy largo" },
+  ],
+};
+
+function runGuardrails(node, output) {
+  const rules = GUARDRAILS[node];
+  if (!rules) return [];
+  return rules.filter(g => !g.check(output)).map(g => g.msg);
+}
+
+// ── Router declarativo: transiciones como datos ──
+const TRANSITIONS = {
+  SEARCH: [{ next: "WRITE" }],
+  WRITE:  [{ next: "REVIEW" }],
+  REVIEW: [
+    {
+      condition: s => s.reviewDecision?.veredicto === "BUSCAR_MAS" && s.iterations.search < MAX_SEARCH_ITERATIONS,
+      next: "SEARCH",
+      action: s => {
+        console.log("→ Revisor pide BUSCAR_MAS. Volviendo a SEARCH...\n");
+        s.searchFeedback = s.reviewDecision.feedback || s.reviewDecision.datos_faltantes || "";
+        s.iterations.search++;
+        s.eventLog.push({ ts: new Date().toISOString(), type: "transition", from: "REVIEW", to: "SEARCH", reason: "BUSCAR_MAS" });
+      },
+    },
+    {
+      condition: s => s.reviewDecision?.veredicto === "REESCRIBIR" && s.iterations.rewrite < MAX_REWRITE_ITERATIONS,
+      next: "WRITE",
+      action: s => {
+        console.log("→ Revisor pide REESCRIBIR. Volviendo a WRITE...\n");
+        s.writeFeedback = s.reviewDecision.feedback || s.reviewDecision.correcciones?.join("; ") || "";
+        s.iterations.rewrite++;
+        s.eventLog.push({ ts: new Date().toISOString(), type: "transition", from: "REVIEW", to: "WRITE", reason: "REESCRIBIR" });
+      },
+    },
+    {
+      condition: () => true,
+      next: "EDIT",
+      action: s => { s.editFeedback = decisionToFeedback(s.reviewDecision); },
+    },
+  ],
+  EDIT: [{ next: "APPROVE" }],
+  APPROVE: [
+    {
+      condition: s => s.qaDecision?.veredicto === "RECHAZADO" && s.iterations.edit < MAX_EDIT_ITERATIONS,
+      next: "EDIT",
+      action: s => {
+        console.log("→ QA rechazó. Volviendo a EDIT con feedback...\n");
+        s.editFeedback = decisionToFeedback(s.qaDecision);
+        s.iterations.edit++;
+        s.eventLog.push({ ts: new Date().toISOString(), type: "transition", from: "APPROVE", to: "EDIT", reason: "RECHAZADO" });
+      },
+    },
+    { condition: s => !!s.nextTopic, next: "TEASER" },
+    { condition: () => true, next: "END" },
+  ],
+  TEASER: [{ next: "END" }],
+};
+
+function resolveTransition(node, state) {
+  const rules = TRANSITIONS[node];
+  if (!rules) return "END";
+  for (const rule of rules) {
+    if (!rule.condition || rule.condition(state)) {
+      if (rule.action) rule.action(state);
+      return rule.next;
+    }
+  }
+  return "END";
+}
+
+// ── Helper: plantillas de prompts ──
+function fillTemplate(template, vars) {
+  return template.replace(/\{(\w+)\}/g, (_, key) => vars[key] ?? "");
+}
+
+const PROMPTS = {
+  search: `Research the following topic for a healthcare Facebook post: "{topic}". Find real statistics, data, and facts from authoritative health sources. Return: 1) Key statistics with source URLs 2) 2-3 practical recommendations 3) Any relevant data for Latin America. Be concise.{feedback_section}`,
+
+  write: `Eres el redactor jefe de BienCuidar, una plataforma salvadoreña que conecta familias con enfermeras profesionales para cuidado de salud en casa.
+
+Datos de investigación (pueden estar en inglés o francés):
+{research}
+
+Redacta un post de Facebook en español sobre: {topic}
+
+{angle}
+{feedback_section}
+Reglas:
+- NO uses markdown (no **negritas**, no ##, no bullets con -)
+- Usa 2-3 emojis profesionales (🩺 💙 🌐 🤝 ❤️‍‍🩹)
+- Tono empático, profesional y cercano. NO condescendiente. NO suavices el mensaje.
+- 150-200 palabras MAXIMO
+- Estructura: gancho narrativo + 1 dato real + 1 reflexión o consejo práctico + CTA
+- Si los datos están en inglés, tradúcelos al español
+- NO inventes estadísticas. Solo usa las que aparecen en la investigación o en el ángulo editorial.
+- El gancho debe visibilizar el problema, no sensacionalizarlo
+- MANTÉN el tono del ángulo editorial aunque haya feedback del revisor. El feedback corrige datos, no cambia el enfoque narrativo.
+- Si el ángulo editorial incluye datos específicos (ej: "70% no cotiza", "13% pensión"), ÚSALOS en el texto. No los omitas.
+
+Termina con: Publicá tu necesidad de cuido en https://biencuidar.agtisa.com
+Incluye 3 hashtags al final.
+
+Devuelve SOLO el texto.`,
+
+  review: `Eres un verificador de datos y editor ético de BienCuidar. Compara el borrador con los datos de investigación.
+
+DATOS DE INVESTIGACIÓN:
+{research}
+
+BORRADOR:
+{draft}
+
+Verifica:
+1. ¿Las estadísticas coinciden con la investigación? ¿Hay datos inventados?
+2. ¿Hay claims sin fuente? IMPORTANTE: un claim es aceptable si tiene referencia verificable (DOI, URL, nombre de medio/publicación, institución académica o gubernamental). NO rechaces un dato solo porque no esté en la lista de fuentes autorizadas del buscador. The Lancet, Nature, Science, Reuters, BBC, NYT, INEGI, UN Women, Banco Mundial, CEPAL, OIT y publicaciones académicas peer-reviewed son fuentes válidas. Solo marca como "sin fuente" los datos que no tienen NINGUNA referencia identificable.
+3. ¿El tono es apropiado para una página de salud profesional?
+4. ¿Hay errores médicos o información peligrosa?
+5. ¿El ángulo narrativo visibiliza el problema o lo sensacionaliza?
+6. ¿Faltan datos importantes que la investigación no cubrió?
+
+Responde EXACTAMENTE como un objeto JSON válido (sin markdown, sin texto antes o después):
+{
+  "datos_correctos": true,
+  "detalle_datos": "explicación breve de qué datos están verificados",
+  "datos_inventados": [],
+  "angulo": "apropiado",
+  "explicacion_angulo": "breve explicación",
+  "correcciones": [],
+  "datos_faltantes": null,
+  "veredicto": "APROBADO",
+  "feedback": null
+}
+
+Reglas del veredicto:
+- "APROBADO": el borrador es correcto, pasa al editor
+- "REESCRIBIR": el redactor necesita cambiar el enfoque. Pon instrucciones específicas en "feedback"
+- "BUSCAR_MAS": faltan datos importantes. Pon qué buscar en "feedback" y "datos_faltantes"
+
+Si hay correcciones, lista cada una en el array "correcciones".
+Si hay datos inventados, lista cada uno en el array "datos_inventados".`,
+
+  edit: `Eres el editor jefe de BienCuidar (plataforma salvadoreña de enfermería en casa).
+
+BORRADOR ACTUAL:
+{draft}
+
+REVISIÓN DEL VERIFICADOR:
+{review}
+
+Tu trabajo como editor:
+1. Aplica las correcciones de datos sugeridas
+2. Mejora el flujo narrativo: que la historia respire, que el gancho atrape
+3. Corta lo que sobra. 150-200 palabras es el límite.
+4. Asegura que el tono sea empático sin ser condescendiente
+5. Verifica que el CTA y hashtags estén presentes
+
+Mantén:
+- Sin markdown
+- 2-3 emojis profesionales
+- Termina con: Publicá tu necesidad de cuido en https://biencuidar.agtisa.com
+- 3 hashtags al final
+
+Devuelve SOLO el texto final listo para publicar.`,
+
+  approve: `Eres el control de calidad final de BienCuidar. Verifica este post de Facebook:
+
+{finalText}
+
+Evalúa cada punto del checklist y responde EXACTAMENTE como un objeto JSON válido (sin markdown, sin texto antes o después):
+{
+  "checklist": {
+    "espanol": true,
+    "sin_markdown": true,
+    "palabras_ok": true,
+    "emojis_ok": true,
+    "cta_ok": true,
+    "hashtags_ok": true,
+    "datos_verificados": true,
+    "tono_ok": true
+  },
+  "palabras": 180,
+  "veredicto": "APROBADO",
+  "issues": []
+}
+
+Reglas:
+- "veredicto" debe ser "APROBADO" o "RECHAZADO"
+- Si es "RECHAZADO", lista cada problema en "issues" (ej: ["Falta CTA", "Tiene markdown"])
+- "palabras" es el conteo de palabras del post`,
+
+  teaser: `Eres el redactor jefe de BienCuidar (plataforma salvadoreña de enfermería en casa).
+
+ARTÍCULO ACTUAL:
+{article}
+
+PRÓXIMO TEMA: {nextTopic}
+
+Genera un teaser de 1-2 líneas (máximo 30 palabras) que:
+- Cree expectativa sobre el próximo tema
+- Haga una pregunta provocativa que invite a comentar
+- Tono conversacional y cercano, NO comercial
+- NO incluyas CTA ni hashtags
+- NO uses markdown
+
+Ejemplo de formato: "La semana que viene: [pregunta provocativa]. Te leemos en el próximo análisis."
+
+Devuelve SOLO el teaser.`,
+
+  gemini: `Professional healthcare marketing image for BienCuidar, a nursing care platform in El Salvador.
+
+Theme: {topic}
+
+Style requirements:
+- Professional, warm and trustworthy medical/healthcare aesthetic
+- Soft natural lighting, clean composition
+- Colors: medical blue (#2563eb) and soft white as primary palette
+- Show a caring scene: a professional nurse or family caregiver with an elderly person, warm interaction
+- Photorealistic style, not cartoon or illustration
+- NO text in the image except: "BienCuidar" in clean modern font at bottom-right corner
+- Include URL "biencuidar.agtisa.com" in small text below the BienCuidar logo
+- Image should work as a Facebook post image (1200x1200 square or 1200x630 landscape)
+- Convey empathy, professionalism and trust
+- Latin American setting if people are shown
+
+Article context (for visual inspiration):
+{articleContext}`,
+};
+
 // ── Esperar entre agentes para evitar rate limit ──
 function delay(seconds) {
   console.log(`  Esperando ${seconds}s antes del siguiente agente...`);
@@ -138,10 +420,10 @@ async function agentSearch(feedback = null) {
   console.log(`Fuentes: ${TRUSTED_DOMAINS.join(", ")}`);
   console.log("Esto puede tomar 15-30 segundos...\n");
 
-  const basePrompt = `Research the following topic for a healthcare Facebook post: "${TOPIC}". Find real statistics, data, and facts from authoritative health sources. Return: 1) Key statistics with source URLs 2) 2-3 practical recommendations 3) Any relevant data for Latin America. Be concise.`;
-  const searchPrompt = feedback
-    ? `${basePrompt}\n\nADDITIONAL SEARCH NEEDED: ${feedback}`
-    : basePrompt;
+  const searchPrompt = fillTemplate(PROMPTS.search, {
+    topic: TOPIC,
+    feedback_section: feedback ? `\n\nADDITIONAL SEARCH NEEDED: ${feedback}` : "",
+  });
 
   const data = await callGroq("groq/compound", searchPrompt, {
     search_settings: { include_domains: TRUSTED_DOMAINS },
@@ -173,9 +455,9 @@ async function agentSearch(feedback = null) {
   return research;
 }
 
-// ── Agente 2: Llama 3.3 redacta el borrador con gancho narrativo ──
+// ── Agente 2: GPT-OSS 120b redacta el borrador con gancho narrativo ──
 async function agentWrite(research, feedback = null) {
-  console.log("[Agente 2/5] Llama 3.3 redactando borrador en español...");
+  console.log("[Agente 2/5] GPT-OSS 120b redactando borrador en español...");
   if (feedback) console.log(`Aplicando feedback: ${feedback.slice(0, 100)}\n`);
 
   const angle = ANGLE
@@ -194,170 +476,87 @@ INSTRUCCIONES DE USO DEL ÁNGULO:
     ? `\nFEEDBACK DEL REVISOR (corrige datos o hechos, pero NO suavices el ángulo editorial ni el tono): ${feedback}\n`
     : "";
 
-  const prompt = `Eres el redactor jefe de BienCuidar, una plataforma salvadoreña que conecta familias con enfermeras profesionales para cuidado de salud en casa.
+  const prompt = fillTemplate(PROMPTS.write, {
+    research,
+    topic: TOPIC,
+    angle,
+    feedback_section: feedbackSection,
+  });
 
-Datos de investigación (pueden estar en inglés o francés):
-${research}
-
-Redacta un post de Facebook en español sobre: ${TOPIC}
-
-${angle}
-${feedbackSection}
-Reglas:
-- NO uses markdown (no **negritas**, no ##, no bullets con -)
-- Usa 2-3 emojis profesionales (🩺 💙 🌐 🤝 ❤️‍🩹)
-- Tono empático, profesional y cercano. NO condescendiente. NO suavices el mensaje.
-- 150-200 palabras MAXIMO
-- Estructura: gancho narrativo + 1 dato real + 1 reflexión o consejo práctico + CTA
-- Si los datos están en inglés, tradúcelos al español
-- NO inventes estadísticas. Solo usa las que aparecen en la investigación o en el ángulo editorial.
-- El gancho debe visibilizar el problema, no sensacionalizarlo
-- MANTÉN el tono del ángulo editorial aunque haya feedback del revisor. El feedback corrige datos, no cambia el enfoque narrativo.
-- Si el ángulo editorial incluye datos específicos (ej: "70% no cotiza", "13% pensión"), ÚSALOS en el texto. No los omitas.
-
-Termina con: Publicá tu necesidad de cuido en https://biencuidar.agtisa.com
-Incluye 3 hashtags al final.
-
-Devuelve SOLO el texto.`;
-
-  const data = await callGroq("llama-3.3-70b-versatile", prompt, {
+  const data = await callGroq("openai/gpt-oss-120b", prompt, {
     max_tokens: 600,
     temperature: 0.7,
   });
 
-  return cleanMarkdown(data.choices[0]?.message?.content || "");
+  const raw = data.choices[0]?.message?.content || "";
+  console.log("[DEBUG WRITE] raw length:", raw.length, "| preview:", raw.slice(0, 300));
+  return cleanMarkdown(raw);
 }
 
 // ── Agente 3: GPT-OSS 120b revisa datos + ética del ángulo ──
 async function agentReview(research, draft) {
   console.log("[Agente 3/5] GPT-OSS 120b verificando datos y ángulo...\n");
 
-  const prompt = `Eres un verificador de datos y editor ético de BienCuidar. Compara el borrador con los datos de investigación.
+  const prompt = fillTemplate(PROMPTS.review, { research, draft });
 
-DATOS DE INVESTIGACIÓN:
-${research}
-
-BORRADOR:
-${draft}
-
-Verifica:
-1. ¿Las estadísticas coinciden con la investigación? ¿Hay datos inventados?
-2. ¿Hay claims sin fuente? IMPORTANTE: un claim es aceptable si tiene referencia verificable (DOI, URL, nombre de medio/publicación, institución académica o gubernamental). NO rechaces un dato solo porque no esté en la lista de fuentes autorizadas del buscador. The Lancet, Nature, Science, Reuters, BBC, NYT, INEGI, UN Women, Banco Mundial, CEPAL, OIT y publicaciones académicas peer-reviewed son fuentes válidas. Solo marca como "sin fuente" los datos que no tienen NINGUNA referencia identificable.
-3. ¿El tono es apropiado para una página de salud profesional?
-4. ¿Hay errores médicos o información peligrosa?
-5. ¿El ángulo narrativo visibiliza el problema o lo sensacionaliza?
-6. ¿Faltan datos importantes que la investigación no cubrió?
-
-Responde EXACTAMENTE en este formato:
-- DATOS CORRECTOS: [sí/no] + detalles
-- DATOS INVENTADOS: [lista o "ninguno"]
-- ÁNGULO NARRATIVO: [apropiado / sensacionalista / genérico] + explicación
-- CORRECCIONES SUGERIDAS: [lista específica o "ninguna"]
-- DATOS FALTANTES: [qué información falta o "ninguna"]
-- VEREDICTO: [APROBADO / REESCRIBIR / BUSCAR_MAS]
-  * APROBADO: el borrador es correcto, pasa al editor
-  * REESCRIBIR: el redactor necesita cambiar el enfoque (explica qué cambiar)
-  * BUSCAR_MAS: faltan datos importantes, el buscador necesita buscar más (explica qué buscar)`;
-
-  const data = await callGroq("llama-3.3-70b-versatile", prompt, {
+  const data = await callGroq("openai/gpt-oss-120b", prompt, {
     max_tokens: 800,
     temperature: 0.3,
   });
 
-  const review = data.choices[0]?.message?.content || "";
-  console.log("Revisión:\n" + review.slice(0, 500) + "\n");
-  return review;
+  const raw = data.choices[0]?.message?.content || "";
+  const decision = parseJSONResponse(raw);
+  if (!decision) {
+    console.log("Revisión (texto plano, fallback):\n" + raw.slice(0, 500) + "\n");
+    return { veredicto: "APROBADO", datos_correctos: true, correcciones: [], datos_inventados: [], feedback: raw.slice(0, 200) };
+  }
+  console.log("Revisión (JSON):\n" + JSON.stringify(decision, null, 2).slice(0, 500) + "\n");
+  return decision;
 }
 
-// ── Agente 4: Llama 3.3 edita según revisión ──
+// ── Agente 4: GPT-OSS 120b edita según revisión ──
 async function agentEdit(draft, review) {
-  console.log("[Agente 4/5] Llama 3.3 editando según revisión...\n");
+  console.log("[Agente 4/5] GPT-OSS 120b editando según revisión...\n");
 
-  const prompt = `Eres el editor jefe de BienCuidar (plataforma salvadoreña de enfermería en casa).
+  const prompt = fillTemplate(PROMPTS.edit, { draft, review });
 
-BORRADOR ACTUAL:
-${draft}
-
-REVISIÓN DEL VERIFICADOR:
-${review}
-
-Tu trabajo como editor:
-1. Aplica las correcciones de datos sugeridas
-2. Mejora el flujo narrativo: que la historia respire, que el gancho atrape
-3. Corta lo que sobra. 150-200 palabras es el límite.
-4. Asegura que el tono sea empático sin ser condescendiente
-5. Verifica que el CTA y hashtags estén presentes
-
-Mantén:
-- Sin markdown
-- 2-3 emojis profesionales
-- Termina con: Publicá tu necesidad de cuido en https://biencuidar.agtisa.com
-- 3 hashtags al final
-
-Devuelve SOLO el texto final listo para publicar.`;
-
-  const data = await callGroq("llama-3.3-70b-versatile", prompt, {
+  const data = await callGroq("openai/gpt-oss-120b", prompt, {
     max_tokens: 600,
     temperature: 0.5,
   });
 
-  return cleanMarkdown(data.choices[0]?.message?.content || "");
+  const rawEdit = data.choices[0]?.message?.content || "";
+  console.log("[DEBUG EDIT] raw length:", rawEdit.length, "| preview:", rawEdit.slice(0, 400));
+  return cleanMarkdown(rawEdit);
 }
 
-// ── Agente 5: GPT-OSS 20b hace QA final ──
+// ── Agente 5: GPT-OSS 120b hace QA final ──
 async function agentApprove(finalText) {
-  console.log("[Agente 5/5] GPT-OSS 20b QA final...\n");
+  console.log("[Agente 5/5] GPT-OSS 120b QA final...\n");
 
-  const prompt = `Eres el control de calidad final de BienCuidar. Verifica este post de Facebook:
+  const prompt = fillTemplate(PROMPTS.approve, { finalText });
 
-${finalText}
-
-Checklist (responde sí/no a cada uno):
-1. ¿Está en español?
-2. ¿No tiene markdown (**, ##, -)?
-3. ¿Tiene 150-200 palabras?
-4. ¿Tiene 2-3 emojis profesionales?
-5. ¿Termina con "Publicá tu necesidad de cuido en https://biencuidar.agtisa.com"?
-6. ¿Tiene 3 hashtags?
-7. ¿No tiene datos inventados (dice "según" o cita fuente)?
-8. ¿Tono profesional y empático?
-
-Responde:
-- CHECKLIST: [sí/no por cada punto]
-- PALABRAS: [conteo]
-- VEREDICTO: [APROBADO / RECHAZADO]
-- SI RECHAZADO, explica qué falta.`;
-
-  const data = await callGroq("llama-3.3-70b-versatile", prompt, {
+  const data = await callGroq("openai/gpt-oss-120b", prompt, {
     max_tokens: 400,
     temperature: 0.2,
   });
 
-  const qa = data.choices[0]?.message?.content || "";
-  console.log("QA Final:\n" + qa.slice(0, 500) + "\n");
-  return qa;
+  const raw = data.choices[0]?.message?.content || "";
+  const decision = parseJSONResponse(raw);
+  if (!decision) {
+    console.log("QA (texto plano, fallback):\n" + raw.slice(0, 500) + "\n");
+    return { veredicto: raw.includes("RECHAZADO") ? "RECHAZADO" : "APROBADO", checklist: {}, palabras: 0, issues: [raw.slice(0, 200)] };
+  }
+  console.log("QA Final (JSON):\n" + JSON.stringify(decision, null, 2).slice(0, 500) + "\n");
+  return decision;
 }
 
 // ── Generar prompt para Gemini Nano Banana ──
 function generateGeminiPrompt(article) {
-  return `Professional healthcare marketing image for BienCuidar, a nursing care platform in El Salvador.
-
-Theme: ${TOPIC}
-
-Style requirements:
-- Professional, warm and trustworthy medical/healthcare aesthetic
-- Soft natural lighting, clean composition
-- Colors: medical blue (#2563eb) and soft white as primary palette
-- Show a caring scene: a professional nurse or family caregiver with an elderly person, warm interaction
-- Photorealistic style, not cartoon or illustration
-- NO text in the image except: "BienCuidar" in clean modern font at bottom-right corner
-- Include URL "biencuidar.agtisa.com" in small text below the BienCuidar logo
-- Image should work as a Facebook post image (1200x1200 square or 1200x630 landscape)
-- Convey empathy, professionalism and trust
-- Latin American setting if people are shown
-
-Article context (for visual inspiration):
-${article.slice(0, 300)}`;
+  return fillTemplate(PROMPTS.gemini, {
+    topic: TOPIC,
+    articleContext: article.slice(0, 300),
+  });
 }
 
 // ── Generar teaser/cliffhanger para el próximo artículo ──
@@ -366,25 +565,12 @@ async function generateTeaser(article, nextTopic) {
 
   console.log("[Teaser] Generando cliffhanger para próximo tema...\n");
 
-  const prompt = `Eres el redactor jefe de BienCuidar (plataforma salvadoreña de enfermería en casa).
+  const prompt = fillTemplate(PROMPTS.teaser, {
+    article: article.slice(0, 400),
+    nextTopic,
+  });
 
-ARTÍCULO ACTUAL:
-${article.slice(0, 400)}
-
-PRÓXIMO TEMA: ${nextTopic}
-
-Genera un teaser de 1-2 líneas (máximo 30 palabras) que:
-- Cree expectativa sobre el próximo tema
-- Haga una pregunta provocativa que invite a comentar
-- Tono conversacional y cercano, NO comercial
-- NO incluyas CTA ni hashtags
-- NO uses markdown
-
-Ejemplo de formato: "La semana que viene: [pregunta provocativa]. Te leemos en el próximo análisis."
-
-Devuelve SOLO el teaser.`;
-
-  const data = await callGroq("llama-3.3-70b-versatile", prompt, {
+  const data = await callGroq("openai/gpt-oss-120b", prompt, {
     max_tokens: 100,
     temperature: 0.8,
   });
@@ -401,115 +587,99 @@ class MoAGraph {
       topic: TOPIC,
       angle: ANGLE,
       nextTopic: NEXT_TOPIC,
-      research: "",
-      draft: "",
-      review: "",
-      editedArticle: "",
-      qaResult: "",
-      teaser: "",
-      iteration: 1,
+      // Datos que pasan entre agentes
+      research: "",           // Agent 1 output (texto de Compound)
+      currentDraft: "",       // Borrador actual (texto)
+      drafts: [],              // Historial de borradores
+      reviewDecision: null,    // Agent 3: { veredicto, datos_correctos, correcciones, datos_faltantes, feedback }
+      editedArticle: "",      // Agent 4 output (texto)
+      qaDecision: null,        // Agent 5: { veredicto, checklist, palabras, issues }
+      teaser: "",             // Teaser output (texto)
+      // Feedback para loops
       searchFeedback: null,
       writeFeedback: null,
-      rewriteCount: 0,
+      editFeedback: null,
+      // Contadores de iteración por tipo
+      iterations: { search: 0, rewrite: 0, edit: 0 },
+      // Metadata
       nodeHistory: [],
+      eventLog: [],
     };
     this.t0 = Date.now();
   }
 
   logNode(node) {
     this.state.nodeHistory.push(node);
-    console.log(`\n[Nodo: ${node}] (iteración ${this.state.iteration}/${MAX_ITERATIONS})`);
+    const iter = this.state.iterations;
+    const total = iter.search + iter.rewrite + iter.edit;
+    console.log(`\n[Nodo: ${node}]${total > 0 ? ` (search:${iter.search} rewrite:${iter.rewrite} edit:${iter.edit})` : ""}`);
+    this.logEvent("node_start", { node, iterations: { ...iter } });
   }
 
-  // ── Validación: cada nodo valida su output ──
-  validate(node, output, minLen, mustInclude = []) {
-    if (!output || output.length < minLen) {
-      throw new Error(`Agente ${node}: output inválido (len=${output?.length || 0}, mínimo=${minLen})`);
-    }
-    for (const s of mustInclude) {
-      if (!output.includes(s)) {
-        throw new Error(`Agente ${node}: output no contiene "${s}"`);
-      }
-    }
-    return true;
+  logEvent(type, data = {}) {
+    this.state.eventLog.push({ ts: new Date().toISOString(), type, ...data });
   }
 
   // ── Nodo 1: SEARCH ──
   async nodeSearch() {
     this.logNode("SEARCH");
     const research = await agentSearch(this.state.searchFeedback);
-    this.validate("SEARCH", research, 100);
+    const errors = runGuardrails("SEARCH", research);
+    if (errors.length) throw new Error(`SEARCH guardrails: ${errors.join(", ")}`);
     this.state.research = research;
     this.state.searchFeedback = null;
+    this.logEvent("search_done", { researchLen: research.length });
     await delay(15);
-    return "WRITE";
+    return resolveTransition("SEARCH", this.state);
   }
 
   // ── Nodo 2: WRITE ──
   async nodeWrite() {
     this.logNode("WRITE");
     const draft = await agentWrite(this.state.research, this.state.writeFeedback);
-    this.validate("WRITE", draft, 200);
-    this.state.draft = draft;
+    const errors = runGuardrails("WRITE", draft);
+    if (errors.length) throw new Error(`WRITE guardrails: ${errors.join(", ")}`);
+    this.state.currentDraft = draft;
+    this.state.drafts.push(draft);
     this.state.writeFeedback = null;
+    this.logEvent("write_done", { draftLen: draft.length, draftCount: this.state.drafts.length });
     await delay(10);
-    return "REVIEW";
+    return resolveTransition("WRITE", this.state);
   }
 
   // ── Nodo 3: REVIEW ──
   async nodeReview() {
     this.logNode("REVIEW");
-    const review = await agentReview(this.state.research, this.state.draft);
-    this.validate("REVIEW", review, 50, ["VEREDICTO:"]);
-    this.state.review = review;
-    console.log("Revisión:\n" + review.slice(0, 500) + "\n");
+    const decision = await agentReview(this.state.research, this.state.currentDraft);
+    const errors = runGuardrails("REVIEW", decision);
+    if (errors.length) throw new Error(`REVIEW guardrails: ${errors.join(", ")}`);
+    this.state.reviewDecision = decision;
+    this.logEvent("review_decision", { veredicto: decision.veredicto, correcciones: decision.correcciones?.length || 0, datosInventados: decision.datos_inventados?.length || 0 });
     await delay(10);
-
-    // Router: decidir siguiente nodo según veredicto
-    if (review.includes("BUSCAR_MAS") && this.state.iteration < MAX_ITERATIONS) {
-      console.log("→ Revisor pide BUSCAR_MAS. Volviendo a SEARCH...\n");
-      this.state.searchFeedback = review;
-      this.state.iteration++;
-      return "SEARCH";
-    }
-    if (review.includes("REESCRIBIR") && this.state.iteration < MAX_ITERATIONS && this.state.rewriteCount < 1) {
-      console.log("→ Revisor pide REESCRIBIR. Volviendo a WRITE...\n");
-      this.state.writeFeedback = review;
-      this.state.rewriteCount++;
-      return "WRITE";
-    }
-    // APROBADO o sin feedback disponible → pasar a EDIT
-    return "EDIT";
+    return resolveTransition("REVIEW", this.state);
   }
 
   // ── Nodo 4: EDIT ──
   async nodeEdit() {
     this.logNode("EDIT");
-    const edited = await agentEdit(this.state.draft, this.state.review);
-    this.validate("EDIT", edited, 200, ["biencuidar.agtisa.com"]);
+    const edited = await agentEdit(this.state.currentDraft, this.state.editFeedback || "");
+    const errors = runGuardrails("EDIT", edited);
+    if (errors.length) throw new Error(`EDIT guardrails: ${errors.join(", ")}`);
     this.state.editedArticle = edited;
+    this.logEvent("edit_done", { articleLen: edited.length });
     await delay(10);
-    return "APPROVE";
+    return resolveTransition("EDIT", this.state);
   }
 
   // ── Nodo 5: APPROVE ──
   async nodeApprove() {
     this.logNode("APPROVE");
-    const qa = await agentApprove(this.state.editedArticle);
-    this.validate("APPROVE", qa, 50, ["VEREDICTO:"]);
-    this.state.qaResult = qa;
-    console.log("QA Final:\n" + qa.slice(0, 500) + "\n");
-
-    // Router: si QA rechaza, volver a EDIT con feedback
-    if (qa.includes("RECHAZADO") && this.state.iteration < MAX_ITERATIONS) {
-      console.log("→ QA rechazó. Volviendo a EDIT con feedback...\n");
-      this.state.review = qa; // el editor usa esto como feedback
-      this.state.iteration++;
-      return "EDIT";
-    }
-
-    // Aprobado → generar teaser si hay próximo tema
-    return this.state.nextTopic ? "TEASER" : "END";
+    const decision = await agentApprove(this.state.editedArticle);
+    const errors = runGuardrails("APPROVE", decision);
+    if (errors.length) throw new Error(`APPROVE guardrails: ${errors.join(", ")}`);
+    this.state.qaDecision = decision;
+    this.logEvent("qa_decision", { veredicto: decision.veredicto, palabras: decision.palabras, issues: decision.issues?.length || 0 });
+    return resolveTransition("APPROVE", this.state);
   }
 
   // ── Nodo 6: TEASER (cliffhanger para próximo artículo) ──
@@ -517,11 +687,13 @@ class MoAGraph {
     this.logNode("TEASER");
     const teaser = await generateTeaser(this.state.editedArticle, this.state.nextTopic);
     if (teaser) {
-      this.validate("TEASER", teaser, 20);
+      const errors = runGuardrails("TEASER", teaser);
+      if (errors.length) throw new Error(`TEASER guardrails: ${errors.join(", ")}`);
       this.state.teaser = teaser;
+      this.logEvent("teaser_done", { teaser });
       console.log(`Teaser: "${teaser}"\n`);
     }
-    return "END";
+    return resolveTransition("TEASER", this.state);
   }
 
   // ── Runner: ejecuta el grafo ──
@@ -545,7 +717,8 @@ class MoAGraph {
         current = await nodes[current]();
       } catch (err) {
         console.error(`\n✘ Error en nodo ${current}: ${err.message}`);
-        console.error(`  Estado: iteration=${this.state.iteration}, steps=${steps}`);
+        const it = this.state.iterations;
+        console.error(`  Estado: search=${it.search} rewrite=${it.rewrite} edit=${it.edit}, steps=${steps}`);
         console.error(`  Historial: ${this.state.nodeHistory.join(" → ")}`);
         process.exit(1);
       }
@@ -581,6 +754,21 @@ class MoAGraph {
     writeFileSync(archivePath, article, "utf-8");
     console.log(`Archivo histórico: ${archivePath}`);
 
+    // Guardar event log estructurado
+    const elapsedForLog = ((Date.now() - this.t0) / 1000).toFixed(1);
+    const logPath = `${archiveDir}/${date}_${slug}.json`;
+    writeFileSync(logPath, JSON.stringify({
+      topic: this.state.topic,
+      nodes: this.state.nodeHistory,
+      iterations: this.state.iterations,
+      reviewDecision: this.state.reviewDecision,
+      qaDecision: this.state.qaDecision,
+      teaser: this.state.teaser,
+      elapsed: parseFloat(elapsedForLog),
+      eventLog: this.state.eventLog,
+    }, null, 2), "utf-8");
+    console.log(`Event log: ${logPath}`);
+
     const geminiPrompt = generateGeminiPrompt(article);
     writeFileSync(GEMINI_PROMPT_FILE, geminiPrompt, "utf-8");
 
@@ -589,7 +777,8 @@ class MoAGraph {
     console.log("═══════════════════════════════════════════════════");
     console.log("ARTÍCULO GENERADO (MoA State Graph: 5 agentes + teaser)");
     console.log(`Nodos ejecutados: ${this.state.nodeHistory.join(" → ")}`);
-    console.log(`Iteraciones: ${this.state.iteration}`);
+    const it = this.state.iterations;
+    console.log(`Iteraciones: search=${it.search} rewrite=${it.rewrite} edit=${it.edit}`);
     if (this.state.teaser) console.log(`Teaser: "${this.state.teaser}"`);
     console.log("═══════════════════════════════════════════════════\n");
     console.log(article);

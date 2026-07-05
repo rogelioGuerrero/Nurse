@@ -252,7 +252,7 @@ DATO 2:
 DATO 3:
 ...`;
 
-  const data = await callGroq("llama-3.3-70b-versatile", prompt, {
+  const data = await callGroq("openai/gpt-oss-120b", prompt, {
     max_tokens: 600,
     temperature: 0.3,
   });
@@ -367,10 +367,10 @@ Cuál propuesta es más fuerte y por qué. Considera: impacto emocional, relevan
 ## NOTAS PARA EL EDITOR
 Tendencias observadas, temas ganando tracción, ángulos a explorar en el futuro, vacíos detectados en los dominios.`;
 
-  console.log("[Propose] Llama 3.3 sintetizando propuestas...");
+  console.log("[Propose] GPT-OSS 120b sintetizando propuestas...");
   console.log("  Esto puede tomar 30-60s...\n");
 
-  const data = await callGroq("llama-3.3-70b-versatile", prompt, {
+  const data = await callGroq("openai/gpt-oss-120b", prompt, {
     max_tokens: 2500,
     temperature: 0.6,
   });

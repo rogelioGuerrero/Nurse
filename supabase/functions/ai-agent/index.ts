@@ -707,10 +707,10 @@ BOOKINGS Y TURNOS:
 - Check-in y check-out se registran en la app
 - El pago se coordina directamente (pago directo) o a través de BienCuidar (con factura)`;
 
-// ===== AGENT LLM CALL (GPT-OSS 120B primary, llama-3.3-70b fallback) =====
+// ===== AGENT LLM CALL (GPT-OSS 120B primary, GPT-OSS 20B fallback) =====
 
 const PRIMARY_MODEL = 'openai/gpt-oss-120b';
-const FALLBACK_MODEL = 'llama-3.3-70b-versatile';
+const FALLBACK_MODEL = 'openai/gpt-oss-20b';
 
 async function callAgentLLM(messages: any[], tools?: any[], temperature = 0.3, maxTokens = 600): Promise<{ ok: boolean; data?: any; model?: string; error?: string; status?: number }> {
   for (const model of [PRIMARY_MODEL, FALLBACK_MODEL]) {

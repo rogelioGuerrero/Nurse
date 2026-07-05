@@ -737,12 +737,12 @@ REGLAS:
       { role: 'user', content: message },
     ];
 
-    console.log(`[ai-agent] Groq call 1 | model: llama-3.3-70b | msgs: ${messages.length}`);
+    console.log(`[ai-agent] Groq call 1 | model: gpt-oss-120b | msgs: ${messages.length}`);
     let groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'openai/gpt-oss-120b',
         messages,
         tools: tools.length > 0 ? tools : undefined,
         tool_choice: tools.length > 0 ? 'auto' : undefined,
@@ -781,7 +781,7 @@ REGLAS:
       groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages, tools: tools.length > 0 ? tools : undefined, temperature: 0.3, max_tokens: 600 }),
+        body: JSON.stringify({ model: 'openai/gpt-oss-120b', messages, tools: tools.length > 0 ? tools : undefined, temperature: 0.3, max_tokens: 600 }),
       });
       if (!groqRes.ok) {
         const errText = await groqRes.text();
