@@ -100,7 +100,14 @@ async function callGroq(model, prompt, opts = {}) {
     });
 
     if (res.ok) {
-      return await res.json();
+      const json = await res.json();
+      const content = json.choices[0]?.message?.content || "";
+      if (!content.trim() && attempt < 4) {
+        console.log(`  Respuesta vacía de ${model}. Reintentando... (${attempt}/4)`);
+        await new Promise((r) => setTimeout(r, 5000 * attempt));
+        continue;
+      }
+      return json;
     }
 
     if (res.status === 429 && attempt < 4) {
@@ -488,9 +495,7 @@ INSTRUCCIONES DE USO DEL ÁNGULO:
     temperature: 0.7,
   });
 
-  const raw = data.choices[0]?.message?.content || "";
-  console.log("[DEBUG WRITE] raw length:", raw.length, "| preview:", raw.slice(0, 300));
-  return cleanMarkdown(raw);
+  return cleanMarkdown(data.choices[0]?.message?.content || "");
 }
 
 // ── Agente 3: GPT-OSS 120b revisa datos + ética del ángulo ──
@@ -525,9 +530,7 @@ async function agentEdit(draft, review) {
     temperature: 0.5,
   });
 
-  const rawEdit = data.choices[0]?.message?.content || "";
-  console.log("[DEBUG EDIT] raw length:", rawEdit.length, "| preview:", rawEdit.slice(0, 400));
-  return cleanMarkdown(rawEdit);
+  return cleanMarkdown(data.choices[0]?.message?.content || "");
 }
 
 // ── Agente 5: GPT-OSS 120b hace QA final ──
@@ -620,12 +623,26 @@ class MoAGraph {
     this.state.eventLog.push({ ts: new Date().toISOString(), type, ...data });
   }
 
+  // ── #7 Retry con guardrails: reintenta el agente si la validación falla ──
+  async runWithGuardrails(node, agentFn, maxRetries = 2) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const output = await agentFn();
+      const errors = runGuardrails(node, output);
+      if (errors.length === 0) return output;
+      if (attempt < maxRetries) {
+        console.log(`  Guardrails fallaron (${errors.join(", ")}). Reintentando ${attempt + 1}/${maxRetries}...`);
+        this.logEvent("guardrail_retry", { node, attempt: attempt + 1, errors });
+        await new Promise((r) => setTimeout(r, 5000));
+      } else {
+        throw new Error(`${node} guardrails (${maxRetries + 1} intentos): ${errors.join(", ")}`);
+      }
+    }
+  }
+
   // ── Nodo 1: SEARCH ──
   async nodeSearch() {
     this.logNode("SEARCH");
-    const research = await agentSearch(this.state.searchFeedback);
-    const errors = runGuardrails("SEARCH", research);
-    if (errors.length) throw new Error(`SEARCH guardrails: ${errors.join(", ")}`);
+    const research = await this.runWithGuardrails("SEARCH", () => agentSearch(this.state.searchFeedback));
     this.state.research = research;
     this.state.searchFeedback = null;
     this.logEvent("search_done", { researchLen: research.length });
@@ -636,9 +653,7 @@ class MoAGraph {
   // ── Nodo 2: WRITE ──
   async nodeWrite() {
     this.logNode("WRITE");
-    const draft = await agentWrite(this.state.research, this.state.writeFeedback);
-    const errors = runGuardrails("WRITE", draft);
-    if (errors.length) throw new Error(`WRITE guardrails: ${errors.join(", ")}`);
+    const draft = await this.runWithGuardrails("WRITE", () => agentWrite(this.state.research, this.state.writeFeedback));
     this.state.currentDraft = draft;
     this.state.drafts.push(draft);
     this.state.writeFeedback = null;
@@ -650,9 +665,7 @@ class MoAGraph {
   // ── Nodo 3: REVIEW ──
   async nodeReview() {
     this.logNode("REVIEW");
-    const decision = await agentReview(this.state.research, this.state.currentDraft);
-    const errors = runGuardrails("REVIEW", decision);
-    if (errors.length) throw new Error(`REVIEW guardrails: ${errors.join(", ")}`);
+    const decision = await this.runWithGuardrails("REVIEW", () => agentReview(this.state.research, this.state.currentDraft));
     this.state.reviewDecision = decision;
     this.logEvent("review_decision", { veredicto: decision.veredicto, correcciones: decision.correcciones?.length || 0, datosInventados: decision.datos_inventados?.length || 0 });
     await delay(10);
@@ -662,9 +675,7 @@ class MoAGraph {
   // ── Nodo 4: EDIT ──
   async nodeEdit() {
     this.logNode("EDIT");
-    const edited = await agentEdit(this.state.currentDraft, this.state.editFeedback || "");
-    const errors = runGuardrails("EDIT", edited);
-    if (errors.length) throw new Error(`EDIT guardrails: ${errors.join(", ")}`);
+    const edited = await this.runWithGuardrails("EDIT", () => agentEdit(this.state.currentDraft, this.state.editFeedback || ""));
     this.state.editedArticle = edited;
     this.logEvent("edit_done", { articleLen: edited.length });
     await delay(10);
@@ -674,9 +685,7 @@ class MoAGraph {
   // ── Nodo 5: APPROVE ──
   async nodeApprove() {
     this.logNode("APPROVE");
-    const decision = await agentApprove(this.state.editedArticle);
-    const errors = runGuardrails("APPROVE", decision);
-    if (errors.length) throw new Error(`APPROVE guardrails: ${errors.join(", ")}`);
+    const decision = await this.runWithGuardrails("APPROVE", () => agentApprove(this.state.editedArticle));
     this.state.qaDecision = decision;
     this.logEvent("qa_decision", { veredicto: decision.veredicto, palabras: decision.palabras, issues: decision.issues?.length || 0 });
     return resolveTransition("APPROVE", this.state);
@@ -687,11 +696,10 @@ class MoAGraph {
     this.logNode("TEASER");
     const teaser = await generateTeaser(this.state.editedArticle, this.state.nextTopic);
     if (teaser) {
-      const errors = runGuardrails("TEASER", teaser);
-      if (errors.length) throw new Error(`TEASER guardrails: ${errors.join(", ")}`);
-      this.state.teaser = teaser;
-      this.logEvent("teaser_done", { teaser });
-      console.log(`Teaser: "${teaser}"\n`);
+      const result = await this.runWithGuardrails("TEASER", async () => teaser);
+      this.state.teaser = result;
+      this.logEvent("teaser_done", { teaser: result });
+      console.log(`Teaser: "${result}"\n`);
     }
     return resolveTransition("TEASER", this.state);
   }
