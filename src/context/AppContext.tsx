@@ -608,10 +608,11 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   }, []); // Run once on mount
 
   // Auto-expire care requests past their response_deadline (12h)
+  // Uses ref to avoid recreating the interval on every careRequests change
   useEffect(() => {
     const checkExpired = () => {
       const now = Date.now();
-      const expiredRequests = careRequests.filter(r => 
+      const expiredRequests = careRequestsRef.current.filter(r => 
         r.status === 'open' && 
         new Date(r.response_deadline).getTime() <= now
       );
@@ -635,7 +636,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     checkExpired();
     const interval = setInterval(checkExpired, 60000);
     return () => clearInterval(interval);
-  }, [careRequests]);
+  }, []);
 
   // Auto-withdraw nurse's pending offers when one of their offers is accepted (they now have a booking)
   // Only runs on nurse's client — family clients should see offers as-is from Supabase
