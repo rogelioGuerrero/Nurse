@@ -15,14 +15,8 @@ package-lock.json
 Nurse/
 supabase-rag-toolkit/
 
-# Temp files from groq-news pipeline
-scripts/generated-article.txt
-scripts/test-compound.json
-scripts/gemini-prompt.txt
-scripts/editorial-angle.txt
-scripts/articles/
-scripts/groq-news.mjs
-scripts/analysis-output.txt
+# Scripts folder (local pipeline, not tracked)
+scripts/
 public/img/
 .gitignore.tmp
 
