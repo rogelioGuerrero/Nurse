@@ -444,7 +444,7 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
         <p className="text-indigo-300/40 text-xs font-medium tracking-widest uppercase">BienCuidar</p>
       </div>
 
-      {/* Center: Orb */}
+      {/* Center: Benni nurse character */}
       <div className="flex-1 flex items-center justify-center w-full">
         <button
           onClick={handleOrbTap}
@@ -454,72 +454,42 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
           {/* Outer glow rings */}
           {orbState === 'speaking' && (
             <>
-              <span className="absolute w-64 h-64 rounded-full bg-indigo-500/20 animate-ping" />
-              <span className="absolute w-48 h-48 rounded-full bg-indigo-400/30 animate-pulse" />
+              <span className="absolute w-72 h-72 rounded-full bg-indigo-500/20 animate-ping" />
+              <span className="absolute w-56 h-56 rounded-full bg-indigo-400/30 animate-pulse" />
             </>
           )}
           {orbState === 'listening' && (
             <>
-              <span className="absolute w-56 h-56 rounded-full bg-amber-400/15 animate-ping" style={{ animationDuration: '1.5s' }} />
-              <span className="absolute w-40 h-40 rounded-full bg-amber-300/20 animate-pulse" />
+              <span className="absolute w-64 h-64 rounded-full bg-amber-400/15 animate-ping" style={{ animationDuration: '1.5s' }} />
+              <span className="absolute w-48 h-48 rounded-full bg-amber-300/20 animate-pulse" />
             </>
           )}
           {orbState === 'thinking' && (
-            <span className="absolute w-48 h-48 rounded-full bg-violet-400/20 animate-pulse" style={{ animationDuration: '0.8s' }} />
+            <span className="absolute w-56 h-56 rounded-full bg-violet-400/20 animate-pulse" style={{ animationDuration: '0.8s' }} />
           )}
 
-          {/* Main orb */}
-          <div
-            className={`relative w-36 h-36 rounded-full transition-all duration-500 ${
-              orbState === 'speaking'
-                ? 'bg-gradient-to-br from-indigo-400 to-indigo-600 scale-110 shadow-2xl shadow-indigo-500/50'
-                : orbState === 'listening'
-                ? 'bg-gradient-to-br from-amber-300 to-amber-500 scale-105 shadow-2xl shadow-amber-400/40'
-                : orbState === 'thinking'
-                ? 'bg-gradient-to-br from-violet-400 to-violet-600 scale-100 shadow-2xl shadow-violet-500/40'
-                : 'bg-gradient-to-br from-indigo-300 to-indigo-500 scale-100 shadow-xl shadow-indigo-500/30'
-            }`}
-            style={{
-              animation: orbState === 'idle' ? 'gentle-pulse 3s ease-in-out infinite' : undefined,
-            }}
-          >
-            {/* Inner shimmer */}
-            <div className="absolute inset-2 rounded-full bg-gradient-to-tr from-white/10 to-white/30 backdrop-blur-sm" />
-
-            {/* Animated bars when speaking/listening */}
-            {(orbState === 'speaking' || orbState === 'listening') && (
-              <div className="absolute inset-0 flex items-center justify-center gap-1.5">
-                {[0, 1, 2, 3, 4].map(i => (
-                  <span
-                    key={i}
-                    className={`w-1.5 rounded-full bg-white/70 ${orbState === 'speaking' ? 'animate-bounce' : 'animate-pulse'}`}
-                    style={{
-                      height: orbState === 'speaking'
-                        ? `${20 + Math.random() * 30}px`
-                        : `${15 + Math.random() * 25}px`,
-                      animationDelay: `${i * 100}ms`,
-                      animationDuration: `${300 + Math.random() * 200}ms`,
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Thinking spinner */}
-            {orbState === 'thinking' && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-8 h-8 border-2 border-white/30 border-t-white/80 rounded-full animate-spin" />
-              </div>
-            )}
-
-            {/* Idle: heart icon */}
-            {orbState === 'idle' && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <svg className="w-10 h-10 text-white/60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-                </svg>
-              </div>
-            )}
+          {/* Benni character images — circular crop, crossfade between states */}
+          <div className={`relative w-64 h-64 rounded-full overflow-hidden flex items-center justify-center transition-all duration-500 ${
+            orbState === 'speaking'
+              ? 'bg-gradient-to-br from-indigo-500/30 to-indigo-700/40'
+              : orbState === 'listening'
+              ? 'bg-gradient-to-br from-amber-500/25 to-orange-600/35'
+              : orbState === 'thinking'
+              ? 'bg-gradient-to-br from-violet-500/25 to-purple-700/35'
+              : 'bg-gradient-to-br from-indigo-400/20 to-indigo-600/30'
+          }`}>
+            {(['idle', 'listening', 'speaking', 'thinking', 'transcribing'] as OrbState[]).map(state => (
+              <img
+                key={state}
+                src={`/benni/${state === 'transcribing' ? 'listening' : state}.png`}
+                alt={`Benni ${state}`}
+                className="absolute w-full h-full object-cover transition-opacity duration-500"
+                style={{
+                  opacity: orbState === state ? 1 : 0,
+                  filter: orbState === state ? 'brightness(1)' : 'brightness(0.8)',
+                }}
+              />
+            ))}
           </div>
         </button>
       </div>
@@ -576,12 +546,6 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
         </button>
       </div>
 
-      <style>{`
-        @keyframes gentle-pulse {
-          0%, 100% { transform: scale(1); opacity: 0.9; }
-          50% { transform: scale(1.05); opacity: 1; }
-        }
-      `}</style>
     </div>
   );
 }

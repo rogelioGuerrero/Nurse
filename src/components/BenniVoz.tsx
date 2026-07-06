@@ -711,62 +711,52 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
         </div>
 
         <div className="flex flex-col items-center gap-6 w-full max-w-md">
-          {isSpeaking ? (
-            <>
-              <div className="w-40 h-40 rounded-full bg-indigo-600 scale-110 animate-pulse flex items-center justify-center shadow-2xl">
-                <Volume2 className="h-20 w-20 text-white" />
-              </div>
-              <div className="text-center space-y-1">
-                <p className="text-white text-lg font-bold">{pushMessage.label}</p>
-                <p className="text-indigo-300 text-sm">Hablando...</p>
-              </div>
-            </>
-          ) : isEscalating ? (
-            <>
-              <div className="w-40 h-40 rounded-full bg-rose-600/80 flex items-center justify-center shadow-2xl">
-                <Send className="h-20 w-20 text-white animate-pulse" />
-              </div>
-              <div className="text-center space-y-1">
-                <p className="text-white text-lg font-bold">Preguntando a tu familia</p>
-                <p className="text-rose-300 text-sm">Esperando su respuesta...</p>
-              </div>
-            </>
-          ) : isThinking ? (
-            <>
-              <div className="w-40 h-40 rounded-full bg-amber-600/80 flex items-center justify-center shadow-2xl">
-                <Loader2 className="h-20 w-20 text-white animate-spin" />
-              </div>
-              <div className="text-center space-y-1">
-                <p className="text-white text-lg font-bold">Pensando...</p>
-                <p className="text-amber-300 text-sm">Un momento</p>
-              </div>
-            </>
-          ) : isListening ? (
-            <>
-              <div className="w-40 h-40 rounded-full bg-emerald-600 scale-110 animate-pulse flex items-center justify-center shadow-2xl">
-                <Mic className="h-20 w-20 text-white" />
-              </div>
-              <div className="text-center space-y-1">
-                <p className="text-white text-lg font-bold">Te escucho</p>
-                <p className="text-emerald-300 text-sm">{whisperSTT.isTranscribing && whisperSTT.retryCount > 0 ? 'Un momento, te escucho...' : 'Habla ahora...'}</p>
-              </div>
-              {transcript && (
-                <div className="bg-white/10 rounded-2xl px-4 py-3 max-w-sm">
-                  <p className="text-slate-200 text-sm italic">"{transcript}"</p>
+          {(() => {
+            const benniState = isSpeaking ? 'speaking' : isEscalating ? 'thinking' : isThinking ? 'thinking' : isListening ? 'listening' : 'idle';
+            return (
+              <>
+                <div className={`relative w-40 h-40 rounded-full overflow-hidden flex items-center justify-center transition-all duration-500 shadow-2xl ${
+                  benniState === 'speaking'
+                    ? 'bg-gradient-to-br from-indigo-500/30 to-indigo-700/40 scale-110 animate-pulse'
+                    : benniState === 'listening'
+                    ? 'bg-gradient-to-br from-amber-500/25 to-orange-600/35 scale-105 animate-pulse'
+                    : benniState === 'thinking'
+                    ? 'bg-gradient-to-br from-violet-500/25 to-purple-700/35'
+                    : 'bg-gradient-to-br from-indigo-400/20 to-indigo-600/30'
+                }`}>
+                  {(['idle', 'listening', 'speaking', 'thinking'] as const).map(state => (
+                    <img
+                      key={state}
+                      src={`/benni/${state}.png`}
+                      alt={`Benni ${state}`}
+                      className="absolute w-full h-full object-cover transition-opacity duration-500"
+                      style={{
+                        opacity: benniState === state ? 1 : 0,
+                        filter: benniState === state ? 'brightness(1)' : 'brightness(0.8)',
+                      }}
+                    />
+                  ))}
                 </div>
-              )}
-            </>
-          ) : (
-            <>
-              <div className="w-32 h-32 rounded-full bg-emerald-600/30 border-2 border-emerald-500/40 flex items-center justify-center shadow-lg">
-                <Volume2 className="h-16 w-16 text-emerald-300" />
-              </div>
-              <div className="text-center space-y-1">
-                <p className="text-white text-base font-bold">Mensaje completado</p>
-                <p className="text-slate-400 text-sm">Esperando el siguiente recordatorio...</p>
-              </div>
-            </>
-          )}
+                <div className="text-center space-y-1">
+                  {isSpeaking && <p className="text-white text-lg font-bold">{pushMessage.label}</p>}
+                  {isSpeaking && <p className="text-indigo-300 text-sm">Hablando...</p>}
+                  {isEscalating && <p className="text-white text-lg font-bold">Preguntando a tu familia</p>}
+                  {isEscalating && <p className="text-rose-300 text-sm">Esperando su respuesta...</p>}
+                  {isThinking && <p className="text-white text-lg font-bold">Pensando...</p>}
+                  {isThinking && <p className="text-amber-300 text-sm">Un momento</p>}
+                  {isListening && <p className="text-white text-lg font-bold">Te escucho</p>}
+                  {isListening && <p className="text-emerald-300 text-sm">{whisperSTT.isTranscribing && whisperSTT.retryCount > 0 ? 'Un momento, te escucho...' : 'Habla ahora...'}</p>}
+                  {!isSpeaking && !isEscalating && !isThinking && !isListening && <p className="text-white text-base font-bold">Mensaje completado</p>}
+                  {!isSpeaking && !isEscalating && !isThinking && !isListening && <p className="text-slate-400 text-sm">Esperando el siguiente recordatorio...</p>}
+                </div>
+                {isListening && transcript && (
+                  <div className="bg-white/10 rounded-2xl px-4 py-3 max-w-sm">
+                    <p className="text-slate-200 text-sm italic">"{transcript}"</p>
+                  </div>
+                )}
+              </>
+            );
+          })()}
 
           {(isSpeaking || isListening || isThinking || isEscalating) && (
             <button
@@ -883,10 +873,16 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
 
           <button
             onClick={handleStart}
-            className="w-48 h-48 rounded-full bg-indigo-600 hover:bg-indigo-500 hover:scale-105 active:scale-95 transition-all duration-300 shadow-2xl flex flex-col items-center justify-center gap-2 cursor-pointer"
+            className="relative w-48 h-48 rounded-full overflow-hidden hover:scale-105 active:scale-95 transition-all duration-300 shadow-2xl cursor-pointer bg-gradient-to-br from-indigo-400/20 to-indigo-600/30"
           >
-            <Play className="h-20 w-20 text-white fill-white" />
-            <span className="text-white font-bold text-lg">Iniciar</span>
+            <img
+              src="/benni/idle.png"
+              alt="Benni"
+              className="absolute w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 bg-gradient-to-t from-black/40 to-transparent">
+              <span className="text-white font-bold text-lg drop-shadow-lg">Iniciar</span>
+            </div>
           </button>
 
           {history.length > 0 && (
@@ -919,68 +915,53 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
       </div>
 
       <div className="flex flex-col items-center gap-6 w-full max-w-md">
-        {isSpeaking ? (
-          <>
-            <div className="w-40 h-40 rounded-full bg-indigo-600 scale-110 animate-pulse flex items-center justify-center shadow-2xl">
-              <CurrentIcon className="h-20 w-20 text-white" />
-            </div>
-            <div className="text-center space-y-1">
-              <p className="text-white text-lg font-bold">{currentReminder?.label}</p>
-              <p className="text-indigo-300 text-sm">Hablando...</p>
-            </div>
-          </>
-        ) : isEscalating ? (
-          <>
-            <div className="w-40 h-40 rounded-full bg-rose-600/80 flex items-center justify-center shadow-2xl">
-              <Send className="h-20 w-20 text-white animate-pulse" />
-            </div>
-            <div className="text-center space-y-1">
-              <p className="text-white text-lg font-bold">Preguntando a tu familia</p>
-              <p className="text-rose-300 text-sm">Esperando su respuesta...</p>
-            </div>
-          </>
-        ) : isThinking ? (
-          <>
-            <div className="w-40 h-40 rounded-full bg-amber-600/80 flex items-center justify-center shadow-2xl">
-              <Loader2 className="h-20 w-20 text-white animate-spin" />
-            </div>
-            <div className="text-center space-y-1">
-              <p className="text-white text-lg font-bold">Pensando...</p>
-              <p className="text-amber-300 text-sm">Un momento</p>
-            </div>
-          </>
-        ) : isListening ? (
-          <>
-            <div className="w-40 h-40 rounded-full bg-emerald-600 scale-110 animate-pulse flex items-center justify-center shadow-2xl">
-              <Mic className="h-20 w-20 text-white" />
-            </div>
-            <div className="text-center space-y-1">
-              <p className="text-white text-lg font-bold">Te escucho</p>
-              <p className="text-emerald-300 text-sm">{whisperSTT.isTranscribing && whisperSTT.retryCount > 0 ? 'Un momento, te escucho...' : 'Habla ahora...'}</p>
-            </div>
-            {transcript && (
-              <div className="bg-white/10 rounded-2xl px-4 py-3 max-w-sm">
-                <p className="text-slate-200 text-sm italic">"{transcript}"</p>
+        {(() => {
+          const benniState = isSpeaking ? 'speaking' : isEscalating ? 'thinking' : isThinking ? 'thinking' : isListening ? 'listening' : 'idle';
+          return (
+            <>
+              <div className={`relative w-40 h-40 rounded-full overflow-hidden flex items-center justify-center transition-all duration-500 shadow-2xl ${
+                benniState === 'speaking'
+                  ? 'bg-gradient-to-br from-indigo-500/30 to-indigo-700/40 scale-110 animate-pulse'
+                  : benniState === 'listening'
+                  ? 'bg-gradient-to-br from-amber-500/25 to-orange-600/35 scale-105 animate-pulse'
+                  : benniState === 'thinking'
+                  ? 'bg-gradient-to-br from-violet-500/25 to-purple-700/35'
+                  : 'bg-gradient-to-br from-indigo-400/20 to-indigo-600/30'
+              }`}>
+                {(['idle', 'listening', 'speaking', 'thinking'] as const).map(state => (
+                  <img
+                    key={state}
+                    src={`/benni/${state}.png`}
+                    alt={`Benni ${state}`}
+                    className="absolute w-full h-full object-cover transition-opacity duration-500"
+                    style={{
+                      opacity: benniState === state ? 1 : 0,
+                      filter: benniState === state ? 'brightness(1)' : 'brightness(0.8)',
+                    }}
+                  />
+                ))}
               </div>
-            )}
-          </>
-        ) : currentReminder ? (
-          <>
-            <div className="w-32 h-32 rounded-full bg-slate-700/50 border-2 border-indigo-500/30 flex items-center justify-center shadow-lg">
-              <CurrentIcon className="h-16 w-16 text-indigo-300" />
-            </div>
-            <div className="text-center space-y-1">
-              <p className="text-white text-base font-bold">{currentReminder.label}</p>
-              <p className="text-slate-400 text-sm">
-                {nextIn > 0 ? `En ${nextIn} segundos...` : 'Preparando...'}
-              </p>
-            </div>
-          </>
-        ) : (
-          <div className="w-32 h-32 rounded-full bg-slate-700/50 flex items-center justify-center">
-            <Volume2 className="h-16 w-16 text-slate-500" />
-          </div>
-        )}
+              <div className="text-center space-y-1">
+                {isSpeaking && <p className="text-white text-lg font-bold">{currentReminder?.label}</p>}
+                {isSpeaking && <p className="text-indigo-300 text-sm">Hablando...</p>}
+                {isEscalating && <p className="text-white text-lg font-bold">Preguntando a tu familia</p>}
+                {isEscalating && <p className="text-rose-300 text-sm">Esperando su respuesta...</p>}
+                {isThinking && <p className="text-white text-lg font-bold">Pensando...</p>}
+                {isThinking && <p className="text-amber-300 text-sm">Un momento</p>}
+                {isListening && <p className="text-white text-lg font-bold">Te escucho</p>}
+                {isListening && <p className="text-emerald-300 text-sm">{whisperSTT.isTranscribing && whisperSTT.retryCount > 0 ? 'Un momento, te escucho...' : 'Habla ahora...'}</p>}
+                {!isSpeaking && !isEscalating && !isThinking && !isListening && currentReminder && <p className="text-white text-base font-bold">{currentReminder.label}</p>}
+                {!isSpeaking && !isEscalating && !isThinking && !isListening && currentReminder && <p className="text-slate-400 text-sm">{nextIn > 0 ? `En ${nextIn} segundos...` : 'Preparando...'}</p>}
+                {!isSpeaking && !isEscalating && !isThinking && !isListening && !currentReminder && <p className="text-slate-400 text-sm">Esperando mensajes...</p>}
+              </div>
+              {isListening && transcript && (
+                <div className="bg-white/10 rounded-2xl px-4 py-3 max-w-sm">
+                  <p className="text-slate-200 text-sm italic">"{transcript}"</p>
+                </div>
+              )}
+            </>
+          );
+        })()}
 
         <button
           onClick={handleStop}
