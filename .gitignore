@@ -25,3 +25,6 @@ scripts/groq-news.mjs
 scripts/analysis-output.txt
 public/img/
 .gitignore.tmp
+
+# Research report (not related to BienCuidar)
+tmp/
