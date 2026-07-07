@@ -11,6 +11,8 @@ import { getResponseDeadline } from '../data/platformSettings';
 import { requestNotificationPermission, notifyNewOffer, notifyOfferAccepted, notifyCheckIn, notifyCheckOut, notifyPaymentConfirmed, notifyNewCareRequest } from '../lib/notifications';
 import { subscribeToPush, unsubscribeFromPush } from '../lib/push';
 import { calculateFamilyPrice } from '../data/standardRates';
+import { notifyMarketplace } from '../lib/marketplace-notify';
+import { track } from '../lib/analytics';
 
 // Safe localStorage parser - prevents crash on corrupted data
 function safeParse<T>(key: string, fallback: T): T {
@@ -110,6 +112,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         if (profile) {
           setCurrentUser(profile);
           setActiveTab(profile.role === 'nurse' ? 'nurse-inbox' : profile.role === 'admin' ? 'admin-panel' : 'care-request');
+          track.login(profile.role);
           const permission = await requestNotificationPermission();
           if (permission === 'granted') {
             await subscribeToPush(profile.id);
@@ -496,6 +499,9 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     }).then(({ error }) => {
       if (error) console.warn('Failed to save care request to Supabase:', error.message);
     });
+    // Notify matching nurses via email + push (server-side)
+    notifyMarketplace({ type: 'new_request', request_id: newRequest.id });
+    track.careRequestSubmit(data.specialization_needed, data.urgency);
     return newRequest;
   }, [currentUser, careRequests]);
 
@@ -572,6 +578,9 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       const nurse = nurses.find(n => n.id === data.nurse_id);
       const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
       notifyNewOffer(nurseProfile?.full_name || 'Una enfermera', request.patient_name, request.user_id);
+      // Also send email + push via server-side edge function
+      notifyMarketplace({ type: 'new_offer', offer_id: newOffer.id });
+      track.offerSubmit(Number(data.offered_rate));
     }
     return newOffer;
   }, [careRequests, currentUser, nurses, profiles]);
@@ -861,6 +870,9 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         wants_invoice: request.wants_invoice,
         status: request.wants_invoice ? 'pending_payment' : 'confirmed',
       });
+      // Notify nurse via email + push (server-side)
+      notifyMarketplace({ type: 'offer_accepted', offer_id: offer.id });
+      track.offerAccepted();
 
       // Auto-withdraw nurse's other pending offers for the same date (server-side)
       // This prevents double-booking when the nurse isn't online

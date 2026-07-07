@@ -7,6 +7,7 @@ import { validateCSSPRegistration } from '../lib/csspValidation';
 import { verifyCSSP } from '../lib/csspVerify';
 import { DEPARTMENTS, DEPARTMENTS_WITH_MUNICIPALITIES } from '../data/districts';
 import { validatePasswordStrength, getPasswordStrengthColor, getPasswordStrengthLabel } from '../lib/passwordValidation';
+import { track } from '../lib/analytics';
 
 interface AuthFormProps {
   mode: 'login' | 'register';
@@ -55,6 +56,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
 
   const handleRegister = async () => {
     setError('');
+    track.signupStart(role);
     
     if (!fullName.trim()) {
       setError('Ingresa tu nombre completo');
@@ -223,6 +225,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
       }
       
       setLoading(false);
+      track.signupSuccess(role);
       onSuccess();
     } catch (err) {
       setLoading(false);
