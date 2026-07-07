@@ -504,7 +504,7 @@ async function sendEmail(supabase: any, userId: string, role: string, args: any)
 
 // ===== TOOL DEFINITIONS =====
 
-const RAG_TOOL = { type: 'function', function: { name: 'rag_knowledge_search', description: 'Buscar en la base de conocimiento de BienCuidar: leyes de El Salvador, regulaciones CSSP, protocolos clínicos, manuales de enfermería, Código Tributario, LIVA. Usar cuando el usuario pregunte sobre normativa legal, procedimientos clínicos, requisitos del CSSP, o cualquier tema profesional que requiera información documentada.', parameters: { type: 'object', properties: { query: { type: 'string', description: 'La pregunta o tema a buscar (ej: "requisitos para registro CSSP", "retención ISR servicios de enfermería", "protocolo cuidados paliativos")' }, top_k: { type: 'number', description: 'Número de resultados a devolver (default: 5, max: 10)' } }, required: ['query'] } } };
+const RAG_TOOL = { type: 'function', function: { name: 'rag_knowledge_search', description: 'Buscar en la base de conocimiento de BienCuidar: leyes de El Salvador, regulaciones CSSP, protocolos clínicos, manuales de enfermería, Código Tributario, LIVA. Usar cuando el usuario pregunte sobre normativa legal, procedimientos clínicos, requisitos del CSSP, o cualquier tema profesional que requiera información documentada. PODÉS llamar esta función MÚLTIPLES VECES con queries diferentes en la misma conversación: si los primeros resultados no responden completamente la pregunta, refiná tu búsqueda con términos más específicos o buscá información complementaria antes de responder.', parameters: { type: 'object', properties: { query: { type: 'string', description: 'La pregunta o tema a buscar. Sé específico (ej: "requisitos para registro CSSP", "retención ISR servicios de enfermería", "protocolo cuidados paliativos"). Si una búsqueda no basta, probá con términos diferentes.' }, top_k: { type: 'number', description: 'Número de resultados a devolver (default: 5, max: 10)' } }, required: ['query'] } } };
 
 const NURSE_TOOLS = [
   { type: 'function', function: { name: 'get_my_profile', description: 'Ver el perfil de la enfermera: nombre, especialización, tarifa por turno, disponibilidad, estado CSSP, rating', parameters: { type: 'object', properties: {} } } },
@@ -796,6 +796,13 @@ REGLAS:
 - Para preguntas generales (cómo funciona, pagos, cancelaciones), respondé con la información de arriba SIN llamar herramientas.
 - Si la enfermera te pide avisar o notificar a alguien, usá send_push_notification o send_email.
 
+BÚSQUEDA DE CONOCIMIENTO (ReAct):
+- Para preguntas sobre normativa legal, procedimientos clínicos, requisitos del CSSP, leyes, o cualquier tema profesional documentado, usá rag_knowledge_search.
+- PODÉS buscar MÚLTIPLES VECES con queries diferentes. Si la primera búsqueda no responde completamente, pensá qué información falta y buscá de nuevo con términos más específicos.
+- Ejemplo: si preguntan sobre "retención ISR en facturación de enfermería", primero buscá "retención ISR servicios de enfermería", y si los resultados mencionan el Código Tributario pero sin detalle, hacé una segunda búsqueda "Artículo 156 Código Tributario retención".
+- Sintetizá la información de TODAS las búsquedas antes de responder. NO respondas con información parcial si podés buscar más.
+- Si después de 2-3 búsquedas no encontrás información relevante, decí: "No tengo esa información documentada. Escribinos a info@agtisa.com".
+
 CSSP — REGLA CRÍTICA:
 - Si la enfermera menciona CSSP, junta, número de registro, verificación, o cualquier problema con su registro, SIEMPRE llamá a get_cssp_status PRIMERO antes de responder.
 - NUNCA respondas sobre CSSP sin antes llamar a get_cssp_status.
@@ -821,7 +828,13 @@ REGLAS:
 - NO reveles datos de otras familias ni enfermeras (excepto especialización y rating de ofertas recibidas).
 - Si la familia quiere algo que no podés hacer con las herramientas, decí que escriba a info@agtisa.com.
 - Para preguntas generales (cómo funciona, pagos, cancelaciones), respondé con la información de arriba SIN llamar herramientas.
-- Si la familia te pide avisar o notificar a alguien, usá send_push_notification o send_email.${memoryContext}`
+- Si la familia te pide avisar o notificar a alguien, usá send_push_notification o send_email.
+
+BÚSQUEDA DE CONOCIMIENTO (ReAct):
+- Para preguntas sobre normativa legal, procedimientos clínicos, leyes, o cualquier tema profesional documentado, usá rag_knowledge_search.
+- PODÉS buscar MÚLTIPLES VECES con queries diferentes. Si la primera búsqueda no responde completamente, pensá qué información falta y buscá de nuevo con términos más específicos.
+- Sintetizá la información de TODAS las búsquedas antes de responder. NO respondas con información parcial si podés buscar más.
+- Si después de 2-3 búsquedas no encontrás información relevante, decí: "No tengo esa información documentada. Escribinos a info@agtisa.com".${memoryContext}`
       : role === 'admin'
       ? `Sos el asistente de BienCuidar. Estás hablando con ${userName}, el administrador de la plataforma.
 
@@ -834,7 +847,13 @@ REGLAS:
 - Si el admin te pide avisar, notificar, alertar o enviar un mensaje a las enfermeras o familias, usá send_push_notification o send_email con target "all_nurses" o "all_families".
 - Si el admin te pide ver el estado de la plataforma, usá get_platform_stats.
 - Para preguntas generales, respondé con la información de arriba SIN llamar herramientas.
-- Podés usar formato Markdown: **negrita**, listas con viñetas, tablas markdown (| col1 | col2 |), y encabezados con ##. Esto se renderiza bonito en el chat.${memoryContext}`
+- Podés usar formato Markdown: **negrita**, listas con viñetas, tablas markdown (| col1 | col2 |), y encabezados con ##. Esto se renderiza bonito en el chat.
+
+BÚSQUEDA DE CONOCIMIENTO (ReAct):
+- Para preguntas sobre normativa legal, procedimientos clínicos, leyes, o cualquier tema profesional documentado, usá rag_knowledge_search.
+- PODÉS buscar MÚLTIPLES VECES con queries diferentes. Si la primera búsqueda no responde completamente, pensá qué información falta y buscá de nuevo con términos más específicos.
+- Sintetizá la información de TODAS las búsquedas antes de responder. NO respondas con información parcial si podés buscar más.
+- Si después de 2-3 búsquedas no encontrás información relevante, decí: "No tengo esa información documentada".${memoryContext}`
       : `Sos el asistente de BienCuidar, plataforma de cuidado de salud en El Salvador.
 
 ${FAQ_CONTEXT}
@@ -844,7 +863,13 @@ REGLAS:
 - Sé breve y directo. Máximo 100 palabras.
 - NO inventes información.
 - Si no sabés, decí: "No tengo esa información. Escribinos a info@agtisa.com".
-- Respondé preguntas generales con la información de arriba.${memoryContext}`;
+- Respondé preguntas generales con la información de arriba.
+
+BÚSQUEDA DE CONOCIMIENTO (ReAct):
+- Para preguntas sobre normativa legal, procedimientos clínicos, leyes, o cualquier tema profesional documentado, usá rag_knowledge_search.
+- PODÉS buscar MÚLTIPLES VECES con queries diferentes. Si la primera búsqueda no responde completamente, buscá de nuevo con términos más específicos.
+- Sintetizá la información de TODAS las búsquedas antes de responder.
+- Si después de 2-3 búsquedas no encontrás información relevante, decí: "No tengo esa información. Escribinos a info@agtisa.com".${memoryContext}`;
 
     const trimmedHistory = (history || []).slice(-MAX_HISTORY_MESSAGES);
     const messages: any[] = [
@@ -869,7 +894,7 @@ REGLAS:
     const toolResults: Array<{ name: string; result: any }> = [];
 
     let rounds = 0;
-    while (assistantMessage.tool_calls && rounds < 3) {
+    while (assistantMessage.tool_calls && rounds < 5) {
       rounds++;
       console.log(`[ai-agent] Tool round ${rounds} | calls: ${assistantMessage.tool_calls.length}`);
       messages.push(assistantMessage);
