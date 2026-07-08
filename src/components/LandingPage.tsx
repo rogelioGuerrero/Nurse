@@ -1,5 +1,5 @@
 import { type FC, useState, useRef } from 'react';
-import { Stethoscope, Search, ShieldCheck, Calendar, DollarSign, ChevronDown, ChevronUp, UserCheck, Clock, MapPin, FileText, CheckCircle2, MessageCircle, Heart, LogIn } from 'lucide-react';
+import { Stethoscope, Search, ShieldCheck, Calendar, DollarSign, ChevronDown, ChevronUp, UserCheck, Clock, MapPin, FileText, CheckCircle2, MessageCircle, Heart, LogIn, PlayCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { SupportChat } from './SupportChat';
 
@@ -16,6 +16,7 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
   const [showFaqSection, setShowFaqSection] = useState(false);
   const [showBenefit, setShowBenefit] = useState<number | null>(null);
   const [showDemo, setShowDemo] = useState(false);
+  const [showVideo, setShowVideo] = useState(false);
   const [viewMode, setViewMode] = useState<'nurse' | 'family'>('nurse');
   const logoClicks = useRef(0);
   const clickTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -310,38 +311,61 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
           </button>
         </div>
 
-        {/* Trust badge & Demo */}
-        <div className="space-y-2 pb-6">
+        {/* Trust badge, Video & Demo */}
+        <div className="space-y-3 pb-6">
           <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-400">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
             <span>Profesionales registradas ante el Ministerio de Salud</span>
           </div>
-          <div className="text-center">
+          <div className="flex items-center justify-center gap-4">
+            <button
+              onClick={() => setShowVideo(!showVideo)}
+              className="inline-flex items-center gap-1.5 text-indigo-600 hover:text-indigo-500 text-[10px] font-bold transition cursor-pointer"
+            >
+              <PlayCircle className="h-3.5 w-3.5" />
+              {showVideo ? 'Ocultar video' : 'Ver video'}
+            </button>
+            <span className="text-slate-200">|</span>
             <button
               onClick={() => setShowDemo(!showDemo)}
-              className="text-[10px] text-slate-300 hover:text-slate-400 font-bold transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 text-slate-400 hover:text-slate-500 text-[10px] font-bold transition cursor-pointer"
             >
               {showDemo ? 'Ocultar demo' : 'Demo'}
             </button>
-            {showDemo && (
-              <div className="flex gap-2 mt-2 max-w-[200px] mx-auto">
-                <button
-                  onClick={() => handleDemoLogin('family')}
-                  disabled={demoLoading}
-                  className="flex-1 bg-slate-200 hover:bg-slate-300 disabled:bg-slate-200 disabled:cursor-not-allowed text-slate-600 font-bold py-2 rounded-lg transition text-[10px] cursor-pointer"
-                >
-                  {demoLoading ? '...' : 'Paciente'}
-                </button>
-                <button
-                  onClick={() => handleDemoLogin('nurse')}
-                  disabled={demoLoading}
-                  className="flex-1 bg-slate-200 hover:bg-slate-300 disabled:bg-slate-200 disabled:cursor-not-allowed text-slate-600 font-bold py-2 rounded-lg transition text-[10px] cursor-pointer"
-                >
-                  {demoLoading ? '...' : 'Enfermera'}
-                </button>
-              </div>
-            )}
           </div>
+          {showVideo && (
+            <div className="relative w-full overflow-hidden rounded-xl border border-slate-200 bg-black" style={{ aspectRatio: '16/9' }}>
+              <iframe
+                src="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fshare%2Fv%2F1K72qmzudT%2F&show_text=false&show_posts=false&autoplay=false&mute=true"
+                className="absolute inset-0 w-full h-full"
+                style={{ border: 'none' }}
+                scrolling="no"
+                frameBorder="0"
+                allowFullScreen
+                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+                title="Cómo funciona BienCuidar"
+                loading="lazy"
+              />
+            </div>
+          )}
+          {showDemo && (
+            <div className="flex gap-2 max-w-[200px] mx-auto">
+              <button
+                onClick={() => handleDemoLogin('family')}
+                disabled={demoLoading}
+                className="flex-1 bg-slate-200 hover:bg-slate-300 disabled:bg-slate-200 disabled:cursor-not-allowed text-slate-600 font-bold py-2 rounded-lg transition text-[10px] cursor-pointer"
+              >
+                {demoLoading ? '...' : 'Paciente'}
+              </button>
+              <button
+                onClick={() => handleDemoLogin('nurse')}
+                disabled={demoLoading}
+                className="flex-1 bg-slate-200 hover:bg-slate-300 disabled:bg-slate-200 disabled:cursor-not-allowed text-slate-600 font-bold py-2 rounded-lg transition text-[10px] cursor-pointer"
+              >
+                {demoLoading ? '...' : 'Enfermera'}
+              </button>
+            </div>
+          )}
         </div>
 
       </div>
