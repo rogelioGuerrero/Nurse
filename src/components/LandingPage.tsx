@@ -108,8 +108,8 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
 
         {/* Logo - 5 clicks to reveal admin login */}
         <div className="text-center space-y-2">
-          <div onClick={handleLogoClick} className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-sm cursor-pointer select-none">
-            <Stethoscope className="h-7 w-7 text-white" />
+          <div onClick={handleLogoClick} className="w-16 h-16 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/25 cursor-pointer select-none ring-1 ring-white/30 backdrop-blur-sm">
+            <Stethoscope className="h-8 w-8 text-white" />
           </div>
           <div onClick={handleLogoClick} className="cursor-pointer select-none">
             <h1 className="text-2xl font-serif italic tracking-tight text-slate-900">BienCuidar</h1>
@@ -118,19 +118,20 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
         </div>
 
         {/* View toggle */}
-        <div className="flex bg-slate-200 rounded-full p-1">
+        <div className="relative flex bg-white/40 backdrop-blur-xl rounded-full p-1 border border-white/50 shadow-sm">
+          <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-full shadow-md transition-transform duration-300 ease-out ${viewMode === 'nurse' ? 'translate-x-0' : 'translate-x-[calc(100%+0px)]'}`} />
           <button
             onClick={() => setViewMode('nurse')}
-            className={`flex-1 py-2.5 rounded-full text-xs font-bold transition cursor-pointer ${
-              viewMode === 'nurse' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'
+            className={`relative flex-1 py-2.5 rounded-full text-xs font-bold transition-colors duration-200 cursor-pointer z-10 ${
+              viewMode === 'nurse' ? 'text-indigo-600' : 'text-slate-500'
             }`}
           >
             Soy Enfermera
           </button>
           <button
             onClick={() => setViewMode('family')}
-            className={`flex-1 py-2.5 rounded-full text-xs font-bold transition cursor-pointer ${
-              viewMode === 'family' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'
+            className={`relative flex-1 py-2.5 rounded-full text-xs font-bold transition-colors duration-200 cursor-pointer z-10 ${
+              viewMode === 'family' ? 'text-indigo-600' : 'text-slate-500'
             }`}
           >
             Soy Familia
@@ -167,14 +168,14 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
               <>
                 <button
                   onClick={onNurse}
-                  className="w-full bg-indigo-600 text-white rounded-2xl py-4 font-bold text-sm shadow-sm active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-2xl py-4 font-bold text-sm shadow-lg shadow-indigo-500/25 ring-1 ring-white/20 active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Stethoscope className="h-5 w-5" />
                   Soy enfermera - Regístrate gratis
                 </button>
                 <button
                   onClick={onFamily}
-                  className="w-full bg-white text-slate-700 border border-slate-200 rounded-2xl py-3.5 font-bold text-sm shadow-sm active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full bg-white/60 backdrop-blur-md text-slate-700 border border-white/50 rounded-2xl py-3.5 font-bold text-sm shadow-md active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Search className="h-5 w-5 text-indigo-600" />
                   Buscar enfermera para mi familia
@@ -184,14 +185,14 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
               <>
                 <button
                   onClick={onFamily}
-                  className="w-full bg-indigo-600 text-white rounded-2xl py-4 font-bold text-sm shadow-sm active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-2xl py-4 font-bold text-sm shadow-lg shadow-indigo-500/25 ring-1 ring-white/20 active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Search className="h-5 w-5" />
                   Buscar enfermera para mi familia
                 </button>
                 <button
                   onClick={onNurse}
-                  className="w-full bg-white text-slate-700 border border-slate-200 rounded-2xl py-3.5 font-bold text-sm shadow-sm active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full bg-white/60 backdrop-blur-md text-slate-700 border border-white/50 rounded-2xl py-3.5 font-bold text-sm shadow-md active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Stethoscope className="h-5 w-5 text-indigo-600" />
                   Soy enfermera - Regístrate gratis
