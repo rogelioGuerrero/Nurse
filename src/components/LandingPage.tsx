@@ -337,7 +337,7 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
           {showVideo && (
             <div className="relative w-full overflow-hidden rounded-xl border border-slate-200 bg-black" style={{ aspectRatio: '16/9' }}>
               <iframe
-                src="https://www.facebook.com/plugins/video.php?href=https%3A%2F%2Fwww.facebook.com%2Fshare%2Fv%2F1K72qmzudT%2F&show_text=false&show_posts=false&autoplay=false&mute=true"
+                src="https://drive.google.com/file/d/1fZxPTpr8AbM1eT4hOvgzCbbm1nziwIsJ/preview"
                 className="absolute inset-0 w-full h-full"
                 style={{ border: 'none' }}
                 scrolling="no"
