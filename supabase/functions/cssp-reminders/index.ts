@@ -128,7 +128,7 @@ async function sendAdminSummary(supabase: ReturnType<typeof createClient>): Prom
     <p style="font-size: 12px; color: #94a3b8; margin: 16px 0 0;">${new Date().toISOString()}</p>
     </div>`;
 
-    await fetch("https://api.resend.com/emails", {
+    const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${RESEND_API_KEY}`,
@@ -141,6 +141,15 @@ async function sendAdminSummary(supabase: ReturnType<typeof createClient>): Prom
         html,
       }),
     });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`[sendAdminSummary] Resend error ${res.status}:`, errText);
+      return;
+    }
+
+    const resData = await res.json();
+    console.log("[sendAdminSummary] Resumen enviado:", resData.id);
   } catch (err) {
     console.error("Error en sendAdminSummary:", err);
   }
