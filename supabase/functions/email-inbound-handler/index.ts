@@ -1,12 +1,14 @@
 // @ts-nocheck — Deno Edge Function
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { callGroqLight } from "../_shared/groq.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
 
 const SENDER_EMAIL = "BienCuidar <info@agtisa.com>";
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const LIGHT_MODEL = "openai/gpt-oss-20b";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -53,6 +55,50 @@ function stripHtml(html: string): string {
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+// ===== Inline callGroqLight (from _shared/groq.ts) =====
+async function callGroqLight(
+  messages: Array<{ role: string; content: string }>,
+  opts: { temperature?: number; maxTokens?: number; responseFormat?: { type: string } } = {},
+): Promise<string> {
+  const body: Record<string, any> = { model: LIGHT_MODEL, messages };
+  if (opts.temperature !== undefined) body.temperature = opts.temperature;
+  if (opts.maxTokens !== undefined) body.max_tokens = opts.maxTokens;
+  if (opts.responseFormat) body.response_format = opts.responseFormat;
+
+  for (let attempt = 0; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(GROQ_API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${GROQ_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.log(`[groq-light] FAILED: ${res.status} | ${errText.slice(0, 200)}`);
+        if (attempt < 2 && (res.status === 429 || res.status >= 500)) {
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+          continue;
+        }
+        throw new Error(`Groq light failed: ${res.status}`);
+      }
+
+      const data = await res.json();
+      return data.choices[0]?.message?.content ?? "";
+    } catch (err: any) {
+      if (attempt < 2 && err instanceof TypeError) {
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("Groq light: all retries failed");
 }
 
 async function classifyEmail(

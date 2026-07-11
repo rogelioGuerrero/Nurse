@@ -145,6 +145,20 @@ function inactivity_second(n: NurseEmailRequest): string {
     ${sign()}`);
 }
 
+function cssp_egresada_response(n: NurseEmailRequest): string {
+  const f = n.nurse_name.split(" ")[0];
+  return wrap(`
+    ${p(`Hola ${f},`)}
+    ${p(`Gracias por tu respuesta. Entendemos tu situación: tienes carta de egresada pero aún no has formalizado tu graduación, por lo que todavía no cuentas con registro oficial del CSSP.`)}
+    ${p(`<strong>Cómo funciona nuestro sistema de verificación:</strong>`)}
+    ${p(`BienCuidar verifica cada número de registro directamente con el portal oficial del CSSP (cssp.gob.sv). El registro CSSP es el documento que habilita legalmente el ejercicio de la enfermería en El Salvador. La carta de egresada es un avance importante, pero no equivale al registro profesional.`)}
+    ${box("info", `Por esta razón, tu cuenta quedará pausada temporalmente.`)}
+    ${p(`<strong>No te preocupes:</strong>`)}
+    ${p(`Tu información no se elimina. Cuando obtengas tu registro oficial del CSSP, podés volver a registrarte en <a href="https://biencuidar.agtisa.com" style="color: #0d9488; text-decoration: none; font-weight: 500;">biencuidar.agtisa.com</a> sin problema. Con gusto te recibiremos cuando tengas tu documento oficial.`)}
+    ${help()}
+    ${sign()}`);
+}
+
 function bitacora_announcement(n: NurseEmailRequest): string {
   const f = n.nurse_name.split(" ")[0];
   return wrap(`
@@ -164,6 +178,7 @@ const templates: Record<string, (n: NurseEmailRequest) => string> = {
   cssp_not_found,
   cssp_reminder_second,
   cssp_reminder_third,
+  cssp_egresada_response,
   inactivity_first,
   inactivity_second,
   bitacora_announcement,
@@ -175,6 +190,7 @@ const subjects: Record<string, string> = {
   cssp_not_found: "Necesitamos verificar tu registro CSSP en BienCuidar",
   cssp_reminder_second: "Recordatorio: Actualizá tu registro CSSP en BienCuidar",
   cssp_reminder_third: "Último aviso: Actualizá tu registro CSSP en BienCuidar",
+  cssp_egresada_response: "Sobre tu registro en BienCuidar — Información importante",
   inactivity_first: "Te extrañamos en BienCuidar",
   inactivity_second: "Seguimos esperándote en BienCuidar",
   bitacora_announcement: "Novedad BienCuidar: Tu bitácora profesional",
