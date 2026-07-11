@@ -3,6 +3,128 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const ADMIN_EMAIL = "guerrero_vi@yahoo.com";
+const CSSP_SEARCH_URL = "https://cssp.gob.sv/profesionales/faces/consulta/buscar.xhtml";
+
+/**
+ * Verifica si el portal del CSSP está en línea.
+ * Hace un GET rápido y chequea status code + contenido.
+ */
+async function checkCSSPPortalOnline(): Promise<{ online: boolean; statusCode: number; error?: string }> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(CSSP_SEARCH_URL, {
+      method: "GET",
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    
+    if (res.status === 404) {
+      return { online: false, statusCode: 404, error: "404 Not Found — portal caído o ruta cambiada" };
+    }
+    if (!res.ok) {
+      return { online: false, statusCode: res.status, error: `HTTP ${res.status}` };
+    }
+    const html = await res.text();
+    if (html.includes("GlassFish Server") && html.includes("Error report")) {
+      return { online: false, statusCode: res.status, error: "GlassFish error page — portal caído" };
+    }
+    if (!html.includes("frm1") && !html.includes("idProfesional")) {
+      return { online: false, statusCode: res.status, error: "Página no contiene formulario de búsqueda — posible cambio de ruta" };
+    }
+    return { online: true, statusCode: res.status };
+  } catch (err: any) {
+    const msg = err instanceof Error ? err.message : "Error desconocido";
+    return { online: false, statusCode: 0, error: msg };
+  }
+}
+
+/**
+ * Actualiza el estado del portal en la tabla cssp_portal_status.
+ * Devuelve cuántos días lleva caído (si está caído).
+ */
+async function updatePortalStatus(
+  supabase: ReturnType<typeof createClient>,
+  online: boolean
+): Promise<{ daysDown: number; firstDownAt: string | null }> {
+  if (online) {
+    await supabase.from("cssp_portal_status").update({
+      is_online: true,
+      first_down_at: null,
+      last_checked_at: new Date().toISOString(),
+    }).eq("id", 1);
+    return { daysDown: 0, firstDownAt: null };
+  }
+
+  // Portal caído — leer estado actual para ver si ya teníamos first_down_at
+  const { data: current } = await supabase
+    .from("cssp_portal_status")
+    .select("first_down_at")
+    .eq("id", 1)
+    .single();
+
+  const now = new Date();
+  const firstDownAt = current?.first_down_at ? current.first_down_at : now.toISOString();
+  const daysDown = current?.first_down_at
+    ? Math.floor((now.getTime() - new Date(current.first_down_at).getTime()) / (1000 * 60 * 60 * 24))
+    : 0;
+
+  await supabase.from("cssp_portal_status").update({
+    is_online: false,
+    first_down_at: firstDownAt,
+    last_checked_at: now.toISOString(),
+  }).eq("id", 1);
+
+  return { daysDown, firstDownAt };
+}
+
+async function sendPortalDownAlert(
+  supabase: ReturnType<typeof createClient>,
+  daysDown: number,
+  errorDetail: string
+): Promise<void> {
+  if (!RESEND_API_KEY) return;
+
+  const { count: affectedNurses } = await supabase
+    .from("nurses")
+    .select("*", { count: "exact", head: true })
+    .in("cssp_verification_status", ["unverified", "pending"])
+    .eq("is_active", true)
+    .not("cssp_registration", "is", null);
+
+  const daysText = daysDown === 0 ? "hoy" : `${daysDown} día${daysDown > 1 ? "s" : ""}`;
+  const html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; color: #1e293b;">
+    <h2 style="color: #dc2626; margin: 0 0 16px;">⚠️ Portal CSSP caído — BienCuidar</h2>
+    <p style="font-size: 14px; line-height: 1.6;">El portal del CSSP (<a href="${CSSP_SEARCH_URL}" style="color: #0d9488;">cssp.gob.sv</a>) no está disponible.</p>
+    <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin: 16px 0;">
+      <tr><td style="padding: 8px 0; color: #64748b;">Detectado</td><td style="padding: 8px 0; text-align: right; font-weight: 600;">${daysText}</td></tr>
+      <tr><td style="padding: 8px 0; color: #64748b;">Error</td><td style="padding: 8px 0; text-align: right; font-weight: 600; color: #dc2626;">${errorDetail}</td></tr>
+      <tr><td style="padding: 8px 0; color: #64748b;">Enfermeras afectadas</td><td style="padding: 8px 0; text-align: right; font-weight: 600; color: #f59e0b;">${affectedNurses || 0}</td></tr>
+    </table>
+    <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px 16px; margin: 16px 0;">
+      <p style="margin: 0; font-size: 13px; color: #92400e;"><strong>Acciones suspendidas automáticamente:</strong></p>
+      <ul style="margin: 8px 0 0; padding-left: 20px; font-size: 13px; color: #92400e;">
+        <li>Re-verificación CSSP</li>
+        <li>Envío de recordatorios a enfermeras</li>
+        <li>Desactivación de cuentas por no verificación</li>
+      </ul>
+    </div>
+    <p style="font-size: 13px; color: #64748b; margin: 16px 0 0;">Se reanudarán automáticamente cuando el portal vuelva a estar disponible. Mientras tanto, podés verificar manualmente en el portal o pedir a las enfermeras su carnet CSSP.</p>
+    <p style="font-size: 12px; color: #94a3b8; margin: 16px 0 0;">${new Date().toISOString()}</p>
+  </div>`;
+
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: "BienCuidar <info@agtisa.com>",
+      to: ADMIN_EMAIL,
+      subject: daysDown === 0 ? "⚠️ Portal CSSP caído — BienCuidar" : `⚠️ Portal CSSP caído (${daysText}) — BienCuidar`,
+      html,
+    }),
+  });
+}
 
 async function sendNurseEmail(
   supabaseUrl: string,
@@ -179,6 +301,81 @@ Deno.serve(async (req: Request) => {
 
     const now = new Date();
     const results: any[] = [];
+
+    // ===== -1. VERIFICAR PORTAL CSSP =====
+    const portalCheck = await checkCSSPPortalOnline();
+    const portalStatus = await updatePortalStatus(supabase, portalCheck.online);
+    console.log(`[cssp-reminders] Portal CSSP: ${portalCheck.online ? "ONLINE" : "OFFLINE"} — ${portalCheck.error || "OK"}`);
+
+    if (!portalCheck.online) {
+      // Portal caído: avisar al admin y saltar todas las operaciones CSSP
+      await sendPortalDownAlert(supabase, portalStatus.daysDown, portalCheck.error || "Desconocido");
+      console.log(`[cssp-reminders] Portal caído (${portalStatus.daysDown} días) — suspendiendo operaciones CSSP`);
+
+      // Still run inactivity alerts (no relacionadas con CSSP) y admin summary
+      // ===== 3. INACTIVITY ALERTS =====
+      const { count: totalCareRequests } = await supabase
+        .from("care_requests").select("*", { count: "exact", head: true })
+        .not("family_id", "in", notInDemo);
+
+      if ((totalCareRequests || 0) > 0) {
+        const { data: inactiveNurses } = await supabase
+          .from("nurses")
+          .select(`
+            id, user_id, inactivity_email_count, inactivity_email_sent_at, is_active,
+            profiles!inner(email, full_name, last_sign_in_at)
+          `)
+          .eq("is_active", true)
+          .not("profiles.last_sign_in_at", "is", null)
+          .lt("inactivity_email_count", 2)
+          .not("user_id", "in", notInDemo);
+
+        if (inactiveNurses) {
+          for (const nurse of inactiveNurses) {
+            const lastSignIn = nurse.profiles?.last_sign_in_at ? new Date(nurse.profiles.last_sign_in_at) : null;
+            if (!lastSignIn) continue;
+            const daysSince = Math.floor((now.getTime() - lastSignIn.getTime()) / (1000 * 60 * 60 * 24));
+            const inactivityCount = nurse.inactivity_email_count || 0;
+            let shouldSend = false;
+            let templateType = "";
+            if (inactivityCount === 0 && daysSince >= 15) { shouldSend = true; templateType = "inactivity_first"; }
+            else if (inactivityCount === 1 && daysSince >= 30) { shouldSend = true; templateType = "inactivity_second"; }
+            if (shouldSend) {
+              const nurseEmail = nurse.profiles?.email || "";
+              const nurseName = nurse.profiles?.full_name || "";
+              if (!nurseEmail) continue;
+              const sent = await sendNurseEmail(supabaseUrl, supabaseKey, {
+                nurse_name: nurseName, nurse_email: nurseEmail,
+                cssp_registration: "", cssp_level: "",
+                template_type: templateType, problem_detail: "", days_inactive: daysSince,
+              });
+              if (sent) {
+                await supabase.from("nurses").update({
+                  inactivity_email_sent_at: now.toISOString(),
+                  inactivity_email_count: inactivityCount + 1,
+                }).eq("id", nurse.id);
+                results.push({ type: "inactivity", name: nurseName, daysInactive: daysSince, template: templateType, sent: true });
+              }
+            }
+          }
+        }
+      }
+
+      // ===== 4. ADMIN DAILY SUMMARY =====
+      await sendAdminSummary(supabase);
+
+      return new Response(JSON.stringify({
+        success: true,
+        date: now.toISOString(),
+        portalOnline: false,
+        portalDownDays: portalStatus.daysDown,
+        portalError: portalCheck.error,
+        csspOperationsSuspended: true,
+        inactivityAlerts: results.filter(r => r.type === "inactivity").length,
+        adminSummary: true,
+        details: results,
+      }), { status: 200, headers: { "Content-Type": "application/json" } });
+    }
 
     // ===== 0. RE-VERIFICACIÓN CSSP =====
     const { data: unverifiedNurses } = await supabase
