@@ -213,12 +213,27 @@ Deno.serve(async (req: Request) => {
     const { email_id, from, subject } = event.data;
     console.log(`[email-inbound] === START | from: ${from} | subject: ${subject}`);
 
-    // 1. Verificar si el remitente está registrado en BienCuidar
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+    // 0. Deduplicación — si ya procesamos este email_id, salir
+    const { data: existing } = await supabase
+      .from("support_emails")
+      .select("id")
+      .eq("resend_email_id", email_id)
+      .limit(1);
+    if (existing && existing.length > 0) {
+      console.log(`[email-inbound] Duplicate webhook for email_id ${email_id} — skipping`);
+      return new Response(JSON.stringify({ ok: true, action: "duplicate", reason: "already_processed" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    // 1. Verificar si el remitente está registrado en BienCuidar (case-insensitive)
     const { data: profile } = await supabase
       .from("profiles")
       .select("id, email, full_name, role")
-      .eq("email", from)
+      .ilike("email", from)
       .single();
 
     if (!profile) {
@@ -282,6 +297,7 @@ Deno.serve(async (req: Request) => {
         auto_replied: sent,
         auto_reply_body: sent ? reply : null,
         needs_human: needsHuman,
+        resend_email_id: email_id,
       });
     if (insertError) {
       console.log(`[email-inbound] Failed to save to support_emails: ${insertError.message}`);

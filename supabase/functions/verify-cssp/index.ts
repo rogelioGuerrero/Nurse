@@ -29,13 +29,17 @@ interface CSSPResult {
 async function verifyCSSPRegistration(registration: string): Promise<CSSPResult> {
   try {
     // Paso 1: GET para obtener el ViewState de JSF
+    const getController = new AbortController();
+    const getTimeout = setTimeout(() => getController.abort(), 15000);
     const getResponse = await fetch(CSSP_SEARCH_URL, {
       method: "GET",
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "Accept": "text/html,application/xhtml+xml",
       },
+      signal: getController.signal,
     });
+    clearTimeout(getTimeout);
 
     if (!getResponse.ok) {
       return { found: false, error: "No se pudo acceder al portal CSSP" };
@@ -94,6 +98,8 @@ async function verifyCSSPRegistration(registration: string): Promise<CSSPResult>
       ? `${CSSP_SEARCH_URL};jsessionid=${jsessionId}`
       : CSSP_SEARCH_URL;
 
+    const postController = new AbortController();
+    const postTimeout = setTimeout(() => postController.abort(), 15000);
     const postResponse = await fetch(postUrl, {
       method: "POST",
       headers: {
@@ -105,7 +111,9 @@ async function verifyCSSPRegistration(registration: string): Promise<CSSPResult>
         "X-Requested-With": "XMLHttpRequest",
       },
       body: formData.toString(),
+      signal: postController.signal,
     });
+    clearTimeout(postTimeout);
 
     if (!postResponse.ok) {
       return { found: false, error: "Error al consultar el portal CSSP" };
@@ -139,7 +147,7 @@ async function verifyCSSPRegistration(registration: string): Promise<CSSPResult>
       };
     }
 
-    return { found: false, error: `Debug: len=${resultHtml.length} full=${resultHtml.replace(/\n/g, " ")}` };
+    return { found: false, error: "Respuesta inesperada del portal CSSP — no se pudieron extraer datos del profesional" };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Error desconocido";
     return { found: false, error: `Error de conexión con CSSP: ${message}` };
