@@ -7,36 +7,69 @@ const CSSP_SEARCH_URL = "https://cssp.gob.sv/profesionales/faces/consulta/buscar
 
 /**
  * Verifica si el portal del CSSP está en línea.
- * Hace un GET rápido y chequea status code + contenido.
+ * Hace dos checks: dominio base + ruta específica.
+ * Distingue entre "caído" (sitio entero no responde) y "url_changed" (dominio ok pero ruta no).
  */
-async function checkCSSPPortalOnline(): Promise<{ online: boolean; statusCode: number; error?: string }> {
+async function checkCSSPPortalOnline(): Promise<{
+  online: boolean;
+  statusCode: number;
+  error?: string;
+  status: "online" | "down" | "url_changed";
+}> {
+  const ua = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" };
+
+  // 1. Check dominio base
+  let baseOk = false;
+  try {
+    const ctrl1 = new AbortController();
+    const t1 = setTimeout(() => ctrl1.abort(), 10000);
+    const baseRes = await fetch("https://cssp.gob.sv", {
+      method: "GET",
+      headers: ua,
+      signal: ctrl1.signal,
+    });
+    clearTimeout(t1);
+    baseOk = baseRes.ok || baseRes.status < 500;
+  } catch {
+    baseOk = false;
+  }
+
+  // 2. Check ruta específica
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
     const res = await fetch(CSSP_SEARCH_URL, {
       method: "GET",
-      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+      headers: ua,
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
-    
+
     if (res.status === 404) {
-      return { online: false, statusCode: 404, error: "404 Not Found — portal caído o ruta cambiada" };
+      // Si el dominio base funciona pero la ruta da 404 → URL cambiada
+      if (baseOk) {
+        return { online: false, statusCode: 404, status: "url_changed", error: "La ruta del portal cambió (404). El dominio cssp.gob.sv responde pero /profesionales/faces/consulta/buscar.xhtml no existe." };
+      }
+      return { online: false, statusCode: 404, status: "down", error: "404 Not Found — portal caído" };
     }
     if (!res.ok) {
-      return { online: false, statusCode: res.status, error: `HTTP ${res.status}` };
+      return { online: false, statusCode: res.status, status: "down", error: `HTTP ${res.status}` };
     }
     const html = await res.text();
     if (html.includes("GlassFish Server") && html.includes("Error report")) {
-      return { online: false, statusCode: res.status, error: "GlassFish error page — portal caído" };
+      return { online: false, statusCode: res.status, status: "down", error: "GlassFish error page — portal caído" };
     }
     if (!html.includes("frm1") && !html.includes("idProfesional")) {
-      return { online: false, statusCode: res.status, error: "Página no contiene formulario de búsqueda — posible cambio de ruta" };
+      // Si el dominio base funciona pero el formulario no está → posible rediseño
+      if (baseOk) {
+        return { online: false, statusCode: res.status, status: "url_changed", error: "La página responde pero no contiene el formulario de búsqueda. Posible rediseño del portal." };
+      }
+      return { online: false, statusCode: res.status, status: "down", error: "Página no contiene formulario de búsqueda" };
     }
-    return { online: true, statusCode: res.status };
+    return { online: true, statusCode: res.status, status: "online" };
   } catch (err: any) {
     const msg = err instanceof Error ? err.message : "Error desconocido";
-    return { online: false, statusCode: 0, error: msg };
+    return { online: false, statusCode: 0, status: "down", error: msg };
   }
 }
 
@@ -82,7 +115,8 @@ async function updatePortalStatus(
 async function sendPortalDownAlert(
   supabase: ReturnType<typeof createClient>,
   daysDown: number,
-  errorDetail: string
+  errorDetail: string,
+  portalStatus: "down" | "url_changed"
 ): Promise<void> {
   if (!RESEND_API_KEY) return;
 
@@ -93,14 +127,22 @@ async function sendPortalDownAlert(
     .eq("is_active", true)
     .not("cssp_registration", "is", null);
 
+  const { count: notifiedNurses } = await supabase
+    .from("nurses")
+    .select("*", { count: "exact", head: true })
+    .eq("portal_down_notified", true);
+
+  const statusLabel = portalStatus === "url_changed" ? "URL cambiada" : "Portal caído";
   const daysText = daysDown === 0 ? "hoy" : `${daysDown} día${daysDown > 1 ? "s" : ""}`;
   const html = `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; color: #1e293b;">
-    <h2 style="color: #dc2626; margin: 0 0 16px;">⚠️ Portal CSSP caído — BienCuidar</h2>
+    <h2 style="color: #dc2626; margin: 0 0 16px;">⚠️ ${statusLabel} CSSP — BienCuidar</h2>
     <p style="font-size: 14px; line-height: 1.6;">El portal del CSSP (<a href="${CSSP_SEARCH_URL}" style="color: #0d9488;">cssp.gob.sv</a>) no está disponible.</p>
     <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin: 16px 0;">
+      <tr><td style="padding: 8px 0; color: #64748b;">Estado</td><td style="padding: 8px 0; text-align: right; font-weight: 600; color: #dc2626;">${statusLabel}</td></tr>
       <tr><td style="padding: 8px 0; color: #64748b;">Detectado</td><td style="padding: 8px 0; text-align: right; font-weight: 600;">${daysText}</td></tr>
       <tr><td style="padding: 8px 0; color: #64748b;">Error</td><td style="padding: 8px 0; text-align: right; font-weight: 600; color: #dc2626;">${errorDetail}</td></tr>
       <tr><td style="padding: 8px 0; color: #64748b;">Enfermeras afectadas</td><td style="padding: 8px 0; text-align: right; font-weight: 600; color: #f59e0b;">${affectedNurses || 0}</td></tr>
+      <tr><td style="padding: 8px 0; color: #64748b;">Enfermeras notificadas</td><td style="padding: 8px 0; text-align: right; font-weight: 600; color: #0d9488;">${notifiedNurses || 0}</td></tr>
     </table>
     <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px 16px; margin: 16px 0;">
       <p style="margin: 0; font-size: 13px; color: #92400e;"><strong>Acciones suspendidas automáticamente:</strong></p>
@@ -109,6 +151,7 @@ async function sendPortalDownAlert(
         <li>Envío de recordatorios a enfermeras</li>
         <li>Desactivación de cuentas por no verificación</li>
       </ul>
+      <p style="margin: 8px 0 0; font-size: 13px; color: #92400e;"><strong>Enfermeras notificadas:</strong> Se les envió un correo informando que la verificación está pausada y que su cuenta sigue activa.</p>
     </div>
     <p style="font-size: 13px; color: #64748b; margin: 16px 0 0;">Se reanudarán automáticamente cuando el portal vuelva a estar disponible. Mientras tanto, podés verificar manualmente en el portal o pedir a las enfermeras su carnet CSSP.</p>
     <p style="font-size: 12px; color: #94a3b8; margin: 16px 0 0;">${new Date().toISOString()}</p>
@@ -120,7 +163,7 @@ async function sendPortalDownAlert(
     body: JSON.stringify({
       from: "BienCuidar <info@agtisa.com>",
       to: ADMIN_EMAIL,
-      subject: daysDown === 0 ? "⚠️ Portal CSSP caído — BienCuidar" : `⚠️ Portal CSSP caído (${daysText}) — BienCuidar`,
+      subject: daysDown === 0 ? `⚠️ ${statusLabel} CSSP — BienCuidar` : `⚠️ ${statusLabel} CSSP (${daysText}) — BienCuidar`,
       html,
     }),
   });
@@ -308,9 +351,43 @@ Deno.serve(async (req: Request) => {
     console.log(`[cssp-reminders] Portal CSSP: ${portalCheck.online ? "ONLINE" : "OFFLINE"} — ${portalCheck.error || "OK"}`);
 
     if (!portalCheck.online) {
-      // Portal caído: avisar al admin y saltar todas las operaciones CSSP
-      await sendPortalDownAlert(supabase, portalStatus.daysDown, portalCheck.error || "Desconocido");
-      console.log(`[cssp-reminders] Portal caído (${portalStatus.daysDown} días) — suspendiendo operaciones CSSP`);
+      // Portal caído o URL cambiada: avisar al admin
+      await sendPortalDownAlert(supabase, portalStatus.daysDown, portalCheck.error || "Desconocido", portalCheck.status as "down" | "url_changed");
+      console.log(`[cssp-reminders] Portal ${portalCheck.status} (${portalStatus.daysDown} días) — suspendiendo operaciones CSSP`);
+
+      // Notificar una sola vez a enfermeras pendientes que no han sido notificadas
+      const { data: nursesToNotify } = await supabase
+        .from("nurses")
+        .select(`
+          id, user_id, cssp_registration, cssp_level,
+          profiles!inner(email, full_name)
+        `)
+        .in("cssp_verification_status", ["unverified", "pending"])
+        .not("cssp_registration", "is", null)
+        .eq("is_active", true)
+        .eq("portal_down_notified", false)
+        .not("user_id", "in", notInDemo);
+
+      if (nursesToNotify && nursesToNotify.length > 0) {
+        console.log(`[cssp-reminders] Notificando a ${nursesToNotify.length} enfermeras sobre portal caído`);
+        for (const nurse of nursesToNotify) {
+          const nurseEmail = nurse.profiles?.email || "";
+          const nurseName = nurse.profiles?.full_name || "";
+          if (!nurseEmail) continue;
+          const sent = await sendNurseEmail(supabaseUrl, supabaseKey, {
+            nurse_name: nurseName,
+            nurse_email: nurseEmail,
+            cssp_registration: nurse.cssp_registration,
+            cssp_level: nurse.cssp_level || "",
+            template_type: "cssp_portal_down",
+            problem_detail: "",
+          });
+          if (sent) {
+            await supabase.from("nurses").update({ portal_down_notified: true }).eq("id", nurse.id);
+            results.push({ type: "portal_down_notified", name: nurseName, email: nurseEmail, sent: true });
+          }
+        }
+      }
 
       // Still run inactivity alerts (no relacionadas con CSSP) y admin summary
       // ===== 3. INACTIVITY ALERTS =====
@@ -376,6 +453,9 @@ Deno.serve(async (req: Request) => {
         details: results,
       }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
+
+    // ===== PORTAL ONLINE — resetear flag de notificación =====
+    await supabase.from("nurses").update({ portal_down_notified: false }).eq("portal_down_notified", true);
 
     // ===== 0. RE-VERIFICACIÓN CSSP =====
     const { data: unverifiedNurses } = await supabase

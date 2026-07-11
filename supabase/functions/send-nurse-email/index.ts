@@ -172,6 +172,17 @@ function bitacora_announcement(n: NurseEmailRequest): string {
     ${sign()}`);
 }
 
+function cssp_portal_down(n: NurseEmailRequest): string {
+  const f = n.nurse_name.split(" ")[0];
+  return wrap(`
+    ${p(`Hola ${f},`)}
+    ${p(`Queremos informarte que estamos intentando verificar tu número de registro CSSP <strong>${n.cssp_registration}</strong>, pero el portal oficial del CSSP (<a href="https://cssp.gob.sv" style="color: #0d9488; text-decoration: none;">cssp.gob.sv</a>) se encuentra temporalmente fuera de servicio.`)}
+    ${box("info", `Tu cuenta en BienCuidar sigue <strong>activa</strong>. No vas a perder oportunidades de trabajo mientras dure esta situación.`)}
+    ${p(`<strong>No tenés que hacer nada.</strong> Vamos a completar la verificación automáticamente en cuanto el portal del CSSP vuelva a funcionar.`)}
+    ${p(`Si tenés alguna duda, respondé a este correo y te ayudamos con gusto.`)}
+    ${sign()}`);
+}
+
 const templates: Record<string, (n: NurseEmailRequest) => string> = {
   cssp_discrepancy,
   cssp_variant,
@@ -179,6 +190,7 @@ const templates: Record<string, (n: NurseEmailRequest) => string> = {
   cssp_reminder_second,
   cssp_reminder_third,
   cssp_egresada_response,
+  cssp_portal_down,
   inactivity_first,
   inactivity_second,
   bitacora_announcement,
@@ -191,6 +203,7 @@ const subjects: Record<string, string> = {
   cssp_reminder_second: "Recordatorio: Actualizá tu registro CSSP en BienCuidar",
   cssp_reminder_third: "Último aviso: Actualizá tu registro CSSP en BienCuidar",
   cssp_egresada_response: "Sobre tu registro en BienCuidar — Información importante",
+  cssp_portal_down: "Actualización sobre tu verificación CSSP — BienCuidar",
   inactivity_first: "Te extrañamos en BienCuidar",
   inactivity_second: "Seguimos esperándote en BienCuidar",
   bitacora_announcement: "Novedad BienCuidar: Tu bitácora profesional",
