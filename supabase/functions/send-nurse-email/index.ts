@@ -29,6 +29,7 @@ function box(color: string, text: string): string {
     warning: "background: #fef3c7; border-left: 3px solid #f59e0b; color: #92400e;",
     alert: "background: #fee2e2; border-left: 3px solid #dc2626; color: #991b1b;",
     success: "background: #d1fae5; border-left: 3px solid #059669; color: #065f46;",
+    info: "background: #e0f2fe; border-left: 3px solid #0284c7; color: #075985;",
   };
   return `<div style="${styles[color] || styles.warning} border-radius: 4px; padding: 12px 16px; margin: 0 0 16px;">
     <p style="margin: 0; font-size: 14px;">${text}</p>
@@ -55,7 +56,7 @@ function p(text: string): string {
   return `<p style="margin: 0 0 16px; font-size: 15px;">${text}</p>`;
 }
 
-// ===== 7 TEMPLATES =====
+// ===== 8 TEMPLATES =====
 
 function cssp_discrepancy(n: NurseEmailRequest): string {
   const f = n.nurse_name.split(" ")[0];
@@ -144,6 +145,19 @@ function inactivity_second(n: NurseEmailRequest): string {
     ${sign()}`);
 }
 
+function bitacora_announcement(n: NurseEmailRequest): string {
+  const f = n.nurse_name.split(" ")[0];
+  return wrap(`
+    ${p(`Hola ${f},`)}
+    ${p(`En BienCuidar seguimos mejorando para vos. Ahora agregamos una herramienta que valorás cuando una familia te contrate por nuestra plataforma: <strong>la bitácora de visita</strong>.`)}
+    ${box("info", `Un registro profesional de cada visita que hagas a través de BienCuidar. Registrás llegada, actividades, estado del paciente y observaciones. Nosotros generamos automáticamente un reporte narrativo profesional y una versión sencilla para la familia.`)}
+    ${p(`<strong>Para vos:</strong> respaldo documentado de tu trabajo, historial de visitas, reporte profesional sin esfuerzo extra.`)}
+    ${p(`<strong>Para la familia:</strong> transparencia total sobre qué pasó durante la visita, en palabras sencillas.`)}
+    ${p(`Cuando tengas tu próxima visita a través de BienCuidar, la bitácora estará disponible en la sección <strong>"Mis Servicios"</strong>.`)}
+    ${help()}
+    ${sign()}`);
+}
+
 const templates: Record<string, (n: NurseEmailRequest) => string> = {
   cssp_discrepancy,
   cssp_variant,
@@ -152,6 +166,7 @@ const templates: Record<string, (n: NurseEmailRequest) => string> = {
   cssp_reminder_third,
   inactivity_first,
   inactivity_second,
+  bitacora_announcement,
 };
 
 const subjects: Record<string, string> = {
@@ -162,6 +177,7 @@ const subjects: Record<string, string> = {
   cssp_reminder_third: "Último aviso: Actualizá tu registro CSSP en BienCuidar",
   inactivity_first: "Te extrañamos en BienCuidar",
   inactivity_second: "Seguimos esperándote en BienCuidar",
+  bitacora_announcement: "Novedad BienCuidar: Tu bitácora profesional",
 };
 
 Deno.serve(async (req: Request) => {
