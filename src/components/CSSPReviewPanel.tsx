@@ -8,7 +8,7 @@ import type { Nurse, CSSPVerificationStatus } from '../types';
 export const CSSPReviewPanel: FC = () => {
   const { nurses, profiles, currentUser } = useApp();
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'unverified' | 'pending' | 'verified' | 'rejected'>('unverified');
+  const [filter, setFilter] = useState<'all' | 'unverified' | 'pending' | 'verified' | 'rejected' | 'no_registrado'>('unverified');
   const [loading, setLoading] = useState<string | null>(null);
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [bulkVerifying, setBulkVerifying] = useState(false);
@@ -31,11 +31,14 @@ export const CSSPReviewPanel: FC = () => {
       pending: 0,
       verified: 0,
       rejected: 0,
+      no_registrado: 0,
       all: nurses.length,
     };
     nurses.forEach(n => {
+      const hasRegistration = n.cssp_registration && n.cssp_registration.trim().length > 0;
       const status = n.cssp_verification_status || 'unverified';
-      if (status === 'unverified') counts.unverified++;
+      if (!hasRegistration) counts.no_registrado++;
+      else if (status === 'unverified') counts.unverified++;
       else if (status === 'pending') counts.pending++;
       else if (status === 'auto_verified' || status === 'manual_verified') counts.verified++;
       else if (status === 'rejected') counts.rejected++;
@@ -47,7 +50,9 @@ export const CSSPReviewPanel: FC = () => {
     let list = nurses;
 
     if (filter === 'unverified') {
-      list = list.filter(n => (n.cssp_verification_status || 'unverified') === 'unverified');
+      list = list.filter(n => n.cssp_registration && n.cssp_registration.trim().length > 0 && (n.cssp_verification_status || 'unverified') === 'unverified');
+    } else if (filter === 'no_registrado') {
+      list = list.filter(n => !n.cssp_registration || n.cssp_registration.trim().length === 0);
     } else if (filter === 'pending') {
       list = list.filter(n => n.cssp_verification_status === 'pending');
     } else if (filter === 'verified') {
@@ -189,12 +194,13 @@ export const CSSPReviewPanel: FC = () => {
             />
           </div>
           <div className="flex gap-1.5 flex-wrap">
-            {(['unverified', 'pending', 'verified', 'rejected', 'all'] as const).map(f => {
+            {(['unverified', 'pending', 'verified', 'rejected', 'no_registrado', 'all'] as const).map(f => {
               const count = statusCounts[f];
               const label = f === 'unverified' ? 'Sin verificar' 
                            : f === 'pending' ? 'En proceso' 
                            : f === 'verified' ? 'Verificados' 
                            : f === 'rejected' ? 'Rechazados' 
+                           : f === 'no_registrado' ? 'Sin registro' 
                            : 'Todos';
               return (
                 <button

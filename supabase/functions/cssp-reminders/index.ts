@@ -116,7 +116,8 @@ async function sendPortalDownAlert(
   supabase: ReturnType<typeof createClient>,
   daysDown: number,
   errorDetail: string,
-  portalStatus: "down" | "url_changed"
+  portalStatus: "down" | "url_changed",
+  notInDemo: string
 ): Promise<void> {
   if (!RESEND_API_KEY) return;
 
@@ -125,12 +126,14 @@ async function sendPortalDownAlert(
     .select("*", { count: "exact", head: true })
     .in("cssp_verification_status", ["unverified", "pending"])
     .eq("is_active", true)
-    .not("cssp_registration", "is", null);
+    .not("cssp_registration", "is", null)
+    .not("user_id", "in", notInDemo);
 
   const { count: notifiedNurses } = await supabase
     .from("nurses")
     .select("*", { count: "exact", head: true })
-    .eq("portal_down_notified", true);
+    .eq("portal_down_notified", true)
+    .not("user_id", "in", notInDemo);
 
   const statusLabel = portalStatus === "url_changed" ? "URL cambiada" : "Portal caído";
   const daysText = daysDown === 0 ? "hoy" : `${daysDown} día${daysDown > 1 ? "s" : ""}`;
@@ -352,7 +355,7 @@ Deno.serve(async (req: Request) => {
 
     if (!portalCheck.online) {
       // Portal caído o URL cambiada: avisar al admin
-      await sendPortalDownAlert(supabase, portalStatus.daysDown, portalCheck.error || "Desconocido", portalCheck.status as "down" | "url_changed");
+      await sendPortalDownAlert(supabase, portalStatus.daysDown, portalCheck.error || "Desconocido", portalCheck.status as "down" | "url_changed", notInDemo);
       console.log(`[cssp-reminders] Portal ${portalCheck.status} (${portalStatus.daysDown} días) — suspendiendo operaciones CSSP`);
 
       // Notificar una sola vez a enfermeras pendientes que no han sido notificadas
