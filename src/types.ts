@@ -19,6 +19,7 @@ export interface Profile {
   avatar_url: string;
   phone?: string;
   location_name?: string;
+  created_at: string;
   updated_at: string;
   is_demo?: boolean;
 }
@@ -67,6 +68,8 @@ export interface Nurse {
   // FSE y retencion 10% ISR son automaticos para todas las enfermeras en BienCuidar
   assignment_availability?: AssignmentAvailability;
   payment_preference?: PaymentPreference;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Booking {

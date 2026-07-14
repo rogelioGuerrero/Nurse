@@ -90,8 +90,14 @@ export const AdminPanel: FC = () => {
   const completedToday = bookings.filter(b => b.status === 'completed' && b.check_out_at && new Date(b.check_out_at).toISOString().split('T')[0] === today);
   const pendingPayments = bookings.filter(b => b.wants_invoice && (b.status === 'confirmed' || b.status === 'pending_payment') && b.payment_status !== 'paid');
   const pendingCSSP = nurses.filter(n => n.cssp_verification_status === 'pending' || (!n.cssp_verified && n.cssp_registration));
-  const newNurses = nurses.filter(n => !n.cssp_verified && n.cssp_registration);
-  const newProfiles = profiles.filter(p => p.role === 'user');
+  const newNurses = nurses.filter(n => {
+    const createdAt = n.created_at ? new Date(n.created_at).toISOString().split('T')[0] : null;
+    return createdAt === today && !n.cssp_verified && n.cssp_registration;
+  });
+  const newProfiles = profiles.filter(p => {
+    const createdAt = p.created_at ? new Date(p.created_at).toISOString().split('T')[0] : null;
+    return createdAt === today && p.role === 'user';
+  });
   const cancelledToday = bookings.filter(b => b.status === 'cancelled' && b.check_out_at && new Date(b.check_out_at).toISOString().split('T')[0] === today);
   const invoicedRevenue = completedToday.filter(b => b.wants_invoice).reduce((sum, b) => sum + 5.65, 0);
 
