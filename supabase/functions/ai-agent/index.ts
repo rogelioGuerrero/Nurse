@@ -7,7 +7,22 @@ const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const REPLY_TO = "info@agtisa.com";
 const NVIDIA_NIM_API_KEY = Deno.env.get("NVIDIA_NIM_API_KEY");
+
+function htmlToText(html: string): string {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 // ===== SAFETY MIDDLEWARE (Groq-powered, purpose-built models) =====
 
@@ -493,6 +508,8 @@ async function sendEmail(supabase: any, userId: string, role: string, args: any)
         to: email,
         subject,
         html,
+        text: htmlToText(html),
+        headers: { "Reply-To": REPLY_TO },
       }),
     });
     if (res.ok) sent++;

@@ -3,6 +3,23 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 const ADMIN_EMAIL = "guerrero_vi@yahoo.com";
+const REPLY_TO = "info@agtisa.com";
+
+function htmlToText(html: string): string {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "- ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 const CSSP_SEARCH_URL = "https://cssp.gob.sv/profesionales/faces/consulta/buscar.xhtml";
 
 /**
@@ -166,8 +183,10 @@ async function sendPortalDownAlert(
     body: JSON.stringify({
       from: "BienCuidar <info@agtisa.com>",
       to: ADMIN_EMAIL,
-      subject: daysDown === 0 ? `⚠️ ${statusLabel} CSSP — BienCuidar` : `⚠️ ${statusLabel} CSSP (${daysText}) — BienCuidar`,
+      subject: daysDown === 0 ? `${statusLabel} CSSP — BienCuidar` : `${statusLabel} CSSP (${daysText}) — BienCuidar`,
       html,
+      text: htmlToText(html),
+      headers: { "Reply-To": REPLY_TO },
     }),
   });
 }
@@ -307,6 +326,8 @@ async function sendAdminSummary(supabase: ReturnType<typeof createClient>): Prom
         to: ADMIN_EMAIL,
         subject: "Resumen diario — BienCuidar",
         html,
+        text: htmlToText(html),
+        headers: { "Reply-To": REPLY_TO },
       }),
     });
 

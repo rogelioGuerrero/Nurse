@@ -7,8 +7,23 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
 
 const SENDER_EMAIL = "BienCuidar <info@agtisa.com>";
+const REPLY_TO = "info@agtisa.com";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const LIGHT_MODEL = "openai/gpt-oss-20b";
+
+function htmlToText(html: string): string {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -177,6 +192,8 @@ async function sendReply(to: string, subject: string, replyText: string): Promis
       to,
       subject: `Re: ${subject}`,
       html,
+      text: htmlToText(html),
+      headers: { "Reply-To": REPLY_TO },
     }),
   });
 

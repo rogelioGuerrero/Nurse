@@ -1,4 +1,21 @@
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+const REPLY_TO = "info@agtisa.com";
+
+function htmlToText(html: string): string {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "- ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 interface NurseEmailRequest {
   nurse_name: string;
@@ -249,6 +266,8 @@ Deno.serve(async (req: Request) => {
         to: nurse.nurse_email,
         subject,
         html: htmlBody,
+        text: htmlToText(htmlBody),
+        headers: { "Reply-To": REPLY_TO },
       }),
     });
 

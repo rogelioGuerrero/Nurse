@@ -385,6 +385,7 @@ async function sendAdminEmail(subject: string, body: string): Promise<string> {
         to: ADMIN_EMAIL,
         subject,
         text: body,
+        headers: { "Reply-To": "info@agtisa.com" },
       }),
     });
     if (res.ok) {
