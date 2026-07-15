@@ -621,10 +621,17 @@ Deno.serve(async (req: Request) => {
         break;
       }
 
+      // Token budget guard: if conversation too long, force termination
+      if (messages.length > 15) {
+        console.log(`[monitor-agent] Token budget guard triggered (${messages.length} messages), stopping loop`);
+        finalSummary = "Agent stopped: conversation too long (token budget guard)";
+        break;
+      }
+
       console.log(`[monitor-agent] Turn ${turn + 1}: ${assistantMessage.tool_calls.length} tool calls`);
 
       for (const toolCall of assistantMessage.tool_calls) {
-        const result = await executeTool(toolCall);
+        const result = await executeTool(toolCall).catch((e: any) => `Tool error: ${e.message}`);
         toolResults.push(`${toolCall.function.name}: ${result}`);
         console.log(`[monitor-agent] Tool result: ${result}`);
 
@@ -636,6 +643,27 @@ Deno.serve(async (req: Request) => {
         });
       }
     }
+
+    // Heartbeat: log successful run so we can detect if monitor itself stops working
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/monitor_incidents`, {
+        method: "POST",
+        headers: {
+          apikey: SERVICE_KEY,
+          Authorization: `Bearer ${SERVICE_KEY}`,
+          "Content-Type": "application/json",
+          "Content-Profile": "public",
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({
+          incident_type: "monitor_heartbeat",
+          severity: "info",
+          source: "monitor-agent",
+          message: `Heartbeat: completed in ${Date.now() - startTime}ms, ${toolResults.length} tools called`,
+          details: { turns: Math.min(turn + 1, MAX_TURNS), tool_count: toolResults.length },
+        }),
+      });
+    } catch (_) { /* heartbeat failure should not affect response */ }
 
     const elapsed = Date.now() - startTime;
     console.log(`[monitor-agent] Completed in ${elapsed}ms`);
