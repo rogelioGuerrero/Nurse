@@ -87,6 +87,12 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
   const inactivityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const whisperFailedRef = useRef(false);
   const handleUserMessageRef = useRef<(text: string) => void>(() => {});
+  // Session tracking refs
+  const sessionStartRef = useRef<Date | null>(null);
+  const sessionLogIdRef = useRef<string | null>(null);
+  const turnsCountRef = useRef(0);
+  const toolsCalledRef = useRef<string[]>([]);
+  const escalatedRef = useRef(false);
   const [debugSteps, setDebugSteps] = useState<{ step: string; status: 'pending' | 'ok' | 'error'; detail: string }[]>([]);
   const [showDebug, setShowDebug] = useState(false);
   const [showQuickPhrases, setShowQuickPhrases] = useState(false);
@@ -139,6 +145,37 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
         navigator.serviceWorker.controller?.postMessage({ type: 'READY' });
       });
     }
+
+    // Fetch user IDs on mount for tool calling + session logging
+    const fetchUserIds = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          familyUserIdRef.current = user.id;
+          // Check if this user is a family member with a linked patient
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+          if (profile?.role === 'user') {
+            // Family user — try to find linked patient via voice_reminders
+            const { data: reminders } = await supabase
+              .from('voice_reminders')
+              .select('patient_user_id')
+              .eq('family_user_id', user.id)
+              .not('patient_user_id', 'is', null)
+              .limit(1);
+            if (reminders && reminders.length > 0 && reminders[0].patient_user_id) {
+              patientUserIdRef.current = reminders[0].patient_user_id;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[BenniVoz] Could not fetch user IDs:', e);
+      }
+    };
+    fetchUserIds();
 
     return () => {
       window.speechSynthesis.cancel();
@@ -300,6 +337,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
         if (silenceCountRef.current >= 3) {
           silenceCountRef.current = 0;
           speak('Bueno, me despido. Aquí estaré cuando me necesites. ¡Hasta pronto!', () => {
+            logSessionEnd();
             setConversation([]);
             conversationRef.current = [];
             setTranscript('');
@@ -337,6 +375,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
       if (silenceCountRef.current >= 3) {
         silenceCountRef.current = 0;
         speak('Bueno, me despido. Aquí estaré cuando me necesites. ¡Hasta pronto!', () => {
+          logSessionEnd();
           setConversation([]);
           conversationRef.current = [];
           setTranscript('');
@@ -492,13 +531,47 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
 
     try {
       setDebugSteps(prev => [...prev, { step: '2. Enviando a Groq', status: 'pending', detail: `"${userText}"` }]);
+      // Start session log on first turn
+      if (!sessionLogIdRef.current && (familyUserIdRef.current || patientUserIdRef.current)) {
+        sessionStartRef.current = new Date();
+        turnsCountRef.current = 0;
+        toolsCalledRef.current = [];
+        escalatedRef.current = false;
+        try {
+          const { data: sessionRow } = await supabase
+            .from('benni_session_log')
+            .insert({
+              patient_user_id: patientUserIdRef.current || null,
+              family_user_id: familyUserIdRef.current || null,
+              session_started_at: sessionStartRef.current.toISOString(),
+              turns_count: 0,
+              tools_called: [],
+              escalated: false,
+            })
+            .select('id')
+            .single();
+          if (sessionRow) sessionLogIdRef.current = sessionRow.id;
+        } catch (e) {
+          console.warn('[BenniVoz] Could not create session log:', e);
+        }
+      }
+
+      turnsCountRef.current += 1;
+
       const { data, error } = await supabase.functions.invoke('benni-chat', {
         body: {
           message: userText,
           reminderContext: reminderContextRef.current,
           conversationHistory: conversationRef.current.slice(-8).map(t => ({ role: t.role, content: t.content })),
+          patientUserId: patientUserIdRef.current || undefined,
+          familyUserId: familyUserIdRef.current || undefined,
         },
       });
+
+      // Track tools called from response
+      if (data?.tools_called && Array.isArray(data.tools_called)) {
+        toolsCalledRef.current = [...new Set([...toolsCalledRef.current, ...data.tools_called])];
+      }
 
       if (error || (!data?.spoken && !data?.content)) {
         throw new Error(error?.message || 'Sin respuesta');
@@ -518,6 +591,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
         // Send question to family via escalation edge function
         setIsEscalating(true);
         isEscalatingRef.current = true;
+        escalatedRef.current = true;
         speak(spokenText, async () => {
           try {
             // Get current user info
@@ -579,6 +653,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
         speak(spokenText, () => {
           setDebugSteps(prev => prev.map(s => s.step === '4. Benni hablando (TTS)' ? { ...s, status: 'ok' } : s));
           if (isFarewell) {
+            logSessionEnd();
             setConversation([]);
             conversationRef.current = [];
             setTranscript('');
@@ -649,7 +724,35 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
     runSchedule(0);
   };
 
+  const logSessionEnd = useCallback(async () => {
+    if (!sessionLogIdRef.current) return;
+    const endedAt = new Date();
+    const durationSec = sessionStartRef.current
+      ? Math.round((endedAt.getTime() - sessionStartRef.current.getTime()) / 1000)
+      : null;
+    try {
+      await supabase
+        .from('benni_session_log')
+        .update({
+          session_ended_at: endedAt.toISOString(),
+          session_duration_sec: durationSec,
+          turns_count: turnsCountRef.current,
+          tools_called: toolsCalledRef.current,
+          escalated: escalatedRef.current,
+        })
+        .eq('id', sessionLogIdRef.current);
+    } catch (e) {
+      console.warn('[BenniVoz] Could not update session log:', e);
+    }
+    sessionLogIdRef.current = null;
+    sessionStartRef.current = null;
+    turnsCountRef.current = 0;
+    toolsCalledRef.current = [];
+    escalatedRef.current = false;
+  }, []);
+
   const handleStop = () => {
+    logSessionEnd();
     window.speechSynthesis.cancel();
     stopListening();
     if (whisperSTT.isRecording) whisperSTT.stopRecording();
