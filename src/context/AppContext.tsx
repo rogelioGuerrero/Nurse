@@ -110,6 +110,9 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           .single();
         
         if (profile) {
+          // Clear demo data from localStorage — real data comes from Supabase
+          localStorage.removeItem('biencuidar_nurses');
+          localStorage.removeItem('biencuidar_availability');
           setCurrentUser(profile);
           setActiveTab(profile.role === 'nurse' ? 'nurse-inbox' : profile.role === 'admin' ? 'admin-panel' : 'care-request');
           track.login(profile.role);
@@ -131,6 +134,9 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         setActiveTab('landing');
       } else if (event === 'SIGNED_IN' && session?.user) {
         setPasswordRecoveryMode(false);
+        // Clear demo data on sign-in
+        localStorage.removeItem('biencuidar_nurses');
+        localStorage.removeItem('biencuidar_availability');
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
@@ -1189,8 +1195,11 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   });
 
   useEffect(() => {
-    localStorage.setItem('biencuidar_availability', JSON.stringify(availabilityCache));
-  }, [availabilityCache]);
+    // Only persist availability to localStorage when not authenticated (demo mode)
+    if (!currentUser) {
+      localStorage.setItem('biencuidar_availability', JSON.stringify(availabilityCache));
+    }
+  }, [availabilityCache, currentUser]);
 
   const getAvailability = async (nurseId: string, startDate: string, endDate: string): Promise<Availability[]> => {
     try {

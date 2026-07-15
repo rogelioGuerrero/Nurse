@@ -11,6 +11,7 @@ import { MapComponent } from './components/MapComponent';
 import { SearchFilters } from './components/SearchFilters';
 import { ToastProvider } from './components/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { OfflineBanner } from './components/OfflineBanner';
 import { getDistanceKm, USER_COORDS, requestUserLocation } from './lib/distance';
 import { 
   Stethoscope, 
@@ -292,6 +293,7 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col selection:bg-indigo-100" id="main-layout-root">
+      <OfflineBanner />
 
       {/* Compact Header - logo + avatar only */}
       {activeTab !== 'landing' && currentUser?.role !== 'admin' && (
