@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useWhisperSTT } from '../hooks/useWhisperSTT';
+import { useToast } from './Toast';
 
 type OrbState = 'idle' | 'speaking' | 'listening' | 'thinking' | 'transcribing';
 
@@ -10,6 +11,7 @@ interface ConversationTurn {
 }
 
 export default function PatientMode({ familyUserId }: { familyUserId: string }) {
+  const { showToast } = useToast();
   const [orbState, setOrbState] = useState<OrbState>('idle');
   const [isSupported, setIsSupported] = useState(true);
   const [hasSTT, setHasSTT] = useState(false);
@@ -176,7 +178,7 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
       await supabase.functions.invoke('benni-escalate', {
         body: { family_user_id: familyUserId, question },
       });
-    } catch (e) { console.error('Escalate error:', e); }
+    } catch (e) { console.error('Escalate error:', e); showToast('No se pudo enviar el mensaje a la familia. Intenta de nuevo.', 'error'); }
     isEscalatingRef.current = false;
     setIsEscalating(false);
   }, [familyUserId]);

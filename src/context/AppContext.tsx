@@ -13,6 +13,7 @@ import { subscribeToPush, unsubscribeFromPush } from '../lib/push';
 import { calculateFamilyPrice } from '../data/standardRates';
 import { notifyMarketplace } from '../lib/marketplace-notify';
 import { track } from '../lib/analytics';
+import { useToast } from '../components/Toast';
 
 // Safe localStorage parser - prevents crash on corrupted data
 function safeParse<T>(key: string, fallback: T): T {
@@ -86,6 +87,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
+  const { showToast } = useToast();
   // Load or seed data from local storage (with safe parsing)
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [nurses, setNurses] = useState<Nurse[]>(() => safeParse('biencuidar_nurses', INITIAL_NURSES));
@@ -442,7 +444,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       family_report: log.familyReport,
       updated_at: updatedLog.updatedAt
     }, { onConflict: 'booking_id' }).then(({ error }) => {
-      if (error) console.warn('Failed to save care log to Supabase:', error.message);
+      if (error) { console.warn('Failed to save care log to Supabase:', error.message); showToast('No se pudo guardar el registro de cuidado. Intenta de nuevo.', 'error'); }
     });
   }, []);
 
@@ -503,7 +505,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       response_deadline: newRequest.response_deadline,
       created_at: now
     }).then(({ error }) => {
-      if (error) console.warn('Failed to save care request to Supabase:', error.message);
+      if (error) { console.warn('Failed to save care request to Supabase:', error.message); showToast('No se pudo publicar la solicitud. Revisa tu conexión e intenta de nuevo.', 'error'); }
     });
     // Notify matching nurses via email + push (server-side)
     notifyMarketplace({ type: 'new_request', request_id: newRequest.id });
@@ -514,8 +516,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   const closeCareRequest = useCallback((requestId: string) => {
     setCareRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'closed' as CareRequestStatus } : r));
     setCareOffers(prev => prev.map(o => o.request_id === requestId && o.status === 'pending' ? { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' } : o));
-    supabase.from('care_requests').update({ status: 'closed' }).eq('id', requestId).then(({ error }) => { if (error) console.warn('closeCareRequest sync error:', error.message); });
-    supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('request_id', requestId).eq('status', 'pending').then(({ error }) => { if (error) console.warn('closeCareRequest offers sync error:', error.message); });
+    supabase.from('care_requests').update({ status: 'closed' }).eq('id', requestId).then(({ error }) => { if (error) { console.warn('closeCareRequest sync error:', error.message); showToast('No se pudo cerrar la solicitud en el servidor.', 'error'); } });
+    supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('request_id', requestId).eq('status', 'pending').then(({ error }) => { if (error) { console.warn('closeCareRequest offers sync error:', error.message); showToast('No se pudieron actualizar las ofertas al cerrar la solicitud.', 'error'); } });
   }, []);
 
   const republisheCareRequest = useCallback((requestId: string, newSlots?: CareRequestSlot[], newDuration?: ExpectedDuration) => {
@@ -553,7 +555,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       response_deadline: newRequest.response_deadline,
       created_at: now
     }).then(({ error }) => {
-      if (error) console.warn('Failed to republish care request:', error.message);
+      if (error) { console.warn('Failed to republish care request:', error.message); showToast('No se pudo republicar la solicitud. Intenta de nuevo.', 'error'); }
     });
   }, [careRequests]);
 
@@ -576,7 +578,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       notes: data.message || null,
       created_at: newOffer.created_at
     }).then(({ error }) => {
-      if (error) console.warn('Failed to save care offer to Supabase:', error.message);
+      if (error) { console.warn('Failed to save care offer to Supabase:', error.message); showToast('No se pudo enviar tu oferta. Intenta de nuevo.', 'error'); }
     });
     // Notify family (if they're not the current user)
     const request = careRequests.find(r => r.id === data.request_id);
@@ -593,7 +595,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
 
   const withdrawCareOffer = useCallback((offerId: string) => {
     setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'rejected' as CareOfferStatus } : o));
-    supabase.from('care_offers').update({ status: 'rejected' }).eq('id', offerId).then(({ error }) => { if (error) console.warn('withdrawCareOffer sync error:', error.message); });
+    supabase.from('care_offers').update({ status: 'rejected' }).eq('id', offerId).then(({ error }) => { if (error) { console.warn('withdrawCareOffer sync error:', error.message); showToast('No se pudo retirar la oferta del servidor.', 'error'); } });
   }, []);
 
   // Synchronize dynamic nurse profile if active user role is 'nurse'
@@ -642,8 +644,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
             : o
         ));
         expiredIds.forEach(id => {
-          supabase.from('care_requests').update({ status: 'expired' }).eq('id', id).then(({ error }) => { if (error) console.warn('expire request sync error:', error.message); });
-          supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('request_id', id).eq('status', 'pending').then(({ error }) => { if (error) console.warn('expire offers sync error:', error.message); });
+          supabase.from('care_requests').update({ status: 'expired' }).eq('id', id).then(({ error }) => { if (error) { console.warn('expire request sync error:', error.message); showToast('No se pudo expirar una solicitud antigua.', 'error'); } });
+          supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('request_id', id).eq('status', 'pending').then(({ error }) => { if (error) { console.warn('expire offers sync error:', error.message); showToast('No se pudieron expirar ofertas antiguas.', 'error'); } });
         });
       }
     };
@@ -709,7 +711,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           : o
       ));
       toWithdrawIds.forEach(id => {
-        supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('id', id).then(({ error }) => { if (error) console.warn('withdraw expired offers sync error:', error.message); });
+        supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('id', id).then(({ error }) => { if (error) { console.warn('withdraw expired offers sync error:', error.message); showToast('No se pudieron retirar ofertas expiradas.', 'error'); } });
       });
     }
   }, [careOffers, careRequests, currentUser]);
@@ -734,9 +736,10 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           updated_at: updated.updated_at
         })
         .eq('id', updated.id);
-      if (error) console.warn('Failed to sync profile to Supabase:', error.message);
+      if (error) { console.warn('Failed to sync profile to Supabase:', error.message); showToast('No se pudo guardar el perfil. Tus cambios locales se mantienen.', 'error'); }
     } catch (err) {
       console.warn('Profile sync error:', err);
+      showToast('Error al sincronizar el perfil.', 'error');
     }
     // Sync currentNurse if the updated user is a nurse (nurses array may need refresh)
     if (updated.role === 'nurse') {
@@ -771,9 +774,10 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           verifications: updated.verifications || {},
         })
         .eq('id', updated.id);
-      if (error) console.warn('Failed to sync nurse profile to Supabase:', error.message);
+      if (error) { console.warn('Failed to sync nurse profile to Supabase:', error.message); showToast('No se pudo guardar el perfil de enfermera.', 'error'); }
     } catch (err) {
       console.warn('Nurse profile sync error:', err);
+      showToast('Error al sincronizar el perfil de enfermera.', 'error');
     }
   };
 
@@ -848,12 +852,12 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'accepted' } : { ...o, status: o.status === 'pending' ? 'declined' : o.status, reject_reason: o.status === 'pending' ? 'auto' : o.reject_reason }));
     
     // Sync offers to Supabase
-    supabase.from('care_offers').update({ status: 'accepted' }).eq('id', offerId).then(({ error }) => { if (error) console.warn('accept offer sync error:', error.message); });
-    supabase.from('care_offers').update({ status: 'rejected' }).eq('request_id', offer.request_id).neq('id', offerId).eq('status', 'pending').then(({ error }) => { if (error) console.warn('reject other offers sync error:', error.message); });
+    supabase.from('care_offers').update({ status: 'accepted' }).eq('id', offerId).then(({ error }) => { if (error) { console.warn('accept offer sync error:', error.message); showToast('No se pudo confirmar la oferta aceptada en el servidor.', 'error'); } });
+    supabase.from('care_offers').update({ status: 'rejected' }).eq('request_id', offer.request_id).neq('id', offerId).eq('status', 'pending').then(({ error }) => { if (error) { console.warn('reject other offers sync error:', error.message); showToast('No se pudieron rechazar las demas ofertas.', 'error'); } });
 
     // Marcar request como matched
     setCareRequests(reqs => reqs.map(r => r.id === offer.request_id ? { ...r, status: 'matched' } : r));
-    supabase.from('care_requests').update({ status: 'matched' }).eq('id', offer.request_id).then(({ error }) => { if (error) console.warn('match request sync error:', error.message); });
+    supabase.from('care_requests').update({ status: 'matched' }).eq('id', offer.request_id).then(({ error }) => { if (error) { console.warn('match request sync error:', error.message); showToast('No se pudo marcar la solicitud como coincidencia.', 'error'); } });
 
     // Crear booking automaticamente usando offered_rate
     const request = careRequests.find(r => r.id === offer.request_id);
@@ -904,7 +908,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         supabase.from('care_offers')
           .update({ status: 'rejected', reject_reason: 'auto' })
           .in('id', withdrawIds)
-          .then(({ error }) => { if (error) console.warn('auto-withdraw same-date offers sync error:', error.message); });
+          .then(({ error }) => { if (error) { console.warn('auto-withdraw same-date offers sync error:', error.message); showToast('No se pudieron retirar ofertas automaticamente.', 'error'); } });
       }
 
       // Notify nurse (if they're not the current user)
@@ -946,6 +950,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       if (error) throw error;
     } catch {
       console.warn('Failed to save review to Supabase');
+      showToast('No se pudo guardar la resena. Intenta de nuevo.', 'error');
     }
   };
 
@@ -975,6 +980,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       if (error) throw error;
     } catch {
       console.warn('Failed to save family review to Supabase');
+      showToast('No se pudo guardar la resena familiar.', 'error');
     }
   };
 
@@ -999,6 +1005,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       // Rollback on error
       setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, payment_status: 'pending', status: booking?.status || b.status } : b));
       console.warn('Payment confirmation failed, rolled back:', err);
+      showToast('No se pudo confirmar el pago. Se ha revertido el estado.', 'error');
     }
   };
 
@@ -1054,6 +1061,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       setCareRequests(prevRequests);
       setBookings(prevBookings);
       console.warn('Patient name update failed, rolled back:', err);
+      showToast('No se pudo actualizar el nombre del paciente. Revertido.', 'error');
     }
   };
 
@@ -1084,6 +1092,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       setCareRequests(prevRequests);
       setBookings(prevBookings);
       console.warn('Location update failed, rolled back:', err);
+      showToast('No se pudo actualizar la ubicacion. Revertido.', 'error');
     }
   };
 
@@ -1103,6 +1112,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       // Rollback on failure
       setBookings(prevBookings);
       console.warn('Booking status update failed, rolled back to previous state.');
+      showToast('No se pudo actualizar el estado del servicio. Revertido.', 'error');
     }
   };
 
@@ -1131,6 +1141,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     } catch {
       setBookings(prevBookings);
       console.warn('Check-in failed, rolled back.');
+      showToast('No se pudo registrar el check-in. Revertido.', 'error');
     }
   };
 
@@ -1161,6 +1172,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     } catch {
       setBookings(prevBookings);
       console.warn('Check-out failed, rolled back.');
+      showToast('No se pudo registrar el check-out. Revertido.', 'error');
     }
   };
 
@@ -1250,6 +1262,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       };
     } catch (err) {
       console.warn('Failed to save availability to Supabase:', err);
+      showToast('No se pudo guardar la disponibilidad en el servidor.', 'error');
       return newAvailability;
     }
   };

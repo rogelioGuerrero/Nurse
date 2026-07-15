@@ -1,5 +1,6 @@
 import { useState, useMemo, type FC } from 'react';
 import { useApp } from '../context/AppContext';
+import { useToast } from './Toast';
 import { supabase } from '../lib/supabase';
 import { verifyCSSP } from '../lib/csspVerify';
 import { ShieldCheck, ShieldX, Clock, ExternalLink, Search, CheckCircle2, XCircle, Loader2, RefreshCw } from 'lucide-react';
@@ -7,6 +8,7 @@ import type { Nurse, CSSPVerificationStatus } from '../types';
 
 export const CSSPReviewPanel: FC = () => {
   const { nurses, profiles, currentUser } = useApp();
+  const { showToast } = useToast();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'unverified' | 'pending' | 'verified' | 'rejected' | 'no_registrado'>('unverified');
   const [loading, setLoading] = useState<string | null>(null);
@@ -95,6 +97,7 @@ export const CSSPReviewPanel: FC = () => {
       if (error) throw error;
     } catch (err) {
       console.error('Error updating verification:', err);
+      showToast('No se pudo actualizar la verificacion CSSP.', 'error');
     } finally {
       setLoading(null);
     }
@@ -131,6 +134,7 @@ export const CSSPReviewPanel: FC = () => {
         }
       } catch (err) {
         console.error('Error verifying nurse:', nurse.id, err);
+        showToast(`No se pudo verificar CSSP de ${profile?.full_name || nurse.id}.`, 'error');
         failed++;
       }
 

@@ -5,6 +5,7 @@
 
 import { useState, useMemo, type FC, type FormEvent } from 'react';
 import { useApp } from '../context/AppContext';
+import { useToast } from './Toast';
 import { Save, Edit3, CheckCircle2, Calculator, Sun, Moon, Clock, ShieldCheck, FileText, Crosshair, Loader2, MapPin, ChevronDown, ChevronUp, BookOpen, DollarSign, Star, User, XCircle } from 'lucide-react';
 import { SHIFTS, type ShiftType, type WeekDay, type AssignmentAvailability, type PaymentPreference } from '../types';
 import { RETENTION_RATE, calculateNurseNet } from '../data/standardRates';
@@ -36,6 +37,7 @@ const SHIFT_ICONS: Record<ShiftType, typeof Sun> = {
 
 export const NurseProfileEdit: FC = () => {
   const { currentNurse, currentUser, updateNurseProfile, updateProfile, bookings, careLogs, nurseReviews, nurses, profiles } = useApp();
+  const { showToast } = useToast();
 
   const [shiftRate, setShiftRate] = useState<number>(currentNurse?.shift_rate || 25);
   const [selectedShifts, setSelectedShifts] = useState<ShiftType[]>(currentNurse?.available_shifts || ['day']);
@@ -187,7 +189,7 @@ export const NurseProfileEdit: FC = () => {
     if (csspChanged && currentNurse?.id) {
       verifyCSSP(currentNurse.id, csspReg.trim(), currentUser?.full_name, csspLevel)
         .then(result => console.log('[NurseProfileEdit] CSSP verify result:', result.status, result.message))
-        .catch(err => console.error('[NurseProfileEdit] CSSP verify failed:', err));
+        .catch(err => { console.error('[NurseProfileEdit] CSSP verify failed:', err); showToast('No se pudo verificar el CSSP. Intenta mas tarde.', 'error'); });
     }
 
     setShowNotify(true);

@@ -5,6 +5,7 @@
 
 import { useState, useMemo, type FC } from 'react';
 import { useApp, type ServiceLogType } from '../context/AppContext';
+import { useToast } from './Toast';
 import { Booking, BookingStatus, SHIFTS, type ShiftType } from '../types';
 import { groqChat } from '../lib/groq';
 import { PLATFORM_SETTINGS } from '../data/platformSettings';
@@ -44,6 +45,7 @@ export const BookingsManager: FC = () => {
     republisheCareRequest,
     setActiveTab
   } = useApp();
+  const { showToast } = useToast();
 
   const isNurseView = currentUser?.role === 'nurse';
 
@@ -125,6 +127,7 @@ export const BookingsManager: FC = () => {
         await checkInBooking(bookingId, lat, lng, address, false);
       } catch {
         console.warn('Check-in failed');
+        showToast('No se pudo registrar el check-in.', 'error');
       }
       setCheckInBookingId(null);
       setGpsLoading(false);
@@ -156,6 +159,7 @@ export const BookingsManager: FC = () => {
         await checkOutBooking(bookingId, lat, lng);
       } catch {
         console.warn('Check-out failed');
+        showToast('No se pudo registrar el check-out.', 'error');
       }
       setCheckInBookingId(null);
       setGpsLoading(false);
