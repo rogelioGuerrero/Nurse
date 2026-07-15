@@ -5,7 +5,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ADMIN_EMAIL = "guerrero_vi@yahoo.com";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
-const SUPABASE_ACCESS_TOKEN = Deno.env.get("SUPABASE_ACCESS_TOKEN") || "";
+const SUPABASE_ACCESS_TOKEN = Deno.env.get("SB_ACCESS_TOKEN") || "";
 const PROJECT_REF = "zqgtkrqfyhcvgagjhbnv";
 const MANAGEMENT_API = "https://api.supabase.com/v1/projects";
 
