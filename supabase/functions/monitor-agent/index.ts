@@ -154,8 +154,11 @@ RULES:
 - Use send_admin_alert sparingly — only for things that need human intervention NOW.
 - Use log_incident for tracking — even warnings should be logged.
 - Use resolve_incident if you detect a previous issue is now resolved.
+- RATE LIMITING: If the report shows a recent incident (last 12h) for the same issue, do NOT re-log or re-alert. Only escalate if the situation worsened.
+- HISTORICAL CONTEXT: The report includes recently resolved incidents. Do NOT re-report issues that were already fixed.
+- MULTI-TURN: You can call tools, see their results, and call more tools based on outcomes. Use this to verify your fixes worked before concluding.
 
-Respond with your analysis and call tools as needed.`;
+Respond with your analysis and call tools as needed. You will see tool results and can take follow-up actions.`;
 
 // ===== HEALTH CHECKS =====
 
@@ -239,6 +242,26 @@ async function checkDataHealth(): Promise<string> {
     });
   } else {
     checks.push(`[DATA] Unresolved monitor incidents: 0`);
+  }
+
+  // Rate limiting: recent incidents in last 12h (still open — DO NOT re-alert)
+  const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString();
+  const { data: recentIncidents } = await supabaseQuery("monitor_incidents", "id,incident_type,severity,message,created_at", { "created_at": `gte.${twelveHoursAgo}`, "resolved": "eq.false" });
+  if (recentIncidents && recentIncidents.length > 0) {
+    checks.push(`[DATA] Recent incidents (last 12h, still open — DO NOT re-alert same issue):`);
+    recentIncidents.forEach((inc: any) => {
+      checks.push(`  - [${inc.severity}] ${inc.incident_type}: ${inc.message}`);
+    });
+  }
+
+  // Historical context: last 3 resolved incidents (so LLM knows what was already fixed)
+  const { data: resolvedIncidents } = await supabaseQuery("monitor_incidents", "id,incident_type,severity,message,created_at,resolved_at", { "resolved": "eq.true", "order": "created_at.desc", "limit": "3" });
+  if (resolvedIncidents && resolvedIncidents.length > 0) {
+    checks.push(`[DATA] Recently resolved incidents (last 3 — already fixed, do not re-report):`);
+    resolvedIncidents.forEach((inc: any) => {
+      const resolvedAt = inc.resolved_at ? new Date(inc.resolved_at).toISOString().slice(0, 16) : "?";
+      checks.push(`  - [${inc.severity}] ${inc.incident_type}: ${inc.message} (resolved ${resolvedAt})`);
+    });
   }
 
   // Check recent notification_logs for failures
@@ -563,35 +586,55 @@ Deno.serve(async (req: Request) => {
 
     console.log("[monitor-agent] Health report compiled, sending to LLM...");
 
-    // 3. Send to LLM for analysis with tools
-    const llmResult = await callGroqRaw(
-      [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: report },
-      ],
-      {
+    // 3. Multi-turn agent loop: LLM calls tools, sees results, can call more
+    const messages: any[] = [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: report },
+    ];
+
+    const toolResults: string[] = [];
+    const MAX_TURNS = 3;
+    let finalSummary = "";
+
+    let turn = 0;
+    for (turn = 0; turn < MAX_TURNS; turn++) {
+      console.log(`[monitor-agent] LLM turn ${turn + 1}/${MAX_TURNS}...`);
+      const llmResult = await callGroqRaw(messages, {
         tools: TOOLS,
         temperature: 0.3,
         maxTokens: 2000,
         timeoutMs: 30000,
+      });
+
+      if (!llmResult.ok || !llmResult.data?.choices?.[0]?.message) {
+        console.log(`[monitor-agent] LLM failed on turn ${turn + 1}: ${llmResult.error}`);
+        break;
       }
-    );
 
-    // 4. Execute tool calls if any
-    const toolResults: string[] = [];
-    if (llmResult.ok && llmResult.data?.choices?.[0]?.message?.tool_calls) {
-      const toolCalls = llmResult.data.choices[0].message.tool_calls;
-      console.log(`[monitor-agent] LLM made ${toolCalls.length} tool calls`);
+      const assistantMessage = llmResult.data.choices[0].message;
+      messages.push(assistantMessage);
 
-      for (const toolCall of toolCalls) {
+      // No tool calls = agent is done analyzing
+      if (!assistantMessage.tool_calls || assistantMessage.tool_calls.length === 0) {
+        finalSummary = assistantMessage.content || "";
+        console.log(`[monitor-agent] LLM finished on turn ${turn + 1}: ${finalSummary.slice(0, 200)}`);
+        break;
+      }
+
+      console.log(`[monitor-agent] Turn ${turn + 1}: ${assistantMessage.tool_calls.length} tool calls`);
+
+      for (const toolCall of assistantMessage.tool_calls) {
         const result = await executeTool(toolCall);
         toolResults.push(`${toolCall.function.name}: ${result}`);
         console.log(`[monitor-agent] Tool result: ${result}`);
+
+        // Feed tool result back to LLM so it can decide next action
+        messages.push({
+          role: "tool",
+          content: result,
+          tool_call_id: toolCall.id,
+        });
       }
-    } else if (llmResult.ok && llmResult.content) {
-      console.log(`[monitor-agent] LLM analysis (no tools called): ${llmResult.content.slice(0, 200)}`);
-    } else {
-      console.log(`[monitor-agent] LLM failed: ${llmResult.error}`);
     }
 
     const elapsed = Date.now() - startTime;
@@ -600,8 +643,9 @@ Deno.serve(async (req: Request) => {
     return new Response(JSON.stringify({
       ok: true,
       elapsed_ms: elapsed,
+      turns: Math.min(turn + 1, MAX_TURNS),
       tool_results: toolResults,
-      llm_summary: llmResult.content?.slice(0, 500),
+      llm_summary: finalSummary.slice(0, 500),
     }), {
       headers: { "Content-Type": "application/json" },
     });
