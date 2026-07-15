@@ -5,6 +5,9 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ADMIN_EMAIL = "guerrero_vi@yahoo.com";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
+const SUPABASE_ACCESS_TOKEN = Deno.env.get("SUPABASE_ACCESS_TOKEN") || "";
+const PROJECT_REF = "zqgtkrqfyhcvgagjhbnv";
+const MANAGEMENT_API = "https://api.supabase.com/v1/projects";
 
 // ===== TOOLS available to the LLM =====
 const TOOLS = [
@@ -70,6 +73,52 @@ const TOOLS = [
         required: ["incident_type", "note"]
       }
     }
+  },
+  {
+    type: "function",
+    function: {
+      name: "trigger_cron_now",
+      description: "Manually invoke an edge function that should have been triggered by a cron but didn't run. Use when a cron job hasn't run in its expected window.",
+      parameters: {
+        type: "object",
+        properties: {
+          function_name: { type: "string", description: "The edge function slug to invoke (e.g., cssp-reminders, check-voice-reminders, patient-wellness-check)" },
+          reason: { type: "string", description: "Why this manual trigger is needed" }
+        },
+        required: ["function_name", "reason"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "fix_verify_jwt",
+      description: "Fix a misconfigured edge function by updating its verify_jwt setting via Supabase Management API. Use when a cron-triggered function is returning 401 because verify_jwt is incorrectly set to true.",
+      parameters: {
+        type: "object",
+        properties: {
+          function_slug: { type: "string", description: "The edge function slug to fix" },
+          verify_jwt: { type: "boolean", description: "The correct verify_jwt value (false for cron/internal functions, true for app functions)" },
+          reason: { type: "string", description: "Why this fix is needed" }
+        },
+        required: ["function_slug", "verify_jwt", "reason"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "get_function_logs",
+      description: "Fetch recent logs for a specific edge function to diagnose errors. Use when a function is returning 500 errors or is unreachable.",
+      parameters: {
+        type: "object",
+        properties: {
+          function_slug: { type: "string", description: "The edge function slug to get logs for" },
+          limit: { type: "integer", description: "Number of log entries to fetch (default 20, max 50)" }
+        },
+        required: ["function_slug"]
+      }
+    }
   }
 ];
 
@@ -89,11 +138,19 @@ You receive a health report every 4 hours with system status data. Your job:
 4. INFO (ignore, don't log):
    - Normal operation, successful runs, expected empty results
 
+AUTO-HEALING CAPABILITIES:
+- If a cron hasn't run, use trigger_cron_now to invoke it manually.
+- If a function returns 401 and it's a cron/internal function, use fix_verify_jwt to set verify_jwt=false.
+- If a function returns 500, use get_function_logs to investigate the error before alerting.
+- After auto-healing, log_incident with severity=warning and send_admin_email explaining what was fixed.
+- Only send_admin_alert (push) if auto-healing FAILED or the issue needs human intervention.
+
 RULES:
 - Do NOT alert for things that are working normally.
 - Do NOT log incidents for normal operation.
 - If a cron ran but found nothing to do, that's NORMAL.
-- If a cron hasn't run in 2x its expected interval, that's CRITICAL.
+- If a cron hasn't run in 2x its expected interval, try to auto-heal first (trigger_cron_now).
+- If a function returns 401, try fix_verify_jwt first. Only alert if the fix fails.
 - Use send_admin_alert sparingly — only for things that need human intervention NOW.
 - Use log_incident for tracking — even warnings should be logged.
 - Use resolve_incident if you detect a previous issue is now resolved.
@@ -371,6 +428,79 @@ async function resolveIncident(incidentType: string, note: string): Promise<stri
   }
 }
 
+async function triggerCronNow(functionName: string, reason: string): Promise<string> {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v2/${functionName}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SERVICE_KEY}`,
+      },
+      body: JSON.stringify({ _manual_trigger: true, reason }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (res.ok) {
+      const data = await res.text();
+      return `Triggered ${functionName} manually: ${data.slice(0, 200)}`;
+    }
+    return `Trigger ${functionName} failed: ${res.status}`;
+  } catch (e: any) {
+    return `Trigger ${functionName} error: ${e.message}`;
+  }
+}
+
+async function fixVerifyJwt(functionSlug: string, verifyJwt: boolean, reason: string): Promise<string> {
+  if (!SUPABASE_ACCESS_TOKEN) {
+    return `Cannot fix verify_jwt: SUPABASE_ACCESS_TOKEN not configured. Manual fix needed.`;
+  }
+  try {
+    const res = await fetch(`${MANAGEMENT_API}/${PROJECT_REF}/functions/${functionSlug}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${SUPABASE_ACCESS_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ verify_jwt: verifyJwt }),
+    });
+    if (res.ok) {
+      return `Fixed ${functionSlug}: verify_jwt set to ${verifyJwt}. Reason: ${reason}`;
+    }
+    const errText = await res.text();
+    return `Fix ${functionSlug} failed: ${res.status} ${errText.slice(0, 200)}`;
+  } catch (e: any) {
+    return `Fix ${functionSlug} error: ${e.message}`;
+  }
+}
+
+async function getFunctionLogs(functionSlug: string, limit: number = 20): Promise<string> {
+  if (!SUPABASE_ACCESS_TOKEN) {
+    return `Cannot fetch logs: SUPABASE_ACCESS_TOKEN not configured.`;
+  }
+  try {
+    const cappedLimit = Math.min(limit, 50);
+    const res = await fetch(
+      `${MANAGEMENT_API}/${PROJECT_REF}/functions/${functionSlug}/logs?limit=${cappedLimit}`,
+      {
+        headers: { Authorization: `Bearer ${SUPABASE_ACCESS_TOKEN}` },
+        signal: AbortSignal.timeout(15000),
+      }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const logs = (data.logs || data || []).slice(0, cappedLimit);
+      const summary = logs.map((l: any) => {
+        const ts = l.timestamp || l.created_at || "?";
+        const msg = l.message || l.event_message || JSON.stringify(l).slice(0, 150);
+        return `[${ts}] ${msg}`;
+      }).join("\n");
+      return `Logs for ${functionSlug} (${logs.length} entries):\n${summary || "(empty)"}`;
+    }
+    return `Logs ${functionSlug} failed: ${res.status}`;
+  } catch (e: any) {
+    return `Logs ${functionSlug} error: ${e.message}`;
+  }
+}
+
 async function executeTool(toolCall: any): Promise<string> {
   const name = toolCall.function.name;
   const args = JSON.parse(toolCall.function.arguments);
@@ -384,6 +514,12 @@ async function executeTool(toolCall: any): Promise<string> {
       return await logIncident(args);
     case "resolve_incident":
       return await resolveIncident(args.incident_type, args.note);
+    case "trigger_cron_now":
+      return await triggerCronNow(args.function_name, args.reason);
+    case "fix_verify_jwt":
+      return await fixVerifyJwt(args.function_slug, args.verify_jwt, args.reason);
+    case "get_function_logs":
+      return await getFunctionLogs(args.function_slug, args.limit || 20);
     default:
       return `Unknown tool: ${name}`;
   }
