@@ -32,10 +32,10 @@ interface Props {
 const NurseCard: FC<{ nurse: Nurse; profile?: Profile; viewMode: 'list' | 'grid' }> = ({ nurse, profile, viewMode }) => {
   const csspStatus = nurse.cssp_verification_status || 'unverified';
   const csspBadge = csspStatus === 'auto_verified' || csspStatus === 'manual_verified'
-    ? { label: 'CSSP \u2713', color: 'bg-blue-50 text-blue-700' }
+    ? { label: 'CSSP ✓', color: 'bg-blue-50 text-blue-700' }
     : csspStatus === 'pending'
-    ? { label: 'CSSP \u23f3', color: 'bg-amber-50 text-amber-700' }
-    : { label: 'CSSP \u2717', color: 'bg-rose-50 text-rose-700' };
+    ? { label: 'CSSP ⏳', color: 'bg-amber-50 text-amber-700' }
+    : { label: 'CSSP ✗', color: 'bg-rose-50 text-rose-700' };
 
   if (viewMode === 'grid') {
     return (

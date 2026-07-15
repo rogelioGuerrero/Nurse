@@ -90,7 +90,7 @@ export const PackagesSection: FC<Props> = ({
                   <div className="flex gap-1.5 mt-1">
                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">{AVAIL_LABELS[nurse.assignment_availability || 'shifts_only']}</span>
                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-50 text-slate-600">{PAY_LABELS[nurse.payment_preference || 'per_shift']}</span>
-                    {nurse.cssp_verified && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">CSSP \u2713</span>}
+                    {nurse.cssp_verified && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">CSSP ✓</span>}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
@@ -128,7 +128,7 @@ export const PackagesSection: FC<Props> = ({
                   <div className="flex gap-1.5 mt-1">
                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">{AVAIL_LABELS[nurse.assignment_availability || 'shifts_only']}</span>
                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-50 text-slate-600">{PAY_LABELS[nurse.payment_preference || 'per_shift']}</span>
-                    {nurse.cssp_verified && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">CSSP \u2713</span>}
+                    {nurse.cssp_verified && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">CSSP ✓</span>}
                   </div>
                 </div>
                 <div className="text-right shrink-0">
