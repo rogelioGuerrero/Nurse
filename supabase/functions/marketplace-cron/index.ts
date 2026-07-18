@@ -11,9 +11,21 @@ Deno.serve(async (req: Request) => {
       headers: {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "authorization, content-type, apikey",
+        "Access-Control-Allow-Headers": "authorization, content-type, apikey, x-cron-secret",
       },
     });
+  }
+
+  // Validate CRON_SECRET to prevent unauthorized invocations
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  if (cronSecret) {
+    const providedSecret = req.headers.get("x-cron-secret");
+    if (providedSecret !== cronSecret) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

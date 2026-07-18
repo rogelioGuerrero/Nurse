@@ -451,6 +451,31 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    // Validate JWT and extract user
+    const authHeader = req.headers.get("Authorization") || "";
+    const token = authHeader.replace("Bearer ", "");
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Missing authorization token" }), {
+        status: 401, headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) }
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Get user from JWT
+    const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: supabaseAnonKey },
+    });
+    if (!userRes.ok) {
+      return new Response(JSON.stringify({ error: "Invalid or expired token" }), {
+        status: 401, headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) }
+      });
+    }
+    const user = await userRes.json();
+    const userId = user.id;
+
     const { type, ...data } = await req.json();
 
     if (!type) {
@@ -460,9 +485,39 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Ownership validation: verify the user is authorized for this action
+    if (type === "new_request" && data.request_id) {
+      const { data: req } = await supabase.from("care_requests").select("user_id").eq("id", data.request_id).single();
+      if (!req || req.user_id !== userId) {
+        return new Response(JSON.stringify({ error: "Not authorized for this request" }), {
+          status: 403, headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) }
+        });
+      }
+    } else if (type === "new_offer" && data.offer_id) {
+      const { data: offer } = await supabase
+        .from("care_offers")
+        .select("nurse_id, nurses!inner(user_id)")
+        .eq("id", data.offer_id)
+        .single();
+      if (!offer || offer.nurses?.user_id !== userId) {
+        return new Response(JSON.stringify({ error: "Not authorized for this offer" }), {
+          status: 403, headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) }
+        });
+      }
+    } else if (type === "offer_accepted" && data.offer_id) {
+      const { data: offer } = await supabase
+        .from("care_offers")
+        .select("request_id, care_requests!inner(user_id)")
+        .eq("id", data.offer_id)
+        .single();
+      if (!offer || offer.care_requests?.user_id !== userId) {
+        return new Response(JSON.stringify({ error: "Not authorized for this offer" }), {
+          status: 403, headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) }
+        });
+      }
+    }
 
     let result;
     switch (type) {

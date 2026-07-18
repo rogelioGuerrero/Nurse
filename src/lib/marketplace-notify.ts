@@ -1,4 +1,4 @@
-import { supabaseUrl, supabaseAnonKey } from './supabase';
+import { supabaseUrl, supabaseAnonKey, supabase } from './supabase';
 
 /**
  * Notify marketplace participants via email + push (server-side).
@@ -20,11 +20,13 @@ interface NotifyPayload {
 
 export async function notifyMarketplace(payload: NotifyPayload): Promise<void> {
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    const token = session?.access_token || supabaseAnonKey;
     await fetch(`${supabaseUrl}/functions/v1/notify-marketplace`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${supabaseAnonKey}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(payload),
     });

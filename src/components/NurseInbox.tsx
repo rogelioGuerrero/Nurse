@@ -117,7 +117,7 @@ export const NurseInbox: FC = () => {
       .filter(o => o.nurse_id === myNurse.id)
       .filter(o => {
         if (o.status === 'accepted') return false;
-        if (o.status === 'declined' || o.status === 'rejected') {
+        if (o.status === 'rejected') {
           const ageHours = (now - new Date(o.created_at).getTime()) / (1000 * 60 * 60);
           if (ageHours > 48) return false;
         }
@@ -411,7 +411,7 @@ export const NurseInbox: FC = () => {
                               Retirar
                             </button>
                           </div>
-                        ) : offer?.status === 'declined' ? (
+                        ) : offer?.status === 'rejected' ? (
                           <div className="pl-14 space-y-1.5">
                             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
                               <Heart className="h-4 w-4" />
@@ -457,12 +457,6 @@ export const NurseInbox: FC = () => {
           if (!req) return { label: 'Solicitud no disponible', color: 'text-slate-400', bg: 'bg-slate-100' };
 
           if (offer.status === 'rejected') {
-            return { label: 'Retiraste tu oferta', color: 'text-slate-400', bg: 'bg-slate-100' };
-          }
-          if (offer.status === 'pending' && req.status === 'open') {
-            return { label: 'Esperando respuesta', color: 'text-indigo-600', bg: 'bg-indigo-100' };
-          }
-          if (offer.status === 'declined') {
             if (offer.reject_reason === 'auto') {
               const hasAcceptedSameDate = careOffers.some(o =>
                 o.nurse_id === myNurse?.id &&
@@ -483,8 +477,12 @@ export const NurseInbox: FC = () => {
               if (req.status === 'closed') {
                 return { label: 'La familia canceló la solicitud', color: 'text-slate-400', bg: 'bg-slate-100' };
               }
+              return { label: 'La familia eligió otra opción', color: 'text-slate-400', bg: 'bg-slate-100' };
             }
-            return { label: 'La familia eligió otra opción', color: 'text-slate-400', bg: 'bg-slate-100' };
+            return { label: 'Retiraste tu oferta', color: 'text-slate-400', bg: 'bg-slate-100' };
+          }
+          if (offer.status === 'pending' && req.status === 'open') {
+            return { label: 'Esperando respuesta', color: 'text-indigo-600', bg: 'bg-indigo-100' };
           }
           return { label: '—', color: 'text-slate-400', bg: 'bg-slate-100' };
         };

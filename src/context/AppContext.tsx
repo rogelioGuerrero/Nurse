@@ -482,7 +482,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       created_at: now
     };
     setCareRequests(prev => [newRequest, ...prev]);
-    // Save to Supabase
+    // Save to Supabase with rollback on failure
     supabase.from('care_requests').insert({
       id: newRequest.id,
       user_id: currentUser.id,
@@ -505,20 +505,35 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       response_deadline: newRequest.response_deadline,
       created_at: now
     }).then(({ error }) => {
-      if (error) { console.warn('Failed to save care request to Supabase:', error.message); showToast('No se pudo publicar la solicitud. Revisa tu conexión e intenta de nuevo.', 'error'); }
+      if (error) {
+        console.warn('Failed to save care request to Supabase:', error.message);
+        setCareRequests(prev => prev.filter(r => r.id !== newRequest.id));
+        showToast('No se pudo publicar la solicitud. Revisa tu conexión e intenta de nuevo.', 'error');
+      } else {
+        notifyMarketplace({ type: 'new_request', request_id: newRequest.id });
+      }
     });
-    // Notify matching nurses via email + push (server-side)
-    notifyMarketplace({ type: 'new_request', request_id: newRequest.id });
     track.careRequestSubmit(data.specialization_needed, data.urgency);
     return newRequest;
   }, [currentUser, careRequests]);
 
   const closeCareRequest = useCallback((requestId: string) => {
+    const prevRequests = careRequests;
+    const prevOffers = careOffers;
     setCareRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'closed' as CareRequestStatus } : r));
-    setCareOffers(prev => prev.map(o => o.request_id === requestId && o.status === 'pending' ? { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' } : o));
-    supabase.from('care_requests').update({ status: 'closed' }).eq('id', requestId).then(({ error }) => { if (error) { console.warn('closeCareRequest sync error:', error.message); showToast('No se pudo cerrar la solicitud en el servidor.', 'error'); } });
-    supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('request_id', requestId).eq('status', 'pending').then(({ error }) => { if (error) { console.warn('closeCareRequest offers sync error:', error.message); showToast('No se pudieron actualizar las ofertas al cerrar la solicitud.', 'error'); } });
-  }, []);
+    setCareOffers(prev => prev.map(o => o.request_id === requestId && o.status === 'pending' ? { ...o, status: 'rejected' as CareOfferStatus, reject_reason: 'auto' } : o));
+    Promise.all([
+      supabase.from('care_requests').update({ status: 'closed' }).eq('id', requestId),
+      supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('request_id', requestId).eq('status', 'pending')
+    ]).then(([reqRes, offerRes]) => {
+      if (reqRes.error || offerRes.error) {
+        console.warn('closeCareRequest sync error:', reqRes.error?.message, offerRes.error?.message);
+        setCareRequests(prevRequests);
+        setCareOffers(prevOffers);
+        showToast('No se pudo cerrar la solicitud en el servidor.', 'error');
+      }
+    });
+  }, [careRequests, careOffers]);
 
   const republisheCareRequest = useCallback((requestId: string, newSlots?: CareRequestSlot[], newDuration?: ExpectedDuration) => {
     const original = careRequests.find(r => r.id === requestId);
@@ -567,7 +582,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       created_at: new Date().toISOString()
     };
     setCareOffers(prev => [newOffer, ...prev]);
-    // Save to Supabase
+    // Save to Supabase with rollback on failure
     supabase.from('care_offers').insert({
       id: newOffer.id,
       request_id: data.request_id,
@@ -578,25 +593,36 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       notes: data.message || null,
       created_at: newOffer.created_at
     }).then(({ error }) => {
-      if (error) { console.warn('Failed to save care offer to Supabase:', error.message); showToast('No se pudo enviar tu oferta. Intenta de nuevo.', 'error'); }
+      if (error) {
+        console.warn('Failed to save care offer to Supabase:', error.message);
+        setCareOffers(prev => prev.filter(o => o.id !== newOffer.id));
+        showToast('No se pudo enviar tu oferta. Intenta de nuevo.', 'error');
+      } else {
+        // Notify family (if they're not the current user)
+        const request = careRequests.find(r => r.id === data.request_id);
+        if (request && currentUser?.id !== request.user_id) {
+          const nurse = nurses.find(n => n.id === data.nurse_id);
+          const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
+          notifyNewOffer(nurseProfile?.full_name || 'Una enfermera', request.patient_name, request.user_id);
+          notifyMarketplace({ type: 'new_offer', offer_id: newOffer.id });
+          track.offerSubmit(Number(data.offered_rate));
+        }
+      }
     });
-    // Notify family (if they're not the current user)
-    const request = careRequests.find(r => r.id === data.request_id);
-    if (request && currentUser?.id !== request.user_id) {
-      const nurse = nurses.find(n => n.id === data.nurse_id);
-      const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
-      notifyNewOffer(nurseProfile?.full_name || 'Una enfermera', request.patient_name, request.user_id);
-      // Also send email + push via server-side edge function
-      notifyMarketplace({ type: 'new_offer', offer_id: newOffer.id });
-      track.offerSubmit(Number(data.offered_rate));
-    }
     return newOffer;
   }, [careRequests, currentUser, nurses, profiles]);
 
   const withdrawCareOffer = useCallback((offerId: string) => {
+    const prevOffers = careOffers;
     setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'rejected' as CareOfferStatus } : o));
-    supabase.from('care_offers').update({ status: 'rejected' }).eq('id', offerId).then(({ error }) => { if (error) { console.warn('withdrawCareOffer sync error:', error.message); showToast('No se pudo retirar la oferta del servidor.', 'error'); } });
-  }, []);
+    supabase.from('care_offers').update({ status: 'rejected' }).eq('id', offerId).then(({ error }) => {
+      if (error) {
+        console.warn('withdrawCareOffer sync error:', error.message);
+        setCareOffers(prevOffers);
+        showToast('No se pudo retirar la oferta del servidor.', 'error');
+      }
+    });
+  }, [careOffers]);
 
   // Synchronize dynamic nurse profile if active user role is 'nurse'
   useEffect(() => {
@@ -636,7 +662,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         ));
         setCareOffers(prev => prev.map(o => 
           expiredIds.includes(o.request_id) && o.status === 'pending'
-            ? { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' }
+            ? { ...o, status: 'rejected' as CareOfferStatus, reject_reason: 'auto' }
             : o
         ));
       }
@@ -699,7 +725,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     if (toWithdrawIds.length > 0) {
       setCareOffers(prev => prev.map(o => 
         toWithdrawIds.includes(o.id)
-          ? { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' }
+          ? { ...o, status: 'rejected' as CareOfferStatus, reject_reason: 'auto' }
           : o
       ));
       // Server-side: accept_offer RPC and marketplace-cron handle DB writes
@@ -849,7 +875,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       setCareOffers(prev => prev.map(o => {
         if (o.id === offerId) return { ...o, status: 'accepted' as CareOfferStatus };
         if (o.request_id === offer.request_id && o.status === 'pending')
-          return { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' };
+          return { ...o, status: 'rejected' as CareOfferStatus, reject_reason: 'auto' };
         // Withdraw same-date offers from same nurse
         const req = careRequests.find(r => r.id === o.request_id);
         const acceptedReq = careRequests.find(r => r.id === offer.request_id);
@@ -857,7 +883,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           const otherSlot = req.slots[o.slot_index];
           const acceptedSlot = acceptedReq.slots[offer.slot_index];
           if (otherSlot && acceptedSlot && otherSlot.date === acceptedSlot.date)
-            return { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' };
+            return { ...o, status: 'rejected' as CareOfferStatus, reject_reason: 'auto' };
         }
         return o;
       }));

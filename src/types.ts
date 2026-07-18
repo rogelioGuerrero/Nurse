@@ -9,7 +9,7 @@ export type BookingStatus = 'pending' | 'pending_payment' | 'confirmed' | 'compl
 
 export type CareRequestStatus = 'open' | 'matched' | 'closed' | 'expired';
 
-export type CareOfferStatus = 'pending' | 'accepted' | 'rejected' | 'declined';
+export type CareOfferStatus = 'pending' | 'accepted' | 'rejected';
 
 export interface Profile {
   id: string; // auth.user FK
