@@ -39,9 +39,31 @@ export default function VoiceReminderConfig() {
     is_morning_briefing: false as boolean,
   });
 
-  const patientLink = currentUser
-    ? `${window.location.origin}/?patient=${btoa(currentUser.id)}`
-    : '';
+  const [patientLink, setPatientLink] = useState('');
+
+  useEffect(() => {
+    if (!currentUser) { setPatientLink(''); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${supabaseUrl}/functions/v1/patient-token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || supabaseAnonKey}`,
+          },
+          body: JSON.stringify({ action: 'issue', family_user_id: currentUser.id }),
+        });
+        const data = await res.json();
+        if (!cancelled && data.token) {
+          setPatientLink(`${window.location.origin}/?patient=${data.token}`);
+        }
+      } catch (e) {
+        console.warn('Failed to issue patient token:', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [currentUser]);
 
   const loadReminders = useCallback(async () => {
     if (!currentUser) return;

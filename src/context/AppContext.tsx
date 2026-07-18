@@ -608,24 +608,20 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [currentUser, nurses]);
 
-  // Auto-expire pending bookings older than 24 hours
+  // Auto-expire pending bookings older than 24 hours (client-side mirror only)
+  // Server-side cron (marketplace-cron) is the source of truth and handles DB writes
   useEffect(() => {
     const now = Date.now();
-    const expired = bookings.filter(b => 
-      b.status === 'pending' && 
-      now - new Date(b.created_at).getTime() > 86400000
-    );
-    if (expired.length > 0) {
-      setBookings(prev => prev.map(b => 
-        b.status === 'pending' && now - new Date(b.created_at).getTime() > 86400000
-          ? { ...b, status: 'cancelled' as BookingStatus }
-          : b
-      ));
-    }
+    setBookings(prev => prev.map(b => 
+      b.status === 'pending' && now - new Date(b.created_at).getTime() > 86400000
+        ? { ...b, status: 'cancelled' as BookingStatus }
+        : b
+    ));
   }, []); // Run once on mount
 
-  // Auto-expire care requests past their response_deadline (12h)
-  // Uses ref to avoid recreating the interval on every careRequests change
+  // Auto-expire care requests past their response_deadline (client-side mirror only)
+  // Server-side cron (marketplace-cron) is the source of truth and handles DB writes
+  // This only updates local UI state to reflect what the server already did
   useEffect(() => {
     const checkExpired = () => {
       const now = Date.now();
@@ -643,15 +639,11 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
             ? { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' }
             : o
         ));
-        expiredIds.forEach(id => {
-          supabase.from('care_requests').update({ status: 'expired' }).eq('id', id).then(({ error }) => { if (error) { console.warn('expire request sync error:', error.message); showToast('No se pudo expirar una solicitud antigua.', 'error'); } });
-          supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('request_id', id).eq('status', 'pending').then(({ error }) => { if (error) { console.warn('expire offers sync error:', error.message); showToast('No se pudieron expirar ofertas antiguas.', 'error'); } });
-        });
       }
     };
 
     checkExpired();
-    const interval = setInterval(checkExpired, 60000);
+    const interval = setInterval(checkExpired, 300000); // 5 min (server cron handles DB writes every 15 min)
     return () => clearInterval(interval);
   }, []);
 
@@ -710,9 +702,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           ? { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' }
           : o
       ));
-      toWithdrawIds.forEach(id => {
-        supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('id', id).then(({ error }) => { if (error) { console.warn('withdraw expired offers sync error:', error.message); showToast('No se pudieron retirar ofertas expiradas.', 'error'); } });
-      });
+      // Server-side: accept_offer RPC and marketplace-cron handle DB writes
     }
   }, [careOffers, careRequests, currentUser]);
 
@@ -848,76 +838,63 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     const offer = careOffers.find(o => o.id === offerId);
     if (!offer) return;
 
-    // Marcar offer como aceptado y otros como rechazados
-    setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'accepted' } : { ...o, status: o.status === 'pending' ? 'declined' : o.status, reject_reason: o.status === 'pending' ? 'auto' : o.reject_reason }));
-    
-    // Sync offers to Supabase
-    supabase.from('care_offers').update({ status: 'accepted' }).eq('id', offerId).then(({ error }) => { if (error) { console.warn('accept offer sync error:', error.message); showToast('No se pudo confirmar la oferta aceptada en el servidor.', 'error'); } });
-    supabase.from('care_offers').update({ status: 'rejected' }).eq('request_id', offer.request_id).neq('id', offerId).eq('status', 'pending').then(({ error }) => { if (error) { console.warn('reject other offers sync error:', error.message); showToast('No se pudieron rechazar las demas ofertas.', 'error'); } });
+    try {
+      // Atomic RPC: accept offer, reject siblings, match request, create booking, withdraw conflicts
+      const { data, error } = await supabase.rpc('accept_offer', { p_offer_id: offerId });
 
-    // Marcar request como matched
-    setCareRequests(reqs => reqs.map(r => r.id === offer.request_id ? { ...r, status: 'matched' } : r));
-    supabase.from('care_requests').update({ status: 'matched' }).eq('id', offer.request_id).then(({ error }) => { if (error) { console.warn('match request sync error:', error.message); showToast('No se pudo marcar la solicitud como coincidencia.', 'error'); } });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-    // Crear booking automaticamente usando offered_rate
-    const request = careRequests.find(r => r.id === offer.request_id);
-    if (request) {
-      const slot = request.slots[offer.slot_index];
-      const nurseRate = Number(offer.offered_rate);
-      const totalPrice = calculateFamilyPrice(nurseRate, request.wants_invoice);
-      
-      await createBooking({
-        nurse_id: offer.nurse_id,
-        date: slot.date,
-        shift: slot.shift,
-        total_price: totalPrice,
-        patient_name: request.patient_name,
-        patient_condition: request.patient_condition,
-        notes: request.notes,
-        lat: request.lat,
-        lng: request.lng,
-        location_name: request.location_name,
-        wants_invoice: request.wants_invoice,
-        status: request.wants_invoice ? 'pending_payment' : 'confirmed',
-      });
+      // Update local state based on server result
+      setCareOffers(prev => prev.map(o => {
+        if (o.id === offerId) return { ...o, status: 'accepted' as CareOfferStatus };
+        if (o.request_id === offer.request_id && o.status === 'pending')
+          return { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' };
+        // Withdraw same-date offers from same nurse
+        const req = careRequests.find(r => r.id === o.request_id);
+        const acceptedReq = careRequests.find(r => r.id === offer.request_id);
+        if (req && acceptedReq && o.nurse_id === offer.nurse_id && o.status === 'pending') {
+          const otherSlot = req.slots[o.slot_index];
+          const acceptedSlot = acceptedReq.slots[offer.slot_index];
+          if (otherSlot && acceptedSlot && otherSlot.date === acceptedSlot.date)
+            return { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' };
+        }
+        return o;
+      }));
+
+      setCareRequests(prev => prev.map(r =>
+        r.id === offer.request_id ? { ...r, status: 'matched' as CareRequestStatus } : r
+      ));
+
+      // Fetch the newly created booking and add to local state
+      if (data?.booking_id) {
+        const { data: newBooking } = await supabase
+          .from('bookings')
+          .select('*')
+          .eq('id', data.booking_id)
+          .single();
+        if (newBooking) {
+          setBookings(prev => [newBooking as Booking, ...prev]);
+        }
+      }
+
       // Notify nurse via email + push (server-side)
       notifyMarketplace({ type: 'offer_accepted', offer_id: offer.id });
       track.offerAccepted();
 
-      // Auto-withdraw nurse's other pending offers for the same date (server-side)
-      // This prevents double-booking when the nurse isn't online
-      const sameDateOffers = careOffers.filter(o =>
-        o.nurse_id === offer.nurse_id &&
-        o.status === 'pending' &&
-        o.id !== offer.id
-      );
-      const toWithdraw = sameDateOffers.filter(o => {
-        const req = careRequests.find(r => r.id === o.request_id);
-        if (!req) return false;
-        const otherSlot = req.slots[o.slot_index];
-        if (!otherSlot) return false;
-        return otherSlot.date === slot.date;
-      });
-      if (toWithdraw.length > 0) {
-        const withdrawIds = toWithdraw.map(o => o.id);
-        setCareOffers(prev => prev.map(o =>
-          withdrawIds.includes(o.id)
-            ? { ...o, status: 'declined' as CareOfferStatus, reject_reason: 'auto' }
-            : o
-        ));
-        supabase.from('care_offers')
-          .update({ status: 'rejected', reject_reason: 'auto' })
-          .in('id', withdrawIds)
-          .then(({ error }) => { if (error) { console.warn('auto-withdraw same-date offers sync error:', error.message); showToast('No se pudieron retirar ofertas automaticamente.', 'error'); } });
-      }
-
-      // Notify nurse (if they're not the current user)
+      // Local notification (if nurse isn't the current user)
+      const request = careRequests.find(r => r.id === offer.request_id);
       const nurse = nurses.find(n => n.id === offer.nurse_id);
-      if (nurse && currentUser?.id !== nurse.user_id) {
+      if (nurse && currentUser?.id !== nurse.user_id && request) {
         notifyOfferAccepted(request.patient_name, nurse.user_id);
       }
+
+      showToast('Oferta aceptada. Se ha creado el servicio.', 'success');
+    } catch (err) {
+      console.warn('acceptCareOffer RPC error:', err);
+      showToast('No se pudo aceptar la oferta. Intenta de nuevo.', 'error');
     }
-  }, [careOffers, careRequests, createBooking]);
+  }, [careOffers, careRequests, nurses, currentUser, showToast]);
 
   // Nurse reviews
   const [nurseReviews, setNurseReviews] = useState<NurseReview[]>([]);

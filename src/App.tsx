@@ -5,7 +5,7 @@
 
 import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { AppContextProvider, useApp } from './context/AppContext';
-import { supabase } from './lib/supabase';
+import { supabase, supabaseUrl } from './lib/supabase';
 import { SupportChat } from './components/SupportChat';
 import { MapComponent } from './components/MapComponent';
 import { SearchFilters } from './components/SearchFilters';
@@ -821,6 +821,53 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
   );
 }
 
+function PatientGate({ token }: { token: string }) {
+  const [familyUserId, setFamilyUserId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${supabaseUrl}/functions/v1/patient-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'verify', token }),
+        });
+        const data = await res.json();
+        if (cancelled) return;
+        if (res.ok && data.valid && data.family_user_id) {
+          setFamilyUserId(data.family_user_id);
+        } else {
+          setError(data.error || 'Token invalido');
+        }
+      } catch {
+        if (!cancelled) setError('No se pudo verificar el acceso.');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [token]);
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-6">
+        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+        <p className="text-lg font-semibold text-slate-800">Acceso no valido</p>
+        <p className="text-sm text-slate-500 mt-2">{error}</p>
+        <p className="text-xs text-slate-400 mt-4">Solicita un nuevo enlace a tu familiar.</p>
+      </div>
+    );
+  }
+
+  if (!familyUserId) return <LoadingSpinner />;
+
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <PatientMode familyUserId={familyUserId} />
+    </Suspense>
+  );
+}
+
 export default function App() {
   const params = new URLSearchParams(window.location.search);
   const benniParam = params.get('benni');
@@ -830,12 +877,7 @@ export default function App() {
   const patientToken = params.get('patient');
 
   if (patientToken) {
-    const familyUserId = atob(patientToken);
-    return (
-      <Suspense fallback={<LoadingSpinner />}>
-        <PatientMode familyUserId={familyUserId} />
-      </Suspense>
-    );
+    return <PatientGate token={patientToken} />;
   }
 
   if (isBenniMode) {
