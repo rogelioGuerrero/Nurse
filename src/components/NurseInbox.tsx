@@ -109,7 +109,7 @@ export const NurseInbox: FC = () => {
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [careRequests, careOffers, myNurse]);
 
-  // This nurse's offers — excluding accepted (go to Servicios) and declined/rejected older than 48h
+  // This nurse's offers — excluding accepted (go to Servicios) and rejected older than 48h
   const myOffersList = useMemo(() => {
     if (!myNurse) return [];
     const now = Date.now();
@@ -412,23 +412,25 @@ export const NurseInbox: FC = () => {
                             </button>
                           </div>
                         ) : offer?.status === 'rejected' ? (
-                          <div className="pl-14 space-y-1.5">
-                            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
-                              <Heart className="h-4 w-4" />
-                              La familia eligió otra enfermera
+                          offer.reject_reason === 'voluntary' ? (
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 pl-14">
+                              <XCircle className="h-4 w-4" />
+                              Retiraste tu oferta
                             </div>
-                            {getProfileSuggestions(myNurse, offer).map((s, i) => (
-                              <p key={i} className="text-[10px] text-slate-400 leading-relaxed flex items-start gap-1">
-                                <span className="text-indigo-300 flex-shrink-0">•</span>
-                                <span>{s}</span>
-                              </p>
-                            ))}
-                          </div>
-                        ) : offer?.status === 'rejected' ? (
-                          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 pl-14">
-                            <XCircle className="h-4 w-4" />
-                            Retiraste tu oferta
-                          </div>
+                          ) : (
+                            <div className="pl-14 space-y-1.5">
+                              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
+                                <Heart className="h-4 w-4" />
+                                La familia eligió otra enfermera
+                              </div>
+                              {getProfileSuggestions(myNurse, offer).map((s, i) => (
+                                <p key={i} className="text-[10px] text-slate-400 leading-relaxed flex items-start gap-1">
+                                  <span className="text-indigo-300 flex-shrink-0">•</span>
+                                  <span>{s}</span>
+                                </p>
+                              ))}
+                            </div>
+                          )
                         ) : null}
                       </div>
                     );

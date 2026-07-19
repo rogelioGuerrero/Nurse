@@ -614,8 +614,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
 
   const withdrawCareOffer = useCallback((offerId: string) => {
     const prevOffers = careOffers;
-    setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'rejected' as CareOfferStatus } : o));
-    supabase.from('care_offers').update({ status: 'rejected' }).eq('id', offerId).then(({ error }) => {
+    setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'rejected' as CareOfferStatus, reject_reason: 'voluntary' } : o));
+    supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'voluntary' }).eq('id', offerId).then(({ error }) => {
       if (error) {
         console.warn('withdrawCareOffer sync error:', error.message);
         setCareOffers(prevOffers);
