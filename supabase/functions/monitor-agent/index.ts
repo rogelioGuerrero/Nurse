@@ -1,11 +1,64 @@
 // @ts-nocheck
-import { callGroqRaw } from "../_shared/groq.ts";
+// ===== INLINE GROQ CLIENT (avoid bundler path issues with _shared) =====
+const PRIMARY_MODEL = "openai/gpt-oss-120b";
+const FALLBACK_MODEL = "openai/gpt-oss-20b";
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const MAX_RETRIES = 2;
+const REQUEST_TIMEOUT_MS = 15000;
+
+function isRetryable(status: number): boolean { return status === 429 || (status >= 500 && status < 600); }
+function getApiKey(): string { const key = Deno.env.get("GROQ_API_KEY"); if (!key) throw new Error("GROQ_API_KEY not configured"); return key; }
+
+interface GroqMessage { role: "system" | "user" | "assistant" | "tool"; content: string; tool_call_id?: string; tool_calls?: any[]; }
+interface GroqCallOptions { temperature?: number; maxTokens?: number; tools?: any[]; toolChoice?: string; timeoutMs?: number; models?: string[]; noRetry?: boolean; }
+interface GroqResult { ok: boolean; content?: string; data?: any; model?: string; error?: string; status?: number; }
+
+async function callGroqRaw(messages: GroqMessage[], opts: GroqCallOptions = {}): Promise<GroqResult> {
+  const apiKey = getApiKey();
+  const models = opts.models ?? [PRIMARY_MODEL, FALLBACK_MODEL];
+  const timeout = opts.timeoutMs ?? REQUEST_TIMEOUT_MS;
+  for (const model of models) {
+    const maxRetries = opts.noRetry ? 0 : MAX_RETRIES;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+      try {
+        const body: Record<string, any> = { model, messages };
+        if (opts.temperature !== undefined) body.temperature = opts.temperature;
+        if (opts.maxTokens !== undefined) body.max_tokens = opts.maxTokens;
+        if (opts.tools?.length) { body.tools = opts.tools; body.tool_choice = opts.toolChoice ?? "auto"; }
+        const res = await fetch(GROQ_API_URL, { method: "POST", headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify(body), signal: controller.signal });
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+          const errText = await res.text();
+          console.log(`[groq] ${model} FAILED: ${res.status} | ${errText.slice(0, 200)}`);
+          if (attempt < maxRetries && isRetryable(res.status)) { await new Promise((r) => setTimeout(r, 1000 * (attempt + 1))); continue; }
+          if (model !== models[models.length - 1] && isRetryable(res.status)) { console.log(`[groq] Falling back from ${model}...`); break; }
+          return { ok: false, error: errText, status: res.status, model };
+        }
+        const data = await res.json();
+        const content = data.choices[0]?.message?.content ?? "";
+        console.log(`[groq] ${model} OK | tokens: ${data.usage?.total_tokens ?? "?"}`);
+        return { ok: true, content, data, model };
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        if (err instanceof DOMException && err.name === "AbortError") { console.log(`[groq] ${model} timed out (${timeout}ms)`); } else { console.log(`[groq] ${model} error: ${err.message}`); }
+        if (attempt < maxRetries && err instanceof TypeError) { await new Promise((r) => setTimeout(r, 1000 * (attempt + 1))); continue; }
+        if (model !== models[models.length - 1]) { console.log(`[groq] Falling back from ${model}...`); break; }
+        return { ok: false, error: err.message, model };
+      }
+    }
+  }
+  return { ok: false, error: "All LLM models failed" };
+}
+// ===== END INLINE GROQ CLIENT =====
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ADMIN_EMAIL = "guerrero_vi@yahoo.com";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 const SUPABASE_ACCESS_TOKEN = Deno.env.get("SB_ACCESS_TOKEN") || "";
+const CRON_SECRET = Deno.env.get("CRON_SECRET") || "";
 const PROJECT_REF = "zqgtkrqfyhcvgagjhbnv";
 const MANAGEMENT_API = "https://api.supabase.com/v1/projects";
 
@@ -281,7 +334,7 @@ async function checkFunctionHealth(): Promise<string> {
 
   // List of critical functions to ping
   const criticalFunctions = [
-    { name: "cssp-reminders", expectJwt: false },
+    { name: "cssp-reminders", expectJwt: false, cronSecret: true },
     { name: "send-push", expectJwt: false },
     { name: "benni-escalate", expectJwt: false },
     { name: "stt", expectJwt: false },
@@ -292,24 +345,34 @@ async function checkFunctionHealth(): Promise<string> {
 
   for (const fn of criticalFunctions) {
     try {
-      const url = `${SUPABASE_URL}/functions/v2/${fn.name}`;
+      const url = `${SUPABASE_URL}/functions/v1/${fn.name}`;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${SERVICE_KEY}`,
+      };
+      // For functions that require CRON_SECRET, send it so we get a real 200/400
+      if (fn.cronSecret && CRON_SECRET) {
+        headers["x-api-key"] = CRON_SECRET;
+      }
       const res = await fetch(url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${SERVICE_KEY}`,
-        },
+        headers,
         body: JSON.stringify({ _health_check: true }),
         signal: AbortSignal.timeout(10000),
       });
       
-      // 401 means verify_jwt is blocking — expected for jwt=true functions with service key
+      // For expectJwt=false functions, 401 means auth is broken (verify_jwt or secret mismatch)
+      // For expectJwt=true functions, 401 is expected when pinging without a user JWT
       // 400/422 means function is alive but rejected our payload — that's OK
       // 500 means internal error — concerning
       if (res.status === 500) {
         checks.push(`[FUNC] ${fn.name}: ERROR - returned 500`);
-      } else if (res.status <= 404) {
+      } else if (res.status === 401 && !fn.expectJwt) {
+        checks.push(`[FUNC] ${fn.name}: ERROR - returned 401 (auth broken for cron/internal function)`);
+      } else if (res.status <= 399) {
         checks.push(`[FUNC] ${fn.name}: OK - responding (status ${res.status})`);
+      } else if (res.status === 404) {
+        checks.push(`[FUNC] ${fn.name}: ERROR - function not found (404)`);
       } else {
         checks.push(`[FUNC] ${fn.name}: ALIVE - status ${res.status}`);
       }
@@ -351,7 +414,7 @@ async function checkRecentErrors(): Promise<string> {
 async function sendAdminAlert(title: string, message: string): Promise<string> {
   try {
     // Use send-push edge function to send push notification
-    const res = await fetch(`${SUPABASE_URL}/functions/v2/send-push`, {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -454,12 +517,17 @@ async function resolveIncident(incidentType: string, note: string): Promise<stri
 
 async function triggerCronNow(functionName: string, reason: string): Promise<string> {
   try {
-    const res = await fetch(`${SUPABASE_URL}/functions/v2/${functionName}`, {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${SERVICE_KEY}`,
+    };
+    // Include CRON_SECRET for functions that require it
+    if (CRON_SECRET) {
+      headers["x-api-key"] = CRON_SECRET;
+    }
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/${functionName}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${SERVICE_KEY}`,
-      },
+      headers,
       body: JSON.stringify({ _manual_trigger: true, reason }),
       signal: AbortSignal.timeout(30000),
     });
