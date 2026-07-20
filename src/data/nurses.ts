@@ -14,6 +14,7 @@ export const INITIAL_PROFILES: Profile[] = [
     avatar_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
     phone: '+503 2222 1234',
     location_name: 'San Salvador',
+    created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
   {
@@ -24,6 +25,7 @@ export const INITIAL_PROFILES: Profile[] = [
     avatar_url: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=200',
     phone: '+503 2222 5678',
     location_name: 'Santa Ana',
+    created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
   {
@@ -34,6 +36,7 @@ export const INITIAL_PROFILES: Profile[] = [
     avatar_url: 'https://images.unsplash.com/photo-1594824813573-246434de83fb?auto=format&fit=crop&q=80&w=200',
     phone: '+503 2222 9012',
     location_name: 'San Miguel',
+    created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
   {
@@ -44,6 +47,7 @@ export const INITIAL_PROFILES: Profile[] = [
     avatar_url: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=200',
     phone: '+503 2222 3456',
     location_name: 'Santa Tecla',
+    created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
   {
@@ -54,6 +58,7 @@ export const INITIAL_PROFILES: Profile[] = [
     avatar_url: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=200',
     phone: '+503 2222 7890',
     location_name: 'San Salvador',
+    created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   },
 ];
@@ -80,7 +85,9 @@ export const INITIAL_NURSES: Nurse[] = [
     ],
     cssp_registration: 'CSSP-ENF-2016-0142',
     cssp_level: 'Licenciada',
-    dui: '00000000-0'
+    dui: '00000000-0',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   },
   {
     id: '00000000-0000-0000-0000-000000000012',
@@ -103,7 +110,9 @@ export const INITIAL_NURSES: Nurse[] = [
     ],
     cssp_registration: 'CSSP-ENF-2018-0387',
     cssp_level: 'Técnica',
-    dui: '00000000-1'
+    dui: '00000000-1',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   },
   {
     id: '00000000-0000-0000-0000-000000000013',
@@ -126,7 +135,9 @@ export const INITIAL_NURSES: Nurse[] = [
     ],
     cssp_registration: 'CSSP-ENF-2012-0094',
     cssp_level: 'Licenciada',
-    dui: '00000000-2'
+    dui: '00000000-2',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   },
   {
     id: '00000000-0000-0000-0000-000000000014',
@@ -149,7 +160,9 @@ export const INITIAL_NURSES: Nurse[] = [
     ],
     cssp_registration: 'CSSP-ENF-2019-0521',
     cssp_level: 'Tecnóloga',
-    dui: '00000000-3'
+    dui: '00000000-3',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   },
   {
     id: '00000000-0000-0000-0000-000000000015',
@@ -172,6 +185,8 @@ export const INITIAL_NURSES: Nurse[] = [
     ],
     cssp_registration: 'CSSP-ENF-2009-0078',
     cssp_level: 'Licenciada',
-    dui: '00000000-4'
+    dui: '00000000-4',
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
   }
 ];

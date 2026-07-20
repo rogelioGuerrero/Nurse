@@ -1,4 +1,4 @@
-import { supabaseUrl, supabaseAnonKey, supabase } from './supabase';
+import { supabaseUrl, supabase } from './supabase';
 
 /**
  * Notify marketplace participants via email + push (server-side).
@@ -8,6 +8,7 @@ import { supabaseUrl, supabaseAnonKey, supabase } from './supabase';
  * - offer_accepted: notifies the nurse when a family accepts their offer
  *
  * This is fire-and-forget — failures are logged but don't block the UI.
+ * Requires an active user session — the anon key is NOT a valid JWT.
  */
 
 type NotifyType = 'new_request' | 'new_offer' | 'offer_accepted';
@@ -21,12 +22,15 @@ interface NotifyPayload {
 export async function notifyMarketplace(payload: NotifyPayload): Promise<void> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token || supabaseAnonKey;
+    if (!session?.access_token) {
+      console.warn('[notify-marketplace] No session — skipping notification');
+      return;
+    }
     await fetch(`${supabaseUrl}/functions/v1/notify-marketplace`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify(payload),
     });

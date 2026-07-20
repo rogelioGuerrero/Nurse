@@ -3,17 +3,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef, type FC, type ReactNode } from 'react';
-import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareRequestStatus, CareRequestSlot, ExpectedDuration, CareOffer, CareOfferStatus, ShiftType, NurseReview, FamilyReview } from '../types';
+import { createContext, useContext, useState, useEffect, useRef, type FC, type ReactNode } from 'react';
+import { Profile, Nurse, Booking, BookingStatus, Availability, CareRequest, CareRequestSlot, ExpectedDuration, CareOffer, NurseReview, FamilyReview } from '../types';
 import { INITIAL_NURSES } from '../data/nurses';
 import { supabase } from '../lib/supabase';
-import { getResponseDeadline } from '../data/platformSettings';
 import { requestNotificationPermission, notifyNewOffer, notifyOfferAccepted, notifyCheckIn, notifyCheckOut, notifyPaymentConfirmed, notifyNewCareRequest } from '../lib/notifications';
 import { subscribeToPush, unsubscribeFromPush } from '../lib/push';
-import { calculateFamilyPrice } from '../data/standardRates';
-import { notifyMarketplace } from '../lib/marketplace-notify';
 import { track } from '../lib/analytics';
 import { useToast } from '../components/Toast';
+import { useBookings, type CareLog, type ServiceLogType } from '../hooks/useBookings';
+import { useMarketplace } from '../hooks/useMarketplace';
+import { useReviews } from '../hooks/useReviews';
+import { useAvailability } from '../hooks/useAvailability';
 
 // Safe localStorage parser - prevents crash on corrupted data
 function safeParse<T>(key: string, fallback: T): T {
@@ -28,22 +29,7 @@ function safeParse<T>(key: string, fallback: T): T {
   }
 }
 
-export type ServiceLogType = 'clinical' | 'physio' | 'companion';
-
-export interface CareLog {
-  bookingId: string;
-  serviceType: ServiceLogType;
-  // Reporte de visita universal
-  arrivalTime: string;
-  departureTime: string;
-  patientConditionOnArrival: 'Bien' | 'Regular' | 'Deteriorado' | 'Crítico';
-  patientConditionOnDeparture: 'Mejoró' | 'Igual' | 'Empeoró';
-  activities: string[];
-  observations: string;
-  narrativeReport: string;
-  familyReport: string;
-  updatedAt: string;
-}
+export type { ServiceLogType, CareLog };
 
 interface AppContextType {
   profiles: Profile[];
@@ -88,17 +74,48 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) => {
   const { showToast } = useToast();
-  // Load or seed data from local storage (with safe parsing)
+
+  // --- Auth & UI state ---
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [nurses, setNurses] = useState<Nurse[]>(() => safeParse('biencuidar_nurses', INITIAL_NURSES));
-
-  const [bookings, setBookings] = useState<Booking[]>([]);
-
+  const [currentUser, setCurrentUser] = useState<Profile | null>(null);
   const [activeTab, setActiveTab] = useState<string>('landing');
   const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
   const [passwordRecoveryMode, setPasswordRecoveryMode] = useState(false);
 
-  const [currentUser, setCurrentUser] = useState<Profile | null>(null);
+  // --- Nurses state ---
+  const [nurses, setNurses] = useState<Nurse[]>(() => safeParse('biencuidar_nurses', INITIAL_NURSES));
+  const [currentNurse, setCurrentNurse] = useState<Nurse | null>(null);
+
+  // --- Refs to avoid stale closures in realtime handlers ---
+  const bookingsRef = useRef<Booking[]>([]);
+  const nursesRef = useRef<Nurse[]>([]);
+
+  // --- Compose specialized hooks ---
+  const {
+    bookings, setBookings, careLogs, setCareLogs,
+    saveCareLog, createBooking, updateBookingStatus,
+    checkInBooking, checkOutBooking, confirmPayment,
+  } = useBookings({ currentUser, nurses, profiles, showToast });
+
+  const {
+    careRequests, setCareRequests, careOffers, setCareOffers, careRequestsRef,
+    createCareRequest, closeCareRequest, republisheCareRequest,
+    createCareOffer, withdrawCareOffer, acceptCareOffer,
+    updatePatientName, updateRequestLocation,
+  } = useMarketplace({ currentUser, nurses, profiles, showToast, setBookings, bookingsRef });
+
+  const {
+    nurseReviews, setNurseReviews,
+    familyReviews, setFamilyReviews,
+    submitReview, submitFamilyReview,
+  } = useReviews(currentUser, showToast);
+
+  const {
+    getAvailability, addAvailability,
+  } = useAvailability(currentUser, showToast);
+
+  useEffect(() => { bookingsRef.current = bookings; }, [bookings]);
+  useEffect(() => { nursesRef.current = nurses; }, [nurses]);
 
   // Load user from Supabase Auth on mount
   useEffect(() => {
@@ -415,216 +432,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     return () => { supabase.removeChannel(channel); };
   }, [currentUser]);
 
-  const [currentNurse, setCurrentNurse] = useState<Nurse | null>(null);
-
-  // Care logs state (moved from BookingsManager for centralized access)
-  const [careLogs, setCareLogs] = useState<Record<string, CareLog>>({});
-
-  const saveCareLog = useCallback((bookingId: string, log: Omit<CareLog, 'bookingId' | 'updatedAt'>) => {
-    const updatedLog = {
-      ...log,
-      bookingId,
-      updatedAt: new Date().toISOString()
-    };
-    setCareLogs(prev => ({
-      ...prev,
-      [bookingId]: updatedLog
-    }));
-    // Save to Supabase (upsert)
-    supabase.from('care_logs').upsert({
-      booking_id: bookingId,
-      service_type: log.serviceType,
-      arrival_time: log.arrivalTime,
-      departure_time: log.departureTime,
-      patient_condition_on_arrival: log.patientConditionOnArrival,
-      patient_condition_on_departure: log.patientConditionOnDeparture,
-      activities: JSON.stringify(log.activities),
-      observations: log.observations,
-      narrative_report: log.narrativeReport,
-      family_report: log.familyReport,
-      updated_at: updatedLog.updatedAt
-    }, { onConflict: 'booking_id' }).then(({ error }) => {
-      if (error) { console.warn('Failed to save care log to Supabase:', error.message); showToast('No se pudo guardar el registro de cuidado. Intenta de nuevo.', 'error'); }
-    });
-  }, []);
-
-  // Care requests state (family posts what they need)
-  const [careRequests, setCareRequests] = useState<CareRequest[]>([]);
-  const [careOffers, setCareOffers] = useState<CareOffer[]>([]);
-
-  // Refs to avoid stale closures in realtime handlers
-  const careRequestsRef = useRef<CareRequest[]>([]);
-  const bookingsRef = useRef<Booking[]>([]);
-  const nursesRef = useRef<Nurse[]>([]);
-  const careOffersRef = useRef<CareOffer[]>([]);
-
-  useEffect(() => { careRequestsRef.current = careRequests; }, [careRequests]);
-  useEffect(() => { bookingsRef.current = bookings; }, [bookings]);
-  useEffect(() => { nursesRef.current = nurses; }, [nurses]);
-  useEffect(() => { careOffersRef.current = careOffers; }, [careOffers]);
-
-  const createCareRequest = useCallback((data: Omit<CareRequest, 'id' | 'user_id' | 'created_at' | 'status' | 'response_deadline'>): CareRequest => {
-    if (!currentUser) throw new Error('Debes iniciar sesión para publicar una solicitud.');
-    
-    // Validar límite de solicitudes activas en fase de arranque (máximo 2 abiertas)
-    const activeRequestsCount = careRequests.filter(r => r.user_id === currentUser.id && r.status === 'open').length;
-    if (activeRequestsCount >= 2) {
-      throw new Error('Por seguridad y control de calidad en fase de arranque, solo puedes tener un máximo de 2 solicitudes activas simultáneamente.');
-    }
-
-    const now = new Date().toISOString();
-    const newRequest: CareRequest = {
-      ...data,
-      id: crypto.randomUUID(),
-      user_id: currentUser.id,
-      status: 'open',
-      response_deadline: getResponseDeadline(now),
-      created_at: now
-    };
-    setCareRequests(prev => [newRequest, ...prev]);
-    // Save to Supabase with rollback on failure
-    supabase.from('care_requests').insert({
-      id: newRequest.id,
-      user_id: currentUser.id,
-      patient_name: data.patient_name,
-      patient_condition: data.patient_condition,
-      patient_age_range: data.patient_age_range || null,
-      patient_gender: data.patient_gender || null,
-      patient_data: data.patient_data ? JSON.stringify(data.patient_data) : null,
-      nurse_summary: data.nurse_summary || null,
-      urgency: data.urgency || null,
-      specialization_needed: data.specialization_needed,
-      slots: JSON.stringify(data.slots),
-      location_name: data.location_name,
-      lat: data.lat,
-      lng: data.lng,
-      notes: data.notes || null,
-      wants_invoice: data.wants_invoice,
-      expected_duration: data.expected_duration || 'shifts',
-      status: 'open',
-      response_deadline: newRequest.response_deadline,
-      created_at: now
-    }).then(({ error }) => {
-      if (error) {
-        console.warn('Failed to save care request to Supabase:', error.message);
-        setCareRequests(prev => prev.filter(r => r.id !== newRequest.id));
-        showToast('No se pudo publicar la solicitud. Revisa tu conexión e intenta de nuevo.', 'error');
-      } else {
-        notifyMarketplace({ type: 'new_request', request_id: newRequest.id });
-      }
-    });
-    track.careRequestSubmit(data.specialization_needed, data.urgency);
-    return newRequest;
-  }, [currentUser, careRequests]);
-
-  const closeCareRequest = useCallback((requestId: string) => {
-    const prevRequests = careRequests;
-    const prevOffers = careOffers;
-    setCareRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'closed' as CareRequestStatus } : r));
-    setCareOffers(prev => prev.map(o => o.request_id === requestId && o.status === 'pending' ? { ...o, status: 'rejected' as CareOfferStatus, reject_reason: 'auto' } : o));
-    Promise.all([
-      supabase.from('care_requests').update({ status: 'closed' }).eq('id', requestId),
-      supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'auto' }).eq('request_id', requestId).eq('status', 'pending')
-    ]).then(([reqRes, offerRes]) => {
-      if (reqRes.error || offerRes.error) {
-        console.warn('closeCareRequest sync error:', reqRes.error?.message, offerRes.error?.message);
-        setCareRequests(prevRequests);
-        setCareOffers(prevOffers);
-        showToast('No se pudo cerrar la solicitud en el servidor.', 'error');
-      }
-    });
-  }, [careRequests, careOffers]);
-
-  const republisheCareRequest = useCallback((requestId: string, newSlots?: CareRequestSlot[], newDuration?: ExpectedDuration) => {
-    const original = careRequests.find(r => r.id === requestId);
-    if (!original) return;
-    const now = new Date().toISOString();
-    const newRequest: CareRequest = {
-      ...original,
-      id: crypto.randomUUID(),
-      status: 'open',
-      slots: newSlots || original.slots,
-      expected_duration: newDuration || original.expected_duration,
-      response_deadline: getResponseDeadline(now),
-      created_at: now,
-    };
-    setCareRequests(prev => [newRequest, ...prev]);
-    supabase.from('care_requests').insert({
-      id: newRequest.id,
-      user_id: newRequest.user_id,
-      patient_name: newRequest.patient_name,
-      patient_condition: newRequest.patient_condition,
-      patient_age_range: newRequest.patient_age_range || null,
-      patient_gender: newRequest.patient_gender || null,
-      patient_data: newRequest.patient_data ? JSON.stringify(newRequest.patient_data) : null,
-      nurse_summary: newRequest.nurse_summary || null,
-      urgency: newRequest.urgency || null,
-      specialization_needed: newRequest.specialization_needed,
-      slots: JSON.stringify(newRequest.slots),
-      location_name: newRequest.location_name,
-      lat: newRequest.lat,
-      lng: newRequest.lng,
-      notes: newRequest.notes,
-      wants_invoice: newRequest.wants_invoice,
-      status: 'open',
-      response_deadline: newRequest.response_deadline,
-      created_at: now
-    }).then(({ error }) => {
-      if (error) { console.warn('Failed to republish care request:', error.message); showToast('No se pudo republicar la solicitud. Intenta de nuevo.', 'error'); }
-    });
-  }, [careRequests]);
-
-  const createCareOffer = useCallback((data: Omit<CareOffer, 'id' | 'created_at' | 'status'> & { status?: CareOffer['status'] }): CareOffer => {
-    const newOffer: CareOffer = {
-      ...data,
-      id: crypto.randomUUID(),
-      status: data.status || 'pending',
-      created_at: new Date().toISOString()
-    };
-    setCareOffers(prev => [newOffer, ...prev]);
-    // Save to Supabase with rollback on failure
-    supabase.from('care_offers').insert({
-      id: newOffer.id,
-      request_id: data.request_id,
-      nurse_id: data.nurse_id,
-      slot_index: data.slot_index,
-      offered_rate: data.offered_rate,
-      status: data.status || 'pending',
-      notes: data.message || null,
-      created_at: newOffer.created_at
-    }).then(({ error }) => {
-      if (error) {
-        console.warn('Failed to save care offer to Supabase:', error.message);
-        setCareOffers(prev => prev.filter(o => o.id !== newOffer.id));
-        showToast('No se pudo enviar tu oferta. Intenta de nuevo.', 'error');
-      } else {
-        // Notify family (if they're not the current user)
-        const request = careRequests.find(r => r.id === data.request_id);
-        if (request && currentUser?.id !== request.user_id) {
-          const nurse = nurses.find(n => n.id === data.nurse_id);
-          const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
-          notifyNewOffer(nurseProfile?.full_name || 'Una enfermera', request.patient_name, request.user_id);
-          notifyMarketplace({ type: 'new_offer', offer_id: newOffer.id });
-          track.offerSubmit(Number(data.offered_rate));
-        }
-      }
-    });
-    return newOffer;
-  }, [careRequests, currentUser, nurses, profiles]);
-
-  const withdrawCareOffer = useCallback((offerId: string) => {
-    const prevOffers = careOffers;
-    setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'rejected' as CareOfferStatus, reject_reason: 'voluntary' } : o));
-    supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'voluntary' }).eq('id', offerId).then(({ error }) => {
-      if (error) {
-        console.warn('withdrawCareOffer sync error:', error.message);
-        setCareOffers(prevOffers);
-        showToast('No se pudo retirar la oferta del servidor.', 'error');
-      }
-    });
-  }, [careOffers]);
-
-  // Synchronize dynamic nurse profile if active user role is 'nurse'
+  // --- Sync currentNurse when user or nurses change ---
   useEffect(() => {
     if (currentUser && currentUser.role === 'nurse') {
       const foundNurse = nurses.find(n => n.user_id === currentUser.id);
@@ -634,113 +442,22 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [currentUser, nurses]);
 
-  // Auto-expire pending bookings older than 24 hours (client-side mirror only)
-  // Server-side cron (marketplace-cron) is the source of truth and handles DB writes
+  // --- Auto-expire pending bookings older than 24 hours (client-side mirror) ---
   useEffect(() => {
     const now = Date.now();
-    setBookings(prev => prev.map(b => 
+    setBookings(prev => prev.map(b =>
       b.status === 'pending' && now - new Date(b.created_at).getTime() > 86400000
         ? { ...b, status: 'cancelled' as BookingStatus }
         : b
     ));
-  }, []); // Run once on mount
-
-  // Auto-expire care requests past their response_deadline (client-side mirror only)
-  // Server-side cron (marketplace-cron) is the source of truth and handles DB writes
-  // This only updates local UI state to reflect what the server already did
-  useEffect(() => {
-    const checkExpired = () => {
-      const now = Date.now();
-      const expiredRequests = careRequestsRef.current.filter(r => 
-        r.status === 'open' && 
-        new Date(r.response_deadline).getTime() <= now
-      );
-      if (expiredRequests.length > 0) {
-        const expiredIds = expiredRequests.map(r => r.id);
-        setCareRequests(prev => prev.map(r => 
-          expiredIds.includes(r.id) ? { ...r, status: 'expired' as CareRequestStatus } : r
-        ));
-        setCareOffers(prev => prev.map(o => 
-          expiredIds.includes(o.request_id) && o.status === 'pending'
-            ? { ...o, status: 'rejected' as CareOfferStatus, reject_reason: 'auto' }
-            : o
-        ));
-      }
-    };
-
-    checkExpired();
-    const interval = setInterval(checkExpired, 300000); // 5 min (server cron handles DB writes every 15 min)
-    return () => clearInterval(interval);
   }, []);
 
-  // Auto-withdraw nurse's pending offers when one of their offers is accepted (they now have a booking)
-  // Only runs on nurse's client — family clients should see offers as-is from Supabase
-  useEffect(() => {
-    if (!currentUser || currentUser.role !== 'nurse') return;
-
-    // Find nurses that have at least one accepted offer (meaning they got a booking)
-    const acceptedNurseIds = new Set(
-      careOffers.filter(o => o.status === 'accepted').map(o => o.nurse_id)
-    );
-    if (acceptedNurseIds.size === 0) return;
-
-    // Find pending offers from those nurses that should be auto-withdrawn
-    // (same date as the accepted offer - they can't cover two shifts on the same day)
-    const offersToWithdraw = careOffers.filter(o => 
-      o.status === 'pending' && acceptedNurseIds.has(o.nurse_id)
-    );
-
-    if (offersToWithdraw.length === 0) return;
-
-    // Check if the nurse's accepted offer is for the same date as the pending offer
-    const acceptedOffersByNurse = new Map<string, CareOffer[]>();
-    careOffers.forEach(o => {
-      if (o.status === 'accepted') {
-        const list = acceptedOffersByNurse.get(o.nurse_id) || [];
-        list.push(o);
-        acceptedOffersByNurse.set(o.nurse_id, list);
-      }
-    });
-
-    const toWithdrawIds: string[] = [];
-    offersToWithdraw.forEach(o => {
-      const accepted = acceptedOffersByNurse.get(o.nurse_id) || [];
-      const request = careRequests.find(r => r.id === o.request_id);
-      if (!request) return;
-      const offerSlot = request.slots[o.slot_index];
-      if (!offerSlot) return;
-
-      // Withdraw if any accepted offer is for the same date
-      const shouldWithdraw = accepted.some(ao => {
-        const acceptedReq = careRequests.find(r => r.id === ao.request_id);
-        if (!acceptedReq) return false;
-        const acceptedSlot = acceptedReq.slots[ao.slot_index];
-        if (!acceptedSlot) return false;
-        return acceptedSlot.date === offerSlot.date;
-      });
-
-      if (shouldWithdraw) toWithdrawIds.push(o.id);
-    });
-
-    if (toWithdrawIds.length > 0) {
-      setCareOffers(prev => prev.map(o => 
-        toWithdrawIds.includes(o.id)
-          ? { ...o, status: 'rejected' as CareOfferStatus, reject_reason: 'auto' }
-          : o
-      ));
-      // Server-side: accept_offer RPC and marketplace-cron handle DB writes
-    }
-  }, [careOffers, careRequests, currentUser]);
-
-  // Bookings are sourced from Supabase + realtime
-
-  // Action: Update profiles (also syncs currentNurse if user is a nurse)
+  // --- Profile actions ---
   const updateProfile = async (profileData: Partial<Profile>) => {
     if (!currentUser) return;
     const updated = { ...currentUser, ...profileData, updated_at: new Date().toISOString() };
     setCurrentUser(updated);
     setProfiles(prev => prev.map(p => p.id === updated.id ? updated : p));
-    // Sync to Supabase
     try {
       const { error } = await supabase
         .from('profiles')
@@ -757,13 +474,11 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       console.warn('Profile sync error:', err);
       showToast('Error al sincronizar el perfil.', 'error');
     }
-    // Sync currentNurse if the updated user is a nurse (nurses array may need refresh)
     if (updated.role === 'nurse') {
       setNurses(prev => prev.map(n => n.user_id === updated.id ? { ...n } : n));
     }
   };
 
-  // Action: Update nurse rates, bios, specializations
   const updateNurseProfile = async (nurseData: Partial<Nurse>) => {
     if (!currentNurse) return;
     const updated = { ...currentNurse, ...nurseData };
@@ -794,479 +509,6 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     } catch (err) {
       console.warn('Nurse profile sync error:', err);
       showToast('Error al sincronizar el perfil de enfermera.', 'error');
-    }
-  };
-
-  // Action: Create booking (Supabase only, no localStorage fallback)
-  const createBooking = async (bookingData: Omit<Booking, 'id' | 'user_id' | 'created_at' | 'status'> & { status?: Booking['status'] }) => {
-    if (!currentUser) throw new Error('Debes iniciar sesión para agendar.');
-    
-    // Validate no double-booking: same nurse, same date, same shift
-    const overlapping = bookings.find(b => 
-      b.nurse_id === bookingData.nurse_id &&
-      b.date === bookingData.date &&
-      b.status !== 'cancelled' &&
-      b.shift === bookingData.shift
-    );
-    if (overlapping) {
-      throw new Error('Esta enfermera ya tiene una reserva para ese turno. Elige otra fecha u hora.');
-    }
-    
-    const bookingStatus = bookingData.status || 'confirmed';
-    const newBooking: Booking = {
-      ...bookingData,
-      id: crypto.randomUUID(),
-      user_id: currentUser.id,
-      status: bookingStatus,
-      created_at: new Date().toISOString()
-    };
-
-    try {
-      const { data, error } = await supabase
-        .from('bookings')
-        .insert({
-          user_id: currentUser.id,
-          nurse_id: bookingData.nurse_id,
-          date: bookingData.date,
-          shift: bookingData.shift || null,
-          start_time: bookingData.start_time || null,
-          end_time: bookingData.end_time || null,
-          hours: bookingData.hours || null,
-          status: bookingStatus,
-          total_price: bookingData.total_price,
-          notes: bookingData.notes,
-          patient_name: bookingData.patient_name,
-          patient_condition: bookingData.patient_condition,
-          wants_invoice: bookingData.wants_invoice ?? false,
-          location_name: bookingData.location_name || null,
-          lat: bookingData.lat || null,
-          lng: bookingData.lng || null
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Use Supabase response if successful
-      setBookings(prev => [{
-        ...newBooking,
-        id: data.id,
-        created_at: data.created_at
-      }, ...prev]);
-      return { ...newBooking, id: data.id, created_at: data.created_at };
-    } catch (err) {
-      // No silent fallback — inform the user that the booking failed
-      throw new Error('No se pudo crear la reserva. Verifica tu conexión e intenta nuevamente.');
-    }
-  };
-
-  const acceptCareOffer = useCallback(async (offerId: string) => {
-    const offer = careOffers.find(o => o.id === offerId);
-    if (!offer) return;
-
-    try {
-      // Atomic RPC: accept offer, reject siblings, match request, create booking, withdraw conflicts
-      const { data, error } = await supabase.rpc('accept_offer', { p_offer_id: offerId });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      // Update local state based on server result
-      setCareOffers(prev => prev.map(o => {
-        if (o.id === offerId) return { ...o, status: 'accepted' as CareOfferStatus };
-        if (o.request_id === offer.request_id && o.status === 'pending')
-          return { ...o, status: 'rejected' as CareOfferStatus, reject_reason: 'auto' };
-        // Withdraw same-date offers from same nurse
-        const req = careRequests.find(r => r.id === o.request_id);
-        const acceptedReq = careRequests.find(r => r.id === offer.request_id);
-        if (req && acceptedReq && o.nurse_id === offer.nurse_id && o.status === 'pending') {
-          const otherSlot = req.slots[o.slot_index];
-          const acceptedSlot = acceptedReq.slots[offer.slot_index];
-          if (otherSlot && acceptedSlot && otherSlot.date === acceptedSlot.date)
-            return { ...o, status: 'rejected' as CareOfferStatus, reject_reason: 'auto' };
-        }
-        return o;
-      }));
-
-      setCareRequests(prev => prev.map(r =>
-        r.id === offer.request_id ? { ...r, status: 'matched' as CareRequestStatus } : r
-      ));
-
-      // Fetch the newly created booking and add to local state
-      if (data?.booking_id) {
-        const { data: newBooking } = await supabase
-          .from('bookings')
-          .select('*')
-          .eq('id', data.booking_id)
-          .single();
-        if (newBooking) {
-          setBookings(prev => [newBooking as Booking, ...prev]);
-        }
-      }
-
-      // Notify nurse via email + push (server-side)
-      notifyMarketplace({ type: 'offer_accepted', offer_id: offer.id });
-      track.offerAccepted();
-
-      // Local notification (if nurse isn't the current user)
-      const request = careRequests.find(r => r.id === offer.request_id);
-      const nurse = nurses.find(n => n.id === offer.nurse_id);
-      if (nurse && currentUser?.id !== nurse.user_id && request) {
-        notifyOfferAccepted(request.patient_name, nurse.user_id);
-      }
-
-      showToast('Oferta aceptada. Se ha creado el servicio.', 'success');
-    } catch (err) {
-      console.warn('acceptCareOffer RPC error:', err);
-      showToast('No se pudo aceptar la oferta. Intenta de nuevo.', 'error');
-    }
-  }, [careOffers, careRequests, nurses, currentUser, showToast]);
-
-  // Nurse reviews
-  const [nurseReviews, setNurseReviews] = useState<NurseReview[]>([]);
-  // Family reviews (nurse rates family)
-  const [familyReviews, setFamilyReviews] = useState<FamilyReview[]>([]);
-
-  const submitReview = async (bookingId: string, nurseId: string, rating: number, comment?: string) => {
-    if (!currentUser) return;
-    const newReview: NurseReview = {
-      id: crypto.randomUUID(),
-      booking_id: bookingId,
-      nurse_id: nurseId,
-      user_id: currentUser.id,
-      rating,
-      comment,
-      created_at: new Date().toISOString(),
-    };
-    setNurseReviews(prev => [...prev, newReview]);
-
-    try {
-      const { error } = await supabase
-        .from('nurse_reviews')
-        .insert({
-          booking_id: bookingId,
-          nurse_id: nurseId,
-          user_id: currentUser.id,
-          rating,
-          comment: comment || null,
-        });
-      if (error) throw error;
-    } catch {
-      console.warn('Failed to save review to Supabase');
-      showToast('No se pudo guardar la resena. Intenta de nuevo.', 'error');
-    }
-  };
-
-  const submitFamilyReview = async (bookingId: string, nurseId: string, userId: string, rating: number, comment?: string) => {
-    if (!currentUser) return;
-    const newReview: FamilyReview = {
-      id: crypto.randomUUID(),
-      booking_id: bookingId,
-      nurse_id: nurseId,
-      user_id: userId,
-      rating,
-      comment,
-      created_at: new Date().toISOString(),
-    };
-    setFamilyReviews(prev => [...prev, newReview]);
-
-    try {
-      const { error } = await supabase
-        .from('family_reviews')
-        .insert({
-          booking_id: bookingId,
-          nurse_id: nurseId,
-          user_id: userId,
-          rating,
-          comment: comment || null,
-        });
-      if (error) throw error;
-    } catch {
-      console.warn('Failed to save family review to Supabase');
-      showToast('No se pudo guardar la resena familiar.', 'error');
-    }
-  };
-
-  const confirmPayment = async (bookingId: string) => {
-    const booking = bookings.find(b => b.id === bookingId);
-    const newStatus = booking?.status === 'pending_payment' ? 'confirmed' : booking?.status;
-    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, payment_status: 'paid', status: newStatus || b.status } : b));
-    try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ payment_status: 'paid', status: newStatus })
-        .eq('id', bookingId);
-      if (error) throw error;
-      // Notify nurse that payment is confirmed
-      if (booking) {
-        const nurse = nurses.find(n => n.id === booking.nurse_id);
-        if (nurse && currentUser?.id !== nurse.user_id) {
-          notifyPaymentConfirmed(booking.patient_name, nurse.user_id);
-        }
-      }
-    } catch (err) {
-      // Rollback on error
-      setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, payment_status: 'pending', status: booking?.status || b.status } : b));
-      console.warn('Payment confirmation failed, rolled back:', err);
-      showToast('No se pudo confirmar el pago. Se ha revertido el estado.', 'error');
-    }
-  };
-
-  // Action: Update patient name on request and related bookings
-  const updatePatientName = async (requestId: string, patientName: string, patientAge?: string, emergencyContact?: string) => {
-    const prevRequests = careRequests;
-    const prevBookings = bookings;
-
-    setCareRequests(prev => prev.map(r => r.id === requestId ? {
-      ...r,
-      patient_name: patientName,
-      patient_data: {
-        ...(r.patient_data || { diagnosis: '', autonomy: '', allergies: '', medications: '', emergency_contact: '' }),
-        emergency_contact: emergencyContact ?? r.patient_data?.emergency_contact ?? '',
-      }
-    } : r));
-    setBookings(prev => prev.map(b => {
-      const req = careRequests.find(r => r.id === requestId);
-      if (req && (b.patient_name === 'Por confirmar' || b.patient_name === req.patient_name)) {
-        return {
-          ...b,
-          patient_name: patientName,
-          patient_age: patientAge || b.patient_age,
-          emergency_contact: emergencyContact || b.emergency_contact,
-        };
-      }
-      return b;
-    }));
-
-    try {
-      const updateData: Record<string, unknown> = { patient_name: patientName };
-      if (emergencyContact !== undefined) {
-        const request = careRequests.find(r => r.id === requestId);
-        const patientData = {
-          ...(request?.patient_data || { diagnosis: '', autonomy: '', allergies: '', medications: '', emergency_contact: '' }),
-          emergency_contact: emergencyContact
-        };
-        updateData.patient_data = JSON.stringify(patientData);
-      }
-      await supabase.from('care_requests').update(updateData).eq('id', requestId);
-      const request = careRequests.find(r => r.id === requestId);
-      const relatedBookings = bookings.filter(b =>
-        request && (b.patient_name === 'Por confirmar' || b.patient_name === request.patient_name)
-      );
-      for (const b of relatedBookings) {
-        await supabase.from('bookings').update({
-          patient_name: patientName,
-          patient_age: patientAge || null,
-          emergency_contact: emergencyContact || null,
-        }).eq('id', b.id);
-      }
-    } catch (err) {
-      setCareRequests(prevRequests);
-      setBookings(prevBookings);
-      console.warn('Patient name update failed, rolled back:', err);
-      showToast('No se pudo actualizar el nombre del paciente. Revertido.', 'error');
-    }
-  };
-
-  // Action: Update request location with GPS coordinates
-  const updateRequestLocation = async (requestId: string, lat: number, lng: number, locationName: string) => {
-    const prevRequests = careRequests;
-    const prevBookings = bookings;
-
-    setCareRequests(prev => prev.map(r => r.id === requestId ? { ...r, lat, lng, location_name: locationName } : r));
-    setBookings(prev => prev.map(b => {
-      const req = careRequests.find(r => r.id === requestId);
-      if (req && (b.patient_name === 'Por confirmar' || b.patient_name === req.patient_name)) {
-        return { ...b, lat, lng, location_name: locationName };
-      }
-      return b;
-    }));
-
-    try {
-      await supabase.from('care_requests').update({ lat, lng, location_name: locationName }).eq('id', requestId);
-      const request = careRequests.find(r => r.id === requestId);
-      const relatedBookings = bookings.filter(b =>
-        request && (b.patient_name === 'Por confirmar' || b.patient_name === request.patient_name)
-      );
-      for (const b of relatedBookings) {
-        await supabase.from('bookings').update({ lat, lng, location_name: locationName }).eq('id', b.id);
-      }
-    } catch (err) {
-      setCareRequests(prevRequests);
-      setBookings(prevBookings);
-      console.warn('Location update failed, rolled back:', err);
-      showToast('No se pudo actualizar la ubicacion. Revertido.', 'error');
-    }
-  };
-
-  // Action: Update state of booking (optimistic update with rollback)
-  const updateBookingStatus = async (bookingId: string, status: BookingStatus) => {
-    const prevBookings = bookings;
-    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status } : b));
-
-    try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ status })
-        .eq('id', bookingId);
-
-      if (error) throw error;
-    } catch {
-      // Rollback on failure
-      setBookings(prevBookings);
-      console.warn('Booking status update failed, rolled back to previous state.');
-      showToast('No se pudo actualizar el estado del servicio. Revertido.', 'error');
-    }
-  };
-
-  // Action: Check-in booking with GPS
-  const checkInBooking = async (bookingId: string, lat: number, lng: number, address: string, mismatch: boolean) => {
-    const prevBookings = bookings;
-    const now = new Date().toISOString();
-    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, check_in_at: now, check_in_lat: lat, check_in_lng: lng, check_in_address: address, address_mismatch: mismatch } : b));
-
-    try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ check_in_at: now, check_in_lat: lat, check_in_lng: lng, check_in_address: address, address_mismatch: mismatch })
-        .eq('id', bookingId);
-
-      if (error) throw error;
-      // Notify family
-      const booking = bookings.find(b => b.id === bookingId);
-      if (booking) {
-        const nurse = nurses.find(n => n.id === booking.nurse_id);
-        const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
-        if (currentUser?.id !== booking.user_id) {
-          notifyCheckIn(nurseProfile?.full_name || 'La enfermera', booking.user_id);
-        }
-      }
-    } catch {
-      setBookings(prevBookings);
-      console.warn('Check-in failed, rolled back.');
-      showToast('No se pudo registrar el check-in. Revertido.', 'error');
-    }
-  };
-
-  // Action: Check-out booking with GPS
-  const checkOutBooking = async (bookingId: string, lat: number, lng: number) => {
-    const prevBookings = bookings;
-    const now = new Date().toISOString();
-    const booking = bookings.find(b => b.id === bookingId);
-    // Without invoice: payment is direct, mark as paid on check-out
-    const paymentUpdate = booking && !booking.wants_invoice ? { payment_status: 'paid' as const } : {};
-    setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, check_out_at: now, check_out_lat: lat, check_out_lng: lng, status: 'completed', ...paymentUpdate } : b));
-
-    try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ check_out_at: now, check_out_lat: lat, check_out_lng: lng, status: 'completed', ...paymentUpdate })
-        .eq('id', bookingId);
-
-      if (error) throw error;
-      // Notify family
-      if (booking) {
-        const nurse = nurses.find(n => n.id === booking.nurse_id);
-        const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
-        if (currentUser?.id !== booking.user_id) {
-          notifyCheckOut(nurseProfile?.full_name || 'La enfermera', booking.user_id);
-        }
-      }
-    } catch {
-      setBookings(prevBookings);
-      console.warn('Check-out failed, rolled back.');
-      showToast('No se pudo registrar el check-out. Revertido.', 'error');
-    }
-  };
-
-  // Availability functions (with localStorage fallback for demo mode)
-  // Seed availability for demo nurses if none exists
-  const [availabilityCache, setAvailabilityCache] = useState<Availability[]>(() => {
-    const saved = safeParse<Availability[] | null>('biencuidar_availability', null);
-    if (saved) return saved;
-    // Generate seed availability for demo nurses: next 30 days, 06:00-18:00
-    const seed: Availability[] = [];
-    const today = new Date();
-    for (const nurse of INITIAL_NURSES) {
-      for (let d = 0; d < 30; d++) {
-        const date = new Date(today);
-        date.setDate(date.getDate() + d);
-        const dateStr = date.toISOString().split('T')[0];
-        // Skip Sundays for variety
-        if (date.getDay() === 0) continue;
-        seed.push({
-          id: crypto.randomUUID(),
-          nurse_id: nurse.id,
-          date: dateStr,
-          start_time: '06:00',
-          end_time: '18:00',
-          is_available: true,
-          created_at: today.toISOString(),
-          updated_at: today.toISOString()
-        });
-      }
-    }
-    return seed;
-  });
-
-  useEffect(() => {
-    // Only persist availability to localStorage when not authenticated (demo mode)
-    if (!currentUser) {
-      localStorage.setItem('biencuidar_availability', JSON.stringify(availabilityCache));
-    }
-  }, [availabilityCache, currentUser]);
-
-  const getAvailability = async (nurseId: string, startDate: string, endDate: string): Promise<Availability[]> => {
-    try {
-      const { data, error } = await supabase
-        .from('availability')
-        .select('*')
-        .eq('nurse_id', nurseId)
-        .gte('date', startDate)
-        .lte('date', endDate)
-        .order('date', { ascending: true });
-
-      if (error) throw error;
-      return data || [];
-    } catch {
-      // Fallback to localStorage cache
-      return availabilityCache.filter(
-        a => a.nurse_id === nurseId &&
-        a.date >= startDate &&
-        a.date <= endDate &&
-        a.is_available
-      );
-    }
-  };
-
-  const addAvailability = async (availabilityData: Omit<Availability, 'id' | 'created_at' | 'updated_at'>): Promise<Availability> => {
-    const newAvailability: Availability = {
-      ...availabilityData,
-      id: crypto.randomUUID(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    };
-    setAvailabilityCache(prev => [...prev, newAvailability]);
-
-    try {
-      const { data, error } = await supabase
-        .from('availability')
-        .insert(availabilityData)
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      return {
-        ...newAvailability,
-        id: data.id,
-        created_at: data.created_at,
-        updated_at: data.updated_at
-      };
-    } catch (err) {
-      console.warn('Failed to save availability to Supabase:', err);
-      showToast('No se pudo guardar la disponibilidad en el servidor.', 'error');
-      return newAvailability;
     }
   };
 

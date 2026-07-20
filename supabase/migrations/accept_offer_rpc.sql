@@ -14,6 +14,9 @@ DECLARE
   v_total_price NUMERIC;
   v_booking_id UUID;
   v_booking_status TEXT;
+  -- Pricing constants — must match src/data/standardRates.ts
+  v_platform_commission NUMERIC := 5.00;
+  v_iva_rate NUMERIC := 0.13;
 BEGIN
   -- Lock the offer row to prevent concurrent acceptance
   SELECT * INTO v_offer
@@ -45,9 +48,10 @@ BEGIN
     RETURN jsonb_build_object('error', 'slot_not_found', 'slot_index', v_offer.slot_index);
   END IF;
 
-  -- Calculate family price: commission $5 + 13% IVA when invoicing
+  -- Calculate family price: commission + IVA when invoicing
+  -- Must match calculateFamilyPrice() in src/data/standardRates.ts
   v_total_price := CASE WHEN v_request.wants_invoice
-    THEN v_offer.offered_rate + 5.00 * 1.13
+    THEN v_offer.offered_rate + v_platform_commission * (1 + v_iva_rate)
     ELSE v_offer.offered_rate END;
 
   v_booking_status := CASE WHEN v_request.wants_invoice
