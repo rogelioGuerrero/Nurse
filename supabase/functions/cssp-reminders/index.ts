@@ -356,6 +356,10 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    let requestBody: any = {};
+    try { requestBody = await req.json(); } catch {}
+    const isManualTrigger = requestBody?._manual_trigger === true;
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
@@ -463,7 +467,11 @@ Deno.serve(async (req: Request) => {
       }
 
       // ===== 4. ADMIN DAILY SUMMARY =====
-      await sendAdminSummary(supabase);
+      if (!isManualTrigger) {
+        await sendAdminSummary(supabase);
+      } else {
+        console.log("[cssp-reminders] Manual trigger — skipping admin summary");
+      }
 
       return new Response(JSON.stringify({
         success: true,
@@ -473,7 +481,7 @@ Deno.serve(async (req: Request) => {
         portalError: portalCheck.error,
         csspOperationsSuspended: true,
         inactivityAlerts: results.filter(r => r.type === "inactivity").length,
-        adminSummary: true,
+        adminSummary: !isManualTrigger,
         details: results,
       }), { status: 200, headers: { "Content-Type": "application/json" } });
     }
@@ -709,7 +717,11 @@ Deno.serve(async (req: Request) => {
     }
 
     // ===== 4. ADMIN DAILY SUMMARY =====
-    await sendAdminSummary(supabase);
+    if (!isManualTrigger) {
+      await sendAdminSummary(supabase);
+    } else {
+      console.log("[cssp-reminders] Manual trigger — skipping admin summary");
+    }
 
     return new Response(JSON.stringify({
       success: true,
@@ -718,7 +730,7 @@ Deno.serve(async (req: Request) => {
       csspReminders: results.filter(r => r.type === "cssp_reminder").length,
       deactivated: results.filter(r => r.type === "deactivated").length,
       inactivityAlerts: results.filter(r => r.type === "inactivity").length,
-      adminSummary: true,
+      adminSummary: !isManualTrigger,
       details: results,
     }), {
       status: 200,
