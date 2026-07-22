@@ -1,6 +1,6 @@
 // @ts-nocheck — Shared Groq client for Supabase Edge Functions (Deno)
-// Centralizes model config, fallback, retry, and timeout logic.
-// Import: import { callGroq, callGroqRaw, PRIMARY_MODEL, FALLBACK_MODEL, SAFETY_MODEL, LIGHT_MODEL } from "../_shared/groq.ts";
+// Centralizes model config, fallback, retry, timeout, and cache logic.
+// Import: import { callGroq, callGroqCached, callGroqRaw, PRIMARY_MODEL, FALLBACK_MODEL, SAFETY_MODEL, LIGHT_MODEL } from "../_shared/groq.ts";
 
 // ===== MODEL CONFIG (single source of truth) =====
 export const PRIMARY_MODEL = "openai/gpt-oss-120b";
@@ -184,4 +184,96 @@ export async function callGroqSafety(
     throw new Error(result.error ?? "Groq safety request failed");
   }
   return result.content ?? "";
+}
+
+// ===== CACHED CALLER: checks Supabase ai_cache before calling Groq =====
+// Drop-in replacement for callGroq(). If the same prompt (messages + key opts)
+// was seen before and hasn't expired, returns the cached response without
+// calling Groq at all — saving 100% of tokens and rate-limit budget.
+
+let _supabase: any = null;
+async function getSupabase() {
+  if (_supabase) return _supabase;
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return null;
+  const { createClient } = await import("jsr:@supabase/supabase-js@2");
+  _supabase = createClient(url, key);
+  return _supabase;
+}
+
+async function hashPrompt(
+  messages: GroqMessage[],
+  opts: GroqCallOptions,
+): Promise<string> {
+  const key = JSON.stringify({
+    m: messages.map((m) => ({ r: m.role, c: m.content })),
+    t: opts.temperature ?? null,
+    mt: opts.maxTokens ?? null,
+    rf: opts.responseFormat ?? null,
+    models: opts.models ?? null,
+  });
+  const data = new TextEncoder().encode(key);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+export async function callGroqCached(
+  messages: GroqMessage[],
+  opts: GroqCallOptions = {},
+  ttlHours = 24,
+): Promise<string> {
+  const hash = await hashPrompt(messages, opts);
+  const supabase = await getSupabase();
+
+  // Try cache lookup
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("ai_cache")
+        .select("content, expires_at, hit_count")
+        .eq("prompt_hash", hash)
+        .maybeSingle();
+
+      if (data && !error && new Date(data.expires_at) > new Date()) {
+        // Cache hit — fire-and-forget increment
+        supabase
+          .from("ai_cache")
+          .update({ hit_count: (data.hit_count ?? 0) + 1 })
+          .eq("prompt_hash", hash)
+          .then(() => {})
+          .catch(() => {});
+        console.log(`[groq] CACHE HIT | hash: ${hash.slice(0, 12)}...`);
+        return data.content;
+      }
+    } catch (e) {
+      // Cache lookup failed — proceed to Groq as if cache miss
+      console.log(`[groq] cache lookup error: ${e.message}`);
+    }
+  }
+
+  // Cache miss — call Groq normally
+  const content = await callGroq(messages, opts);
+
+  // Store in cache (fire-and-forget, don't block response)
+  if (supabase && content) {
+    const expiresAt = new Date(Date.now() + ttlHours * 3_600_000).toISOString();
+    supabase
+      .from("ai_cache")
+      .upsert(
+        {
+          prompt_hash: hash,
+          model: opts.models?.[0] ?? PRIMARY_MODEL,
+          content,
+          expires_at: expiresAt,
+        },
+        { onConflict: "prompt_hash" },
+      )
+      .then(() => console.log(`[groq] CACHED | hash: ${hash.slice(0, 12)}...`))
+      .catch((e: any) => console.log(`[groq] cache store failed: ${e.message}`));
+  }
+
+  return content;
 }

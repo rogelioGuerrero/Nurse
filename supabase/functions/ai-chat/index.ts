@@ -1,6 +1,6 @@
 // @ts-nocheck — This file runs in Deno (Supabase Edge Functions), not in the browser/Node context
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { callGroq } from "../_shared/groq.ts";
+import { callGroqCached } from "../_shared/groq.ts";
 
 const MAX_MESSAGES = 20;
 const MAX_MESSAGE_LENGTH = 4000;
@@ -131,7 +131,7 @@ Deno.serve(async (req: Request) => {
     const clampedTemp = Math.max(0, Math.min(1, temperature ?? 0.6));
     const clampedMaxTokens = Math.max(100, Math.min(2000, maxTokens ?? 600));
 
-    const content = await callGroq(
+    const content = await callGroqCached(
       messages,
       { temperature: clampedTemp, maxTokens: clampedMaxTokens },
     );

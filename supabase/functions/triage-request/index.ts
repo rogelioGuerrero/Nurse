@@ -1,6 +1,6 @@
 // @ts-nocheck — Deno Edge Function
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { callGroq } from "../_shared/groq.ts";
+import { callGroqCached } from "../_shared/groq.ts";
 
 const ALLOWED_ORIGINS = [
   "https://biencuidar.agtisa.com",
@@ -74,12 +74,13 @@ interface TriageRequest {
 }
 
 async function triageLLM(userContent: string): Promise<string> {
-  return callGroq(
+  return callGroqCached(
     [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: userContent },
     ],
     { temperature: 0.3, maxTokens: 500, responseFormat: { type: "json_object" } },
+    48,
   );
 }
 
