@@ -490,7 +490,7 @@ async function sendEmail(supabase: any, userId: string, role: string, args: any)
 <body>
 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #1e293b;">
 <p>${body.replace(/\n/g, '<br>')}</p>
-<p style="font-size: 13px; color: #94a3b8; margin-top: 24px;">BienCuidar — Plataforma de cuidado de salud en El Salvador<br>info@agtisa.com</p>
+<p style="font-size: 13px; color: #94a3b8; margin-top: 24px;">BienCuidar — Plataforma de cuidado de salud<br>info@agtisa.com</p>
 </div>
 </body>
 </html>`;
@@ -626,17 +626,17 @@ async function authenticateUser(req: Request, supabase: any, userEmail: string) 
   if (authHeader.startsWith('Bearer eyJ')) {
     const { data: { user }, error } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
     if (user && user.email === userEmail) {
-      const { data: profile } = await supabase.from('profiles').select('id, full_name, role').eq('id', user.id).single();
+      const { data: profile } = await supabase.from('profiles').select('id, full_name, role, country').eq('id', user.id).single();
       if (profile) {
         const { data: memory } = await supabase.from('agent_memory').select('memory').eq('user_id', user.id).single();
-        return { userId: user.id, role: profile.role, userName: profile.full_name, memory: memory?.memory || {}, authMethod: 'jwt' };
+        return { userId: user.id, role: profile.role, userName: profile.full_name, country: profile.country || null, memory: memory?.memory || {}, authMethod: 'jwt' };
       }
     }
   }
-  const { data: profile } = await supabase.from('profiles').select('id, full_name, role').eq('email', userEmail).single();
+  const { data: profile } = await supabase.from('profiles').select('id, full_name, role, country').eq('email', userEmail).single();
   if (profile) {
     const { data: memory } = await supabase.from('agent_memory').select('memory').eq('user_id', profile.id).single();
-    return { userId: profile.id, role: profile.role, userName: profile.full_name, memory: memory?.memory || {}, authMethod: 'email' };
+    return { userId: profile.id, role: profile.role, userName: profile.full_name, country: profile.country || null, memory: memory?.memory || {}, authMethod: 'email' };
   }
   return { error: 'No se pudo autenticar', status: 401 };
 }
@@ -658,27 +658,73 @@ async function extractMemory(supabase: any, userId: string, existingMemory: any,
   }
 }
 
-// ===== FAQ CONTEXT =====
+// ===== FAQ CONTEXT (composable by country) =====
 
-const FAQ_CONTEXT = `BienCuidar es una plataforma de cuidado de salud en El Salvador que conecta familias con enfermeras verificadas.
+interface CountryFeatures {
+  csspVerification: boolean;
+  fiscalInvoicing: boolean;
+  salvadoranDistricts: boolean;
+}
 
-REGISTRO Y VERIFICACIÓN:
+function getCountryFeatures(country: string | null | undefined): CountryFeatures {
+  if (country === 'SV') {
+    return { csspVerification: true, fiscalInvoicing: true, salvadoranDistricts: true };
+  }
+  return { csspVerification: false, fiscalInvoicing: false, salvadoranDistricts: false };
+}
+
+function buildFaqContext(f: CountryFeatures): string {
+  const registration = f.csspVerification
+    ? `REGISTRO Y VERIFICACIÓN:
 - Las enfermeras deben tener registro CSSP vigente para recibir ofertas y bookings.
 - El registro CSSP se verifica automáticamente al ingresar el número.
-- Sin CSSP vigente no se pueden recibir ofertas ni bookings.
+- Sin CSSP vigente no se pueden recibir ofertas ni bookings.`
+    : `REGISTRO Y VERIFICACIÓN:
+- Las enfermeras verifican su identidad por correo electrónico.
+- No se requiere registro profesional específico del país para activar el perfil.`;
 
-PAGOS Y FACTURACIÓN:
+  let payments = `PAGOS Y FACTURACIÓN:
+- Modelo: PAGO POR TURNO, no por hora
+- Tarifas sugeridas: US$ 20-35 por turno según especialización (Geriatría $25, Cuidado general $20, Paliativos $35)
+- Modalidad: pago directo (familia paga a enfermera)
+- BienCuidar NO es empleador. Es intermediación tecnológica. La relación es directa entre familia y enfermera.`;
+  if (f.fiscalInvoicing) {
+    payments = `PAGOS Y FACTURACIÓN:
 - Modelo: PAGO POR TURNO, no por hora
 - Tarifas sugeridas: US$ 20-35 por turno según especialización (Geriatría $25, Cuidado general $20, Paliativos $35)
 - Dos modalidades: pago directo (familia paga a enfermera) o con factura (BienCuidar como agente de retención)
 - Comisión BienCuidar: US$ 5 por turno + IVA 13% sobre la comisión (no sobre servicio de salud, exento Art. 46 LIVA)
 - Retención ISR: 10% (Art. 156 Código Tributario) — solo en modalidad con factura
-- BienCuidar NO es empleador. Es intermediación tecnológica. La relación es directa entre familia y enfermera.
+- BienCuidar NO es empleador. Es intermediación tecnológica. La relación es directa entre familia y enfermera.`;
+  }
 
-CANCELACIONES:
-- Sin costo hasta 24 horas antes del turno
+  let cancellations = `CANCELACIONES:
+- Sin costo hasta 24 horas antes del turno`;
+  if (f.fiscalInvoicing) {
+    cancellations += `
 - Menos de 24 horas: 50% del valor del turno (solo modalidad con factura)
-- Cancelación por parte de la familia: la enfermera recibe el 50% si fue con menos de 24h
+- Cancelación por parte de la familia: la enfermera recibe el 50% si fue con menos de 24h`;
+  }
+
+  const bookings = f.fiscalInvoicing
+    ? `BOOKINGS Y TURNOS:
+- Turnos: mañana, tarde, noche
+- El booking se confirma cuando la familia acepta la oferta
+- Check-in y check-out se registran en la app
+- El pago se coordina directamente (pago directo) o a través de BienCuidar (con factura)`
+    : `BOOKINGS Y TURNOS:
+- Turnos: mañana, tarde, noche
+- El booking se confirma cuando la familia acepta la oferta
+- Check-in y check-out se registran en la app
+- El pago se coordina directamente entre familia y enfermera`;
+
+  return `BienCuidar es una plataforma de cuidado de salud que conecta familias con enfermeras verificadas.
+
+${registration}
+
+${payments}
+
+${cancellations}
 
 OFERTAS Y SOLICITUDES:
 - La familia publica una solicitud de cuidado (paciente, especialización, días, ubicación)
@@ -687,11 +733,8 @@ OFERTAS Y SOLICITUDES:
 - Al aceptar una oferta, se comparten los datos de contacto para coordinar
 - La solicitud tiene un deadline de respuesta (default: 48 horas)
 
-BOOKINGS Y TURNOS:
-- Turnos: mañana, tarde, noche
-- El booking se confirma cuando la familia acepta la oferta
-- Check-in y check-out se registran en la app
-- El pago se coordina directamente (pago directo) o a través de BienCuidar (con factura)`;
+${bookings}`;
+}
 
 // ===== AGENT LLM CALL (uses shared callGroqRaw with fallback) =====
 
@@ -766,7 +809,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { userId, role, userName, memory: persistentMemory, authMethod } = auth;
+    const { userId, role, userName, country: userCountry, memory: persistentMemory, authMethod } = auth;
     const tools = role === 'nurse' ? NURSE_TOOLS : role === 'user' ? FAMILY_TOOLS : role === 'admin' ? ADMIN_TOOLS : VISITOR_TOOLS;
 
     console.log(`[ai-agent] User: ${userName} | role: ${role} | tools: ${tools.length} | auth: ${authMethod} | history: ${history.length}${confirmed_action ? ' | confirmed_action: ' + confirmed_action.tool : ''}`);
@@ -797,10 +840,27 @@ Deno.serve(async (req: Request) => {
       ? `\n\nMEMORIA DEL USUARIO (usá esto como contexto, no lo menciones directamente):\nPersistente: ${JSON.stringify(persistentMemory)}\nDispositivo: ${JSON.stringify(client_memory)}`
       : '';
 
+    const features = getCountryFeatures(userCountry);
+    const faqContext = buildFaqContext(features);
+    const csspRules = features.csspVerification
+      ? `
+CSSP — REGLA CRÍTICA:
+- Si la enfermera menciona CSSP, junta, número de registro, verificación, o cualquier problema con su registro, SIEMPRE llamá a get_cssp_status PRIMERO antes de responder.
+- NUNCA respondas sobre CSSP sin antes llamar a get_cssp_status.
+- Si get_cssp_status muestra cssp_verification_status = "pending" y hay cssp_verification_notes con discrepancias, explicá claramente:
+  1. Que su número de registro fue encontrado en el portal CSSP pero hay discrepancias.
+  2. Cuáles son las discrepancias exactas (nombre, profesión) usando las notas.
+  3. Que verifiquen su número correcto en su carné físico del CSSP o en cssp.gov.sv.
+  4. Que actualicen el número en su perfil de BienCuidar.
+- Si get_cssp_status muestra cssp_verification_status = "unverified", decí que el número no se encontró en el portal y que verifiquen si es correcto.
+- Si get_cssp_status muestra cssp_verified = true, felicitá por estar verificada.
+- Sobre contraseñas: decí que usen "¿Olvidaste tu contraseña?" en la pantalla de inicio. Si no les llega el correo, que escriban a info@agtisa.com.`
+      : '';
+
     const systemPrompt = role === 'nurse'
       ? `Sos el asistente de BienCuidar. Estás hablando con ${userName}, una enfermera registrada.
 
-${FAQ_CONTEXT}
+${faqContext}
 
 REGLAS:
 - Usá voseo salvadoreño.
@@ -814,27 +874,14 @@ REGLAS:
 - Si la enfermera te pide avisar o notificar a alguien, usá send_push_notification o send_email.
 
 BÚSQUEDA DE CONOCIMIENTO (ReAct):
-- Para preguntas sobre normativa legal, procedimientos clínicos, requisitos del CSSP, leyes, o cualquier tema profesional documentado, usá rag_knowledge_search.
+- Para preguntas sobre normativa legal, procedimientos clínicos, leyes, o cualquier tema profesional documentado, usá rag_knowledge_search.
 - PODÉS buscar MÚLTIPLES VECES con queries diferentes. Si la primera búsqueda no responde completamente, pensá qué información falta y buscá de nuevo con términos más específicos.
-- Ejemplo: si preguntan sobre "retención ISR en facturación de enfermería", primero buscá "retención ISR servicios de enfermería", y si los resultados mencionan el Código Tributario pero sin detalle, hacé una segunda búsqueda "Artículo 156 Código Tributario retención".
 - Sintetizá la información de TODAS las búsquedas antes de responder. NO respondas con información parcial si podés buscar más.
-- Si después de 2-3 búsquedas no encontrás información relevante, decí: "No tengo esa información documentada. Escribinos a info@agtisa.com".
-
-CSSP — REGLA CRÍTICA:
-- Si la enfermera menciona CSSP, junta, número de registro, verificación, o cualquier problema con su registro, SIEMPRE llamá a get_cssp_status PRIMERO antes de responder.
-- NUNCA respondas sobre CSSP sin antes llamar a get_cssp_status.
-- Si get_cssp_status muestra cssp_verification_status = "pending" y hay cssp_verification_notes con discrepancias, explicá claramente:
-  1. Que su número de registro fue encontrado en el portal CSSP pero hay discrepancias.
-  2. Cuáles son las discrepancias exactas (nombre, profesión) usando las notas.
-  3. Que verifiquen su número correcto en su carné físico del CSSP o en cssp.gob.sv.
-  4. Que actualicen el número en su perfil de BienCuidar.
-- Si get_cssp_status muestra cssp_verification_status = "unverified", decí que el número no se encontró en el portal y que verifiquen si es correcto.
-- Si get_cssp_status muestra cssp_verified = true, felicitá por estar verificada.
-- Sobre contraseñas: decí que usen "¿Olvidaste tu contraseña?" en la pantalla de inicio. Si no les llega el correo, que escriban a info@agtisa.com.${memoryContext}`
+- Si después de 2-3 búsquedas no encontrás información relevante, decí: "No tengo esa información documentada. Escribinos a info@agtisa.com".${csspRules}${memoryContext}`
       : role === 'user'
       ? `Sos el asistente de BienCuidar. Estás hablando con ${userName}, una familia registrada.
 
-${FAQ_CONTEXT}
+${faqContext}
 
 REGLAS:
 - Usá voseo salvadoreño.
@@ -855,7 +902,7 @@ BÚSQUEDA DE CONOCIMIENTO (ReAct):
       : role === 'admin'
       ? `Sos el asistente de BienCuidar. Estás hablando con ${userName}, el administrador de la plataforma.
 
-${FAQ_CONTEXT}
+${faqContext}
 
 REGLAS:
 - Usá voseo salvadoreño.
@@ -871,9 +918,9 @@ BÚSQUEDA DE CONOCIMIENTO (ReAct):
 - PODÉS buscar MÚLTIPLES VECES con queries diferentes. Si la primera búsqueda no responde completamente, pensá qué información falta y buscá de nuevo con términos más específicos.
 - Sintetizá la información de TODAS las búsquedas antes de responder. NO respondas con información parcial si podés buscar más.
 - Si después de 2-3 búsquedas no encontrás información relevante, decí: "No tengo esa información documentada".${memoryContext}`
-      : `Sos el asistente de BienCuidar, plataforma de cuidado de salud en El Salvador.
+      : `Sos el asistente de BienCuidar, plataforma de cuidado de salud.
 
-${FAQ_CONTEXT}
+${faqContext}
 
 REGLAS:
 - Usá voseo salvadoreño.

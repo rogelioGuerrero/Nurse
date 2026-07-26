@@ -3,63 +3,168 @@ import { MessageCircle, X, Send, Loader2, Mail } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { supabaseUrl, supabaseAnonKey, supabase } from '../lib/supabase';
 import { openSupport } from '../lib/support';
+import { getFeatures, type CountryFeatures } from '../lib/features';
+import type { CountryCode } from '../lib/countryDetect';
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
 }
 
-const NURSE_PROMPT = `Sos el asistente de BienCuidar. Plataforma que conecta familias con enfermeras en El Salvador.
+// ===== COMPOSABLE PROMPT SECTIONS =====
 
-Información disponible:
+const BASE_INTRO = `BienCuidar es intermediación tecnológica. No es empleador. La relación es directa entre familia y enfermera.
+Sitio: https://biencuidar.agtisa.com`;
 
-BienCuidar es intermediación tecnológica. No es empleador. La relación es directa entre familia y enfermera.
-Sitio: https://biencuidar.agtisa.com
-
-Registro:
-- Requisito: CSSP vigente.
-- Se verifica automáticamente en cssp.gob.sv.
-- Si hay problemas, recibís correo con instrucciones.
-- Corregí tu CSSP en "Mi Perfil".
-
-Pago (por turno):
-- Tarifa la definís vos.
-- Pago directo: la familia te paga. BienCuidar no interviene.
-- Pago con factura: comisión US$ 5 + IVA 13% sobre comisión. Retención ISR 10%.
-
-Cancelación:
-- Sin costo hasta 24h antes.
-- Menos de 24h: 50% del turno (solo con factura).
-
-Reglas:
+const RULES = `Reglas:
 1. Respondé solo con esta información.
 2. Breve y directa. Máximo 3 oraciones.
 3. Si no sabés la respuesta, decí: "No tengo esa información. Escribinos a info@agtisa.com".
 4. No menciones IA ni tecnología.
-5. No des consejos médicos.
+5. No des consejos médicos.`;
 
-FAQ:
-- ¿Es agencia? No. Plataforma. Sos independiente.
-- ¿Necesito CSSP? Sí, obligatorio. Lo verificamos.
-- ¿Cuánto cobro? Vos definís tu tarifa por turno.
-- ¿Pago para registrarme? No. Gratis. Comisión solo con factura.
-- ¿Obligada a aceptar? No. Decidís cuáles aceptar.
-- ¿Cobrar sin factura? Sí, se puede.
-- ¿Dónde funciona? Todo El Salvador.
-- ¿Cómo me contactan? Todo dentro de la plataforma. Datos de contacto solo después de aceptar.
-- ¿Puedo preguntar a la familia antes de aceptar? Sí. Al enviar tu oferta podés escribir un mensaje personalizado preguntando sobre insumos, necesidades específicas o cualquier detalle. La familia lee tu mensaje al revisar las ofertas.
-- ¿Quién lleva los insumos? Lo acordás con la familia en el mensaje de tu oferta o por teléfono después de aceptar.`;
+function buildRegistrationSection(f: CountryFeatures): string {
+  if (f.csspVerification) {
+    return `Registro:
+- Requisito: CSSP vigente.
+- Se verifica automáticamente en cssp.gob.sv.
+- Si hay problemas, recibís correo con instrucciones.
+- Corregí tu CSSP en "Mi Perfil".`;
+  }
+  return `Registro:
+- Requisito: Verificación de identidad por correo electrónico.
+- No se requiere registro profesional específico de tu país.`;
+}
 
-const FAMILY_PROMPT = `Sos el asistente de BienCuidar. Plataforma que conecta familias con enfermeras en El Salvador.
+function buildVerificationSection(f: CountryFeatures): string {
+  if (f.csspVerification) {
+    return `Verificación:
+- Cada enfermera tiene CSSP verificado en cssp.gob.sv.
+- Solo enfermeras verificadas aparecen en la plataforma.`;
+  }
+  return `Verificación:
+- Cada enfermera verifica su identidad por correo electrónico.
+- Solo enfermeras verificadas aparecen en la plataforma.`;
+}
+
+function buildPaymentNurseSection(f: CountryFeatures): string {
+  let section = `Pago (por turno):
+- Tarifa la definís vos.
+- Pago directo: la familia te paga. BienCuidar no interviene.`;
+  if (f.fiscalInvoicing) {
+    section += `
+- Pago con factura: comisión US$ 5 + IVA 13% sobre comisión. Retención ISR 10%.`;
+  }
+  return section;
+}
+
+function buildPaymentFamilySection(f: CountryFeatures): string {
+  let section = `Pago:
+- Tarifa la define cada enfermera.
+- Pago directo: pagás a la enfermera. Sin intermediación.`;
+  if (f.fiscalInvoicing) {
+    section += `
+- Pago con factura: BienCuidar retiene. Comisión US$ 5 por turno.`;
+  }
+  section += `
+- Publicar es gratis.`;
+  return section;
+}
+
+function buildPaymentVisitorSection(f: CountryFeatures): string {
+  let section = `- Pago directo o con factura.`;
+  if (!f.fiscalInvoicing) {
+    section = `- Pago directo entre familia y enfermera.`;
+  }
+  return section;
+}
+
+function buildCancellationSection(f: CountryFeatures): string {
+  let section = `Cancelación:
+- Sin costo hasta 24h antes.`;
+  if (f.fiscalInvoicing) {
+    section += `
+- Menos de 24h: 50% del turno (solo con factura).`;
+  }
+  return section;
+}
+
+function buildNurseFaq(f: CountryFeatures): string {
+  const faq: string[] = [
+    '- ¿Es agencia? No. Plataforma. Sos independiente.',
+  ];
+  if (f.csspVerification) {
+    faq.push('- ¿Necesito CSSP? Sí, obligatorio. Lo verificamos.');
+  }
+  faq.push(
+    '- ¿Cuánto cobro? Vos definís tu tarifa por turno.',
+    '- ¿Pago para registrarme? No. Gratis.',
+  );
+  if (f.fiscalInvoicing) {
+    faq.push('- ¿Comisión? Solo con factura. US$ 5 por turno.');
+  }
+  faq.push(
+    '- ¿Obligada a aceptar? No. Decidís cuáles aceptar.',
+    '- ¿Cómo me contactan? Todo dentro de la plataforma. Datos de contacto solo después de aceptar.',
+    '- ¿Puedo preguntar a la familia antes de aceptar? Sí. Al enviar tu oferta podés escribir un mensaje personalizado preguntando sobre insumos, necesidades específicas o cualquier detalle. La familia lee tu mensaje al revisar las ofertas.',
+    '- ¿Quién lleva los insumos? Lo acordás con la familia en el mensaje de tu oferta o por teléfono después de aceptar.',
+  );
+  if (f.salvadoranDistricts) {
+    faq.push('- ¿Dónde funciona? Todo El Salvador.');
+  }
+  return `FAQ:\n${faq.join('\n')}`;
+}
+
+function buildFamilyFaq(f: CountryFeatures): string {
+  const faq: string[] = [
+    '- ¿Qué es? Plataforma que conecta familias con enfermeras verificadas.',
+  ];
+  if (f.csspVerification) {
+    faq.push('- ¿Verificadas? Sí, CSSP verificado.');
+  } else {
+    faq.push('- ¿Verificadas? Sí, identidad verificada.');
+  }
+  faq.push(
+    '- ¿Cuánto cuesta? Tarifa por enfermera. Ves precio antes de aceptar.',
+    '- ¿Pagar para publicar? No. Gratis.',
+    '- ¿Cómo funciona? Publicás, recibís ofertas, elegís.',
+    '- ¿Ver perfil antes? Sí. Especialidad, experiencia, calificaciones.',
+    '- ¿Si no me gusta? Rechazás todo, sin compromiso.',
+    '- ¿Cómo pago? Directo' + (f.fiscalInvoicing ? ' o con factura' : '') + '.',
+    '- ¿Cancelar? Sin costo hasta 24h antes.',
+    '- ¿Datos seguros? Solo se comparten con la enfermera que aceptes.',
+    '- ¿Responsabilidad? La enfermera. BienCuidar es intermediación.',
+    '- ¿Si no llega? Coordinás directo con la enfermera. Escribinos a info@agtisa.com si necesitás mediación.',
+  );
+  return `FAQ:\n${faq.join('\n')}`;
+}
+
+function buildNursePrompt(f: CountryFeatures): string {
+  return `Sos el asistente de BienCuidar. Plataforma que conecta familias con enfermeras.
 
 Información disponible:
 
-BienCuidar es intermediación tecnológica. No es empleador. La relación es directa entre familia y enfermera.
-Sitio: https://biencuidar.agtisa.com
+${BASE_INTRO}
 
-Verificación:
-- Cada enfermera tiene CSSP verificado en cssp.gob.sv.
-- Solo enfermeras verificadas aparecen en la plataforma.
+${buildRegistrationSection(f)}
+
+${buildPaymentNurseSection(f)}
+
+${buildCancellationSection(f)}
+
+${RULES}
+
+${buildNurseFaq(f)}`;
+}
+
+function buildFamilyPrompt(f: CountryFeatures): string {
+  return `Sos el asistente de BienCuidar. Plataforma que conecta familias con enfermeras.
+
+Información disponible:
+
+${BASE_INTRO}
+
+${buildVerificationSection(f)}
 
 Cómo funciona:
 - Publicás la necesidad (condición, fechas, ubicación). Gratis.
@@ -69,84 +174,75 @@ Cómo funciona:
 - Si no te gusta, rechazás todo y publicás de nuevo.
 - Datos de contacto solo con la enfermera que aceptes.
 
-Pago:
-- Tarifa la define cada enfermera.
-- Pago directo: pagás a la enfermera. Sin intermediación.
-- Pago con factura: BienCuidar retiene. Comisión US$ 5 por turno.
-- Publicar es gratis.
+${buildPaymentFamilySection(f)}
 
-Cancelación:
-- Sin costo hasta 24h antes.
-- Menos de 24h: 50% del turno (solo con factura).
+${buildCancellationSection(f)}
 
 Tipos de cuidado:
 - Geriatría, postoperatorio, paliativos, heridas, sondaje, acompañamiento.
 - Cualquier cuidado de salud en casa.
 
-Reglas:
-1. Respondé solo con esta información.
-2. Breve y directa. Máximo 3 oraciones.
-3. Si no sabés, decí: "No tengo esa información. Escribinos a info@agtisa.com".
-4. No menciones IA ni tecnología.
-5. No des consejos médicos.
+${RULES}
 
-FAQ:
-- ¿Qué es? Plataforma que conecta familias con enfermeras verificadas.
-- ¿Verificadas? Sí, CSSP verificado.
-- ¿Cuánto cuesta? Tarifa por enfermera. Ves precio antes de aceptar.
-- ¿Pagar para publicar? No. Gratis.
-- ¿Cómo funciona? Publicás, recibís ofertas, elegís.
-- ¿Ver perfil antes? Sí. Especialidad, experiencia, calificaciones.
-- ¿Si no me gusta? Rechazás todo, sin compromiso.
-- ¿Cómo pago? Directo o con factura.
-- ¿Cancelar? Sin costo hasta 24h antes.
-- ¿Datos seguros? Solo se comparten con la enfermera que aceptes.
-- ¿Responsabilidad? La enfermera. BienCuidar es intermediación.
-- ¿Si no llega? Coordinás directo con la enfermera. Escribinos a info@agtisa.com si necesitás mediación.`;
+${buildFamilyFaq(f)}`;
+}
 
-const VISITOR_PROMPT = `Sos el asistente de BienCuidar. Plataforma que conecta familias con enfermeras en El Salvador.
+function buildVisitorPrompt(f: CountryFeatures): string {
+  const familyPayment = f.fiscalInvoicing ? '- Pago directo o con factura.' : '- Pago directo entre familia y enfermera.';
+  const nurseRegistration = f.csspVerification
+    ? '- Necesitás CSSP vigente. Se verifica en cssp.gob.sv.'
+    : '- Verificación de identidad por correo.';
+  const nursePayment = f.fiscalInvoicing ? '- Cobrás directo o con factura.' : '- Cobrás directo de la familia.';
+
+  return `Sos el asistente de BienCuidar. Plataforma que conecta familias con enfermeras.
 
 Información disponible:
 
-BienCuidar es intermediación tecnológica. No es empleador. Relación directa entre familia y enfermera.
-Sitio: https://biencuidar.agtisa.com
+${BASE_INTRO}
 
 Para familias:
 - Publicás necesidad de cuidado. Gratis.
 - Enfermeras verificadas envían ofertas. Elegís.
 - Tarifa por enfermera. Ves precio antes de aceptar.
-- Pago directo o con factura.
+${familyPayment}
 - Cancelación sin costo hasta 24h antes.
 
 Para enfermeras:
-- Necesitás CSSP vigente. Se verifica en cssp.gob.sv.
+${nurseRegistration}
 - Registro gratis. Definís tu tarifa.
 - Aceptás lo que quieras. Sin obligación.
-- Cobrás directo o con factura.
+${nursePayment}
 
-Reglas:
-1. Respondé solo con esta información.
-2. Breve y directa. Máximo 3 oraciones.
-3. Si no sabés, decí: "No tengo esa información. Escribinos a info@agtisa.com".
-4. No menciones IA ni tecnología.
-5. No des consejos médicos.`;
-
-function getSystemPrompt(role: string): string {
-  if (role === 'family') return FAMILY_PROMPT;
-  if (role === 'visitor') return VISITOR_PROMPT;
-  return NURSE_PROMPT;
+${RULES}`;
 }
 
-export const SupportChat: FC<{ userRole?: string; userEmail?: string }> = ({ userRole = 'nurse', userEmail }) => {
+function getSystemPrompt(role: string, country?: CountryCode | null): string {
+  const f = getFeatures(country);
+  if (role === 'family') return buildFamilyPrompt(f);
+  if (role === 'visitor') return buildVisitorPrompt(f);
+  return buildNursePrompt(f);
+}
+
+function getWelcomeMessage(role: string, country?: CountryCode | null): string {
+  const f = getFeatures(country);
+  if (role === 'nurse') {
+    const topics = ['tu registro', 'pagos y turnos'];
+    if (f.csspVerification) topics.splice(1, 0, 'CSSP');
+    return `Hola. Soy el asistente de BienCuidar. Puedo ayudarte con dudas sobre ${topics.join(', ')}. ¿Qué necesitas?`;
+  }
+  if (role === 'visitor') {
+    return 'Hola. Soy el asistente de BienCuidar. Puedo ayudarte con dudas sobre cómo funciona la plataforma, requisitos para enfermeras, pagos y más. ¿Qué necesitas?';
+  }
+  const topics = ['cómo buscar enfermeras', 'verificación', 'pagos y cancelaciones'];
+  return `Hola. Soy el asistente de BienCuidar. Puedo ayudarte con dudas sobre ${topics.join(', ')}. ¿Qué necesitas?`;
+}
+
+export const SupportChat: FC<{ userRole?: string; userEmail?: string; country?: CountryCode | null }> = ({ userRole = 'nurse', userEmail, country }) => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: userRole === 'nurse'
-        ? 'Hola. Soy el asistente de BienCuidar. Puedo ayudarte con dudas sobre tu registro, CSSP, pagos y turnos. ¿Qué necesitas?'
-        : userRole === 'visitor'
-        ? 'Hola. Soy el asistente de BienCuidar. Puedo ayudarte con dudas sobre cómo funciona la plataforma, requisitos para enfermeras, pagos y más. ¿Qué necesitas?'
-        : 'Hola. Soy el asistente de BienCuidar. Puedo ayudarte con dudas sobre cómo buscar enfermeras, verificación, pagos y cancelaciones. ¿Qué necesitas?',
+      content: getWelcomeMessage(userRole, country),
     },
   ]);
   const [input, setInput] = useState('');
@@ -314,7 +410,7 @@ export const SupportChat: FC<{ userRole?: string; userEmail?: string }> = ({ use
           },
           body: JSON.stringify({
             messages: [
-              { role: 'system', content: getSystemPrompt(userRole) },
+              { role: 'system', content: getSystemPrompt(userRole, country) },
               ...newMessages.filter(m => m.role === 'user').map(m => ({ role: m.role, content: m.content })),
             ],
             temperature: 0.3,

@@ -372,7 +372,7 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
       </div>
 
       {/* Support chat widget for visitors */}
-      <SupportChat userRole="visitor" />
+      <SupportChat userRole="visitor" country={undefined} />
     </div>
   );
 };
