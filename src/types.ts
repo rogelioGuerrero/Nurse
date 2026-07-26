@@ -19,6 +19,7 @@ export interface Profile {
   avatar_url: string;
   phone?: string;
   location_name?: string;
+  country?: string; // ISO 3166-1 alpha-2 (SV, MX, CO, etc.)
   created_at: string;
   updated_at: string;
   is_demo?: boolean;

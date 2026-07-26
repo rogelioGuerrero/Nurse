@@ -14,11 +14,12 @@ interface ServiceContractProps {
   totalShifts: number;
   totalPrice: number;
   wantsInvoice?: boolean;
+  fiscalInvoicing?: boolean;
 }
 
 export const ServiceContract: FC<ServiceContractProps> = ({
   open, onClose, familyName, patientName, patientCondition, emergencyContact,
-  slots, totalShifts, totalPrice, wantsInvoice = false
+  slots, totalShifts, totalPrice, wantsInvoice = false, fiscalInvoicing = true
 }) => {
   if (!open) return null;
 

@@ -1,5 +1,5 @@
 import { useState, useEffect, type FC } from 'react';
-import { Stethoscope, User, Mail, Lock, ArrowLeft, CheckCircle2, AlertCircle, FileText, ShieldAlert, BadgeCheck, Phone, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
+import { Stethoscope, User, Mail, Lock, ArrowLeft, CheckCircle2, AlertCircle, FileText, ShieldAlert, BadgeCheck, Phone, MapPin, ChevronDown, ChevronUp, Globe } from 'lucide-react';
 import type { Nurse, AssignmentAvailability, PaymentPreference } from '../types';
 import { supabase } from '../lib/supabase';
 import { TermsAndConditions } from './TermsAndConditions';
@@ -8,6 +8,8 @@ import { verifyCSSP } from '../lib/csspVerify';
 import { DEPARTMENTS, DEPARTMENTS_WITH_MUNICIPALITIES } from '../data/districts';
 import { validatePasswordStrength, getPasswordStrengthColor, getPasswordStrengthLabel } from '../lib/passwordValidation';
 import { track } from '../lib/analytics';
+import { detectCountry, getCachedCountry, type CountryCode } from '../lib/countryDetect';
+import { getFeatures, LATAM_COUNTRIES, countryNameFromCode, type CountryFeatures } from '../lib/features';
 
 interface AuthFormProps {
   mode: 'login' | 'register';
@@ -42,6 +44,27 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
   const [locationName, setLocationName] = useState(prefillLocation || '');
   const [selectedMunicipalities, setSelectedMunicipalities] = useState<string[]>([]);
   const [showMunicipalities, setShowMunicipalities] = useState(false);
+
+  // Deteccion de pais por IP
+  const [country, setCountry] = useState<CountryCode | null>(null);
+  const [countryName, setCountryName] = useState<string>('');
+  const [showCountrySelector, setShowCountrySelector] = useState(false);
+  const features: CountryFeatures = getFeatures(country);
+
+  useEffect(() => {
+    const cached = getCachedCountry();
+    if (cached) {
+      setCountry(cached.countryCode);
+      setCountryName(cached.countryName);
+    } else {
+      detectCountry().then(result => {
+        if (result) {
+          setCountry(result.countryCode);
+          setCountryName(result.countryName);
+        }
+      });
+    }
+  }, []);
 
   const validateEmail = (value: string): boolean => {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
@@ -94,7 +117,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
       return;
     }
 
-    if (!prefillLocation) {
+    if (!prefillLocation && features.salvadoranDistricts) {
       if (!locationName.trim()) {
         setError(role === 'nurse' ? 'Selecciona el departamento donde prefieres trabajar' : 'Selecciona tu departamento');
         return;
@@ -105,12 +128,22 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
       }
     }
 
-    if (role === 'nurse') {
+    if (!prefillLocation && !features.salvadoranDistricts) {
+      if (!locationName.trim()) {
+        setError(role === 'nurse' ? 'Ingresa tu ciudad o zona donde prefieres trabajar' : 'Ingresa tu ciudad o zona');
+        return;
+      }
+    }
+
+    if (role === 'nurse' && features.csspVerification) {
       const csspCheck = validateCSSPRegistration(csspRegistration);
       if (!csspCheck.valid) {
         setError(csspCheck.message);
         return;
       }
+    }
+
+    if (role === 'nurse' && features.duiRequired) {
       const duiTrimmed = dui.trim();
       if (!duiTrimmed) {
         setError('El número de DUI es obligatorio');
@@ -134,7 +167,8 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
             full_name: fullName,
             role: role === 'nurse' ? 'nurse' : 'user',
             phone: phone.trim(),
-            location_name: prefillLocation || `${locationName.trim()}, ${selectedMunicipalities.join(', ')}`
+            location_name: prefillLocation || (features.salvadoranDistricts ? `${locationName.trim()}, ${selectedMunicipalities.join(', ')}` : locationName.trim()),
+            country: country || 'SV'
           }
         }
       });
@@ -160,7 +194,8 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
           full_name: fullName,
           role: role === 'nurse' ? 'nurse' : 'user',
           phone: phone.trim(),
-          location_name: prefillLocation || `${locationName.trim()}, ${selectedMunicipalities.join(', ')}`
+          location_name: prefillLocation || (features.salvadoranDistricts ? `${locationName.trim()}, ${selectedMunicipalities.join(', ')}` : locationName.trim()),
+          country: country || 'SV'
         }, { onConflict: 'id' });
 
       if (profileError) {
@@ -182,15 +217,15 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
             available_days: [1, 2, 3, 4, 5],
             rating: 5.0,
             review_count: 0,
-            lat: 13.6929,
-            lng: -89.2182,
+            lat: features.salvadoranDistricts ? 13.6929 : 0,
+            lng: features.salvadoranDistricts ? -89.2182 : 0,
             bio: '',
             experience_years: 0,
-            certifications: ['CSSP'],
-            cssp_registration: csspRegistration,
-            cssp_level: csspLevel,
-            dui: dui.trim(),
-            cssp_verification_status: 'unverified',
+            certifications: features.csspVerification ? ['CSSP'] : [],
+            cssp_registration: features.csspVerification ? csspRegistration : null,
+            cssp_level: features.csspVerification ? csspLevel : null,
+            dui: features.duiRequired ? dui.trim() : null,
+            cssp_verification_status: features.csspVerification ? 'unverified' : 'n/a',
             cssp_verified: false,
             assignment_availability: assignmentAvailability,
             payment_preference: paymentPreference
@@ -204,8 +239,8 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
           return;
         }
 
-        // Disparar verificación CSSP automática con reintentos
-        if (nurseData?.id) {
+        // Disparar verificación CSSP automática con reintentos (solo El Salvador)
+        if (nurseData?.id && features.csspVerification) {
           const retryVerify = async (attemptsLeft: number) => {
             try {
               const result = await verifyCSSP(nurseData.id, csspRegistration, fullName, csspLevel);
@@ -485,7 +520,44 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
             </div>
           )}
 
-          {authMode === 'register' && !prefillLocation && (
+          {authMode === 'register' && (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                País
+              </label>
+              <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
+                  <Globe className="h-4 w-4" />
+                </div>
+                {showCountrySelector ? (
+                  <select
+                    value={country || ''}
+                    onChange={(e) => {
+                      setCountry(e.target.value);
+                      setCountryName(countryNameFromCode(e.target.value));
+                      setShowCountrySelector(false);
+                    }}
+                    className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm appearance-none"
+                  >
+                    {LATAM_COUNTRIES.map(c => (
+                      <option key={c.code} value={c.code}>{c.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowCountrySelector(true)}
+                    className="w-full text-left pl-10 pr-3 py-2.5 font-medium text-slate-800 text-sm cursor-pointer"
+                  >
+                    {countryName || 'Detectando...'}
+                  </button>
+                )}
+              </div>
+              <p className="text-[10px] text-slate-400">Detectado automáticamente. Toca para cambiar.</p>
+            </div>
+          )}
+
+          {authMode === 'register' && !prefillLocation && features.salvadoranDistricts && (
             <>
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
@@ -569,7 +641,27 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
             </>
           )}
 
-          {authMode === 'register' && role === 'nurse' && (
+          {authMode === 'register' && !prefillLocation && !features.salvadoranDistricts && (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                {role === 'nurse' ? 'Ciudad o zona donde prefieres trabajar *' : 'Ciudad o zona *'}
+              </label>
+              <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
+                  <MapPin className="h-4 w-4" />
+                </div>
+                <input
+                  type="text"
+                  value={locationName}
+                  onChange={(e) => setLocationName(e.target.value)}
+                  placeholder="Ej: Bogotá, CDMX, Lima..."
+                  className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
+                />
+              </div>
+            </div>
+          )}
+
+          {authMode === 'register' && role === 'nurse' && features.csspVerification && (
             <>
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
@@ -607,26 +699,32 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
                   </select>
                 </div>
               </div>
+            </>
+          )}
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-                  Número de DUI *
-                </label>
-                <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
-                  <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
-                    <BadgeCheck className="h-4 w-4" />
-                  </div>
-                  <input
-                    type="text"
-                    value={dui}
-                    onChange={(e) => setDui(e.target.value)}
-                    placeholder="12345678-9"
-                    maxLength={10}
-                    className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
-                  />
+          {authMode === 'register' && role === 'nurse' && features.duiRequired && (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                Número de DUI *
+              </label>
+              <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
+                  <BadgeCheck className="h-4 w-4" />
                 </div>
+                <input
+                  type="text"
+                  value={dui}
+                  onChange={(e) => setDui(e.target.value)}
+                  placeholder="12345678-9"
+                  maxLength={10}
+                  className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
+                />
               </div>
+            </div>
+          )}
 
+          {authMode === 'register' && role === 'nurse' && (
+            <>
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
                   Disponibilidad con una misma familia
@@ -792,6 +890,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
         open={showTerms}
         onClose={() => setShowTerms(false)}
         role={role}
+        country={country}
       />
     </div>
   );

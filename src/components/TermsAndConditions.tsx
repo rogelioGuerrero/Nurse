@@ -1,14 +1,17 @@
 import { type FC } from 'react';
 import { X, ShieldCheck, FileText, Scale, UserCheck, CreditCard, CalendarClock, Lock } from 'lucide-react';
+import { getFeatures, type CountryFeatures } from '../lib/features';
 
 interface TermsAndConditionsProps {
   open: boolean;
   onClose: () => void;
   role: 'family' | 'nurse';
+  country?: string;
 }
 
-export const TermsAndConditions: FC<TermsAndConditionsProps> = ({ open, onClose, role }) => {
+export const TermsAndConditions: FC<TermsAndConditionsProps> = ({ open, onClose, role, country }) => {
   if (!open) return null;
+  const features: CountryFeatures = getFeatures(country);
 
   return (
     <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
@@ -58,9 +61,13 @@ export const TermsAndConditions: FC<TermsAndConditionsProps> = ({ open, onClose,
             </div>
             <p>
               La enfermera es <strong>única responsable</strong> de sus actos clínicos, decisiones
-              profesionales, omisiones y errores derivados del ejercicio de su profesión. La
-              enfermera declara que cuenta con registro vigente ante el Consejo Superior de Salud
-              Pública (CSSP) y que su ejercicio profesional cumple con las leyes de El Salvador.
+              profesionales, omisiones y errores derivados del ejercicio de su profesión.
+              {features.salvadoranLegalTerms ? (
+                <> La enfermera declara que cuenta con registro vigente ante el Consejo Superior de Salud
+                Pública (CSSP) y que su ejercicio profesional cumple con las leyes de El Salvador.</>
+              ) : (
+                <> La enfermera declara que cuenta con las licencias y registros profesionales requeridos por la legislación de su país de residencia.</>
+              )}
             </p>
             <p>
               <strong>BienCuidar no garantiza ni respalda</strong> la calidad clínica de los
@@ -70,7 +77,8 @@ export const TermsAndConditions: FC<TermsAndConditionsProps> = ({ open, onClose,
             </p>
           </section>
 
-          {/* Cláusula 3: Rol de facturación */}
+          {/* Cláusula 3: Rol de facturación (solo El Salvador) */}
+          {features.fiscalInvoicing && (
           <section className="space-y-2">
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-indigo-600 shrink-0" />
@@ -88,8 +96,10 @@ export const TermsAndConditions: FC<TermsAndConditionsProps> = ({ open, onClose,
               salud que está exento conforme al Art. 46 LIVA).
             </p>
           </section>
+          )}
 
-          {/* Cláusula 4: Verificaciones */}
+          {/* Cláusula 4: Verificaciones (solo El Salvador) */}
+          {features.csspVerification && (
           <section className="space-y-2">
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-indigo-600 shrink-0" />
@@ -104,6 +114,23 @@ export const TermsAndConditions: FC<TermsAndConditionsProps> = ({ open, onClose,
               contratar. BienCuidar no es empleador ni garantiza la calidad del servicio prestado.
             </p>
           </section>
+          )}
+
+          {/* Cláusula 4 (alt): Verificaciones genéricas */}
+          {!features.csspVerification && (
+          <section className="space-y-2">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-indigo-600 shrink-0" />
+              <h3 className="text-sm font-bold text-slate-800">4. Verificaciones y Antecedentes</h3>
+            </div>
+            <p>
+              BienCuidar verifica la identidad de las enfermeras mediante confirmación de correo
+              electrónico. La familia puede solicitar referencias o documentación adicional
+              directamente a la enfermera antes de contratar. BienCuidar no es empleador ni
+              garantiza la calidad del servicio prestado.
+            </p>
+          </section>
+          )}
 
           {/* Cláusula 5: Modalidades de pago */}
           <section className="space-y-2">
@@ -112,11 +139,18 @@ export const TermsAndConditions: FC<TermsAndConditionsProps> = ({ open, onClose,
               <h3 className="text-sm font-bold text-slate-800">5. Modalidades de Pago</h3>
             </div>
             <p>
-              Existen dos modalidades de pago: <strong>pago directo</strong> (la familia paga
-              directamente a la enfermera, sin intervención de BienCuidar) y <strong>pago con
-              factura</strong> (BienCuidar actúa como agente de retención, aplica la comisión de
-              US$ 5.00 + IVA y retiene el 10% de ISR). La modalidad se acuerda entre familia y
-              enfermera al momento de aceptar la oferta.
+              {features.fiscalInvoicing ? (
+                <>Existen dos modalidades de pago: <strong>pago directo</strong> (la familia paga
+                directamente a la enfermera, sin intervención de BienCuidar) y <strong>pago con
+                factura</strong> (BienCuidar actúa como agente de retención, aplica la comisión de
+                US$ 5.00 + IVA y retiene el 10% de ISR). La modalidad se acuerda entre familia y
+                enfermera al momento de aceptar la oferta.</>
+              ) : (
+                <>El pago se realiza <strong>directamente entre la familia y la enfermera</strong>,
+                sin intermediación de BienCuidar. Ustedes acuerdan la forma de pago (efectivo,
+                transferencia, etc.) al coordinar la visita. BienCuidar no intermedia el dinero
+                ni emite facturas.</>
+              )}
             </p>
           </section>
 
@@ -142,12 +176,14 @@ export const TermsAndConditions: FC<TermsAndConditionsProps> = ({ open, onClose,
               <h3 className="text-sm font-bold text-slate-800">7. Privacidad y Datos Personales</h3>
             </div>
             <p>
-              BienCuidar recopila datos personales (nombre, DUI, número CSSP, información de
+              BienCuidar recopila datos personales (nombre, {features.duiRequired ? 'DUI, ' : ''}
+              {features.csspVerification ? 'número CSSP, ' : ''}información de
               contacto y datos clínicos del paciente) con fines exclusivos de intermediación y
               verificación profesional. Los datos se almacenan de forma segura y no se comparten
               con terceros, excepto con la contraparte (familia o enfermera) una vez aceptada una
-              oferta. El tratamiento de datos cumple con la legislación salvadoreña vigente en
-              materia de protección de datos personales.
+              oferta. {features.salvadoranLegalTerms
+                ? 'El tratamiento de datos cumple con la legislación salvadoreña vigente en materia de protección de datos personales.'
+                : 'El tratamiento de datos cumple con la legislación aplicable en el país de residencia del usuario.'}
             </p>
             <p>
               Los datos clínicos del paciente ingresados en la plataforma son visibles únicamente

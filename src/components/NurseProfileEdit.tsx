@@ -12,6 +12,7 @@ import { RETENTION_RATE, calculateNurseNet } from '../data/standardRates';
 import { CSSPVerificationBadge } from './CSSPVerificationBadge';
 import { validateCSSPRegistration } from '../lib/csspValidation';
 import { verifyCSSP } from '../lib/csspVerify';
+import { getFeatures, type CountryFeatures } from '../lib/features';
 
 const allSpecialtyTags = [
   'Geriatría', 'Demencia y Alzheimer', 'Inyecciones', 'Postoperatorio', 
@@ -38,6 +39,7 @@ const SHIFT_ICONS: Record<ShiftType, typeof Sun> = {
 export const NurseProfileEdit: FC = () => {
   const { currentNurse, currentUser, updateNurseProfile, updateProfile, bookings, careLogs, nurseReviews, nurses, profiles } = useApp();
   const { showToast } = useToast();
+  const features: CountryFeatures = getFeatures(currentUser?.country);
 
   const [shiftRate, setShiftRate] = useState<number>(currentNurse?.shift_rate || 25);
   const [selectedShifts, setSelectedShifts] = useState<ShiftType[]>(currentNurse?.available_shifts || ['day']);
@@ -154,7 +156,7 @@ export const NurseProfileEdit: FC = () => {
   const handleProfileSave = (e: FormEvent) => {
     e.preventDefault();
 
-    const csspValidation = validateCSSPRegistration(csspReg);
+    const csspValidation = features.csspVerification ? validateCSSPRegistration(csspReg) : { valid: true, message: '' };
     if (!csspValidation.valid) {
       setCsspError(csspValidation.message);
       setStep(3);
@@ -162,7 +164,7 @@ export const NurseProfileEdit: FC = () => {
     }
     setCsspError('');
 
-    const csspChanged = currentNurse?.cssp_registration !== csspReg.trim() || currentNurse?.cssp_level !== csspLevel;
+    const csspChanged = features.csspVerification && (currentNurse?.cssp_registration !== csspReg.trim() || currentNurse?.cssp_level !== csspLevel);
 
     updateNurseProfile({
       shift_rate: Number(shiftRate),
@@ -171,8 +173,8 @@ export const NurseProfileEdit: FC = () => {
       bio,
       experience_years: Number(experienceYears),
       specialization: selectedSpecs,
-      cssp_registration: csspReg.trim(),
-      cssp_level: csspLevel as 'Licenciada' | 'Tecnóloga' | 'Técnica' | 'Auxiliar',
+      cssp_registration: features.csspVerification ? csspReg.trim() : currentNurse?.cssp_registration || null,
+      cssp_level: features.csspVerification ? csspLevel as 'Licenciada' | 'Tecnóloga' | 'Técnica' | 'Auxiliar' : currentNurse?.cssp_level || null,
       assignment_availability: assignmentAvailability,
       payment_preference: paymentPreference,
       verifications: {
@@ -185,8 +187,8 @@ export const NurseProfileEdit: FC = () => {
       location_name: locationName
     });
 
-    // Re-disparar verificación CSSP si cambió el registro o nivel
-    if (csspChanged && currentNurse?.id) {
+    // Re-disparar verificación CSSP si cambió el registro o nivel (solo El Salvador)
+    if (csspChanged && features.csspVerification && currentNurse?.id) {
       verifyCSSP(currentNurse.id, csspReg.trim(), currentUser?.full_name, csspLevel)
         .then(result => console.log('[NurseProfileEdit] CSSP verify result:', result.status, result.message))
         .catch(err => { console.error('[NurseProfileEdit] CSSP verify failed:', err); showToast('No se pudo verificar el CSSP. Intenta mas tarde.', 'error'); });
@@ -229,7 +231,7 @@ export const NurseProfileEdit: FC = () => {
               {step > s ? <CheckCircle2 className="h-4 w-4" /> : s}
             </div>
             <span className={`text-[10px] font-bold ${step >= s ? 'text-slate-700' : 'text-slate-400'}`}>
-              {s === 1 ? 'Datos básicos' : s === 2 ? 'Disponibilidad' : 'Registro CSSP'}
+              {s === 1 ? 'Datos básicos' : s === 2 ? 'Disponibilidad' : features.csspVerification ? 'Registro CSSP' : 'Verificaciones'}
             </span>
             {s < 3 && <div className={`h-0.5 flex-1 rounded ${step > s ? 'bg-indigo-600' : 'bg-slate-200'}`} />}
           </div>
@@ -481,8 +483,8 @@ export const NurseProfileEdit: FC = () => {
           </div>
         )}
 
-        {/* STEP 3: Registro CSSP */}
-        {step === 3 && (
+        {/* STEP 3: Registro CSSP (solo El Salvador) o verificaciones genéricas */}
+        {step === 3 && features.csspVerification && (
           <div className="space-y-5">
             <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100/60 space-y-3">
               <div className="flex items-center gap-2">
@@ -561,9 +563,42 @@ export const NurseProfileEdit: FC = () => {
             </div>
 
             {/* Estado de verificación CSSP (si ya tiene registro guardado) */}
-            {currentNurse && currentNurse.cssp_registration && (
+            {features.csspVerification && currentNurse && currentNurse.cssp_registration && (
               <CSSPVerificationBadge nurse={currentNurse} variant="full" />
             )}
+
+            <div className="flex justify-between">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="bg-slate-100 text-slate-600 font-bold text-xs px-6 py-3 rounded-xl transition cursor-pointer"
+              >
+                Atrás
+              </button>
+              <button
+                type="submit"
+                className="bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white font-bold text-xs px-6 py-3 rounded-xl transition shadow-md shadow-indigo-100 flex items-center gap-2 cursor-pointer"
+                id="btn-edit-profile-submit"
+              >
+                <Save className="h-4 w-4" />
+                <span>Guardar y publicar</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3 alternativo: Sin CSSP (no El Salvador) — solo guardar */}
+        {step === 3 && !features.csspVerification && (
+          <div className="space-y-5">
+            <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-100/60 space-y-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                <span className="text-xs font-bold text-emerald-700">Verificación de identidad</span>
+              </div>
+              <p className="text-[10px] text-slate-500 leading-relaxed">
+                Tu identidad se verifica mediante confirmación de correo electrónico. BienCuidar no requiere registro profesional específico de tu país para activar tu perfil.
+              </p>
+            </div>
 
             <div className="flex justify-between">
               <button
@@ -588,6 +623,7 @@ export const NurseProfileEdit: FC = () => {
       </form>
 
       {/* SECCION INFORMATIVA APARTE: Calculadora tributaria + pago BienCuidar (colapsables) */}
+      {features.taxCalculator && (
       <div className="mt-6 pt-6 border-t border-slate-100 space-y-3">
 
         {/* Calculadora tributaria colapsable */}
@@ -758,6 +794,7 @@ export const NurseProfileEdit: FC = () => {
         </div>
 
       </div>
+      )}
 
       {/* Bitácora colapsable */}
       <div className="mt-6 bg-white border border-slate-200 rounded-2xl overflow-hidden">

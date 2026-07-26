@@ -18,6 +18,7 @@ interface PaymentSummaryProps {
   totalPrice: number;
   nursePhone?: string;
   wantsInvoice?: boolean;
+  fiscalInvoicing?: boolean;
 }
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
@@ -28,7 +29,7 @@ function formatDate(dateStr: string): string {
   return `${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyName, slots, totalPrice, nursePhone, wantsInvoice }) => {
+export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyName, slots, totalPrice, nursePhone, wantsInvoice, fiscalInvoicing = true }) => {
   if (!open) return null;
 
   const nurseName = slots[0]?.nurseName || 'Enfermera';
@@ -155,8 +156,8 @@ export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyN
             </div>
           )}
 
-          {/* Invoice info for non-invoiced mode */}
-          {!wantsInvoice && (
+          {/* Invoice info for non-invoiced mode (solo El Salvador) */}
+          {fiscalInvoicing && !wantsInvoice && (
             <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-start gap-2.5">
               <FileText className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
               <div>
