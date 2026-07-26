@@ -6,12 +6,14 @@ import { CheckCircle2, XCircle, Clock, MapPin, Calendar, Star, User, Phone, Hear
 import { LegalDisclaimer } from './LegalDisclaimer';
 import { ServiceContract } from './ServiceContract';
 import { PaymentSummary } from './PaymentSummary';
+import { getFeatures, type CountryFeatures } from '../lib/features';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 export const PlanReview: FC = () => {
   const { careRequests, careOffers, nurses, profiles, currentUser, updatePatientName } = useApp();
+  const features: CountryFeatures = getFeatures(currentUser?.country);
 
   const [accepted, setAccepted] = useState(false);
   const [rejected, setRejected] = useState(false);
@@ -107,7 +109,7 @@ export const PlanReview: FC = () => {
               <p><span className="font-semibold">Total:</span> ${totalPrice.toFixed(0)} · {totalShifts} turno(s)</p>
             </div>
           </div>
-          <LegalDisclaimer variant="compact" />
+          <LegalDisclaimer variant="compact" country={currentUser?.country} />
 
           <button
             onClick={() => setShowContract(true)}
@@ -145,6 +147,7 @@ export const PlanReview: FC = () => {
         totalShifts={totalShifts}
         totalPrice={totalPrice}
         wantsInvoice={myRequest?.wants_invoice}
+        fiscalInvoicing={features.fiscalInvoicing}
       />
 
       <PaymentSummary
@@ -160,6 +163,7 @@ export const PlanReview: FC = () => {
         totalPrice={totalPrice}
         nursePhone={slotDetails.find(s => s.hasNurse && s.nurseProfile)?.nurseProfile?.phone}
         wantsInvoice={myRequest.wants_invoice}
+        fiscalInvoicing={features.fiscalInvoicing}
       />
       </>
     );
@@ -378,7 +382,7 @@ export const PlanReview: FC = () => {
               <span className="text-xl font-black text-indigo-700">${totalPrice.toFixed(2)}</span>
             </div>
 
-            {allCovered && myRequest.wants_invoice && (
+            {allCovered && features.fiscalInvoicing && myRequest.wants_invoice && (
               <div className="bg-white rounded-xl p-3 border border-emerald-200 mt-2 flex items-start gap-2.5">
                 <Mail className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
@@ -390,7 +394,7 @@ export const PlanReview: FC = () => {
               </div>
             )}
 
-            {allCovered && myRequest.wants_invoice && (
+            {allCovered && features.fiscalInvoicing && myRequest.wants_invoice && (
               <div className="bg-white rounded-xl p-3 border border-slate-200 mt-2 space-y-1.5">
                 <p className="text-[10px] font-bold text-slate-600 uppercase">Política de cancelación</p>
                 <div className="flex items-start gap-1.5 text-[10px] text-slate-500">
@@ -408,14 +412,11 @@ export const PlanReview: FC = () => {
               </div>
             )}
 
-            {allCovered && !myRequest.wants_invoice && (
+            {allCovered && (!features.fiscalInvoicing || !myRequest.wants_invoice) && (
               <div className="bg-white rounded-xl p-3 border border-slate-200 mt-2">
-                <p className="text-[10px] font-bold text-slate-600 uppercase mb-1.5">Pago directo sin factura</p>
+                <p className="text-[10px] font-bold text-slate-600 uppercase mb-1.5">Pago directo a la enfermera</p>
                 <p className="text-[10px] text-slate-500 leading-relaxed">
-                  Al optar por pago directo, la política de cancelación con cargo no aplica.
-                  La cancelación se coordina directamente con la enfermera.
-                  <strong className="text-indigo-600"> Factura a través de la plataforma</strong> para
-                  proteger tu reserva con política de cancelación.
+                  El pago se coordina directamente con la enfermera. BienCuidar no intermedia el dinero ni emite factura.
                 </p>
               </div>
             )}
@@ -426,7 +427,7 @@ export const PlanReview: FC = () => {
       {/* Action buttons */}
       {allCovered && (
         <>
-          <LegalDisclaimer variant="full" />
+          <LegalDisclaimer variant="full" country={currentUser?.country} />
 
           <div className="flex gap-3 mt-4">
             <button

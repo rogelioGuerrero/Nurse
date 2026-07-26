@@ -4,6 +4,7 @@ import { SHIFTS, type ShiftType, type ExpectedDuration, type PatientAgeRange, ty
 import { MapPin, Calendar, Trash2, CheckCircle2, Send, Crosshair, Loader2, ChevronLeft, ChevronRight, Phone, Check, Sun, Moon, Clock, FileText, AlertCircle, RotateCcw, XCircle, Inbox, Heart, User } from 'lucide-react';
 import { getTimeRemaining } from '../data/platformSettings';
 import { triageRequest, type TriageResult } from '../lib/triage';
+import { getFeatures, type CountryFeatures } from '../lib/features';
 
 interface DaySelection {
   date: string;
@@ -44,6 +45,7 @@ const STEPS = [
 
 export const CareRequestForm: FC = () => {
   const { createCareRequest, currentUser, careRequests, careOffers, closeCareRequest, republisheCareRequest } = useApp();
+  const features: CountryFeatures = getFeatures(currentUser?.country);
 
   const [step, setStep] = useState(1);
   const [helpNeeds, setHelpNeeds] = useState<string[]>([]);
@@ -905,7 +907,8 @@ export const CareRequestForm: FC = () => {
             </button>
           </div>
 
-          {/* Checkbox de factura */}
+          {/* Checkbox de factura (solo El Salvador) */}
+          {features.fiscalInvoicing && (
           <label className="flex items-center gap-2.5 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -915,7 +918,8 @@ export const CareRequestForm: FC = () => {
             />
             <span className="text-xs font-bold text-slate-700">Necesito factura</span>
           </label>
-          {wantsInvoice ? (
+          )}
+          {features.fiscalInvoicing && wantsInvoice ? (
             <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 space-y-1.5">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-indigo-600 shrink-0" />

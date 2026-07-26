@@ -466,6 +466,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
           phone: updated.phone,
           location_name: updated.location_name,
           avatar_url: updated.avatar_url,
+          country: updated.country,
           updated_at: updated.updated_at
         })
         .eq('id', updated.id);

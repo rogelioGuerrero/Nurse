@@ -5,6 +5,7 @@ import type { CareRequest, Nurse, Profile, CareOffer } from '../types';
 import { SHIFTS, type ShiftType, type WeekDay } from '../types';
 import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User, Sun, Moon, FileText, Send, Stethoscope } from 'lucide-react';
 import { FamilyTrustBadge } from './FamilyTrustBadge';
+import { getFeatures, type CountryFeatures } from '../lib/features';
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MONTH_NAMES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -59,6 +60,7 @@ function getProfileSuggestions(nurse: Nurse | undefined, offer: CareOffer | unde
 
 export const NurseInbox: FC = () => {
   const { careRequests, careOffers, nurses, profiles, currentUser, createCareOffer, withdrawCareOffer, familyReviews } = useApp();
+  const features: CountryFeatures = getFeatures(currentUser?.country);
 
   // Modal de ajuste de tarifa
   const [acceptModal, setAcceptModal] = useState<{ request: CareRequest; slotIndex: number } | null>(null);
@@ -306,7 +308,8 @@ export const NurseInbox: FC = () => {
                     {req.notes && (
                       <p className="text-xs text-slate-500 italic pl-5">Nota: {req.notes}</p>
                     )}
-                    {/* Invoice preference badge */}
+                    {/* Invoice preference badge (solo El Salvador) */}
+                    {features.fiscalInvoicing && (
                     <div className="pt-1">
                       {req.wants_invoice ? (
                         <span className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-full border border-indigo-100">
@@ -319,6 +322,7 @@ export const NurseInbox: FC = () => {
                         </span>
                       )}
                     </div>
+                    )}
                   </div>
                 </div>
 
@@ -558,7 +562,7 @@ export const NurseInbox: FC = () => {
                 />
               </div>
               <p className="text-[10px] text-slate-400 mt-1">Tu tarifa base: US$ {myNurse?.shift_rate}</p>
-              {acceptModal.request.wants_invoice && (
+              {features.fiscalInvoicing && acceptModal.request.wants_invoice && (
                 <div className="mt-2 bg-indigo-50 border border-indigo-100 rounded-lg p-2.5 space-y-1 text-[11px]">
                   <div className="flex justify-between"><span className="text-slate-600">Tu oferta:</span><span className="font-bold text-slate-700">${offerRate.toFixed(2)}</span></div>
                   <div className="flex justify-between"><span className="text-slate-500">ISR retenido (10%):</span><span className="font-bold text-rose-600">-${(offerRate * 0.10).toFixed(2)}</span></div>
