@@ -877,14 +877,20 @@ export default function App() {
   const patientToken = params.get('patient');
 
   if (patientToken) {
-    return <PatientGate token={patientToken} />;
+    return (
+      <ToastProvider>
+        <PatientGate token={patientToken} />
+      </ToastProvider>
+    );
   }
 
   if (isBenniMode) {
     return (
-      <Suspense fallback={<LoadingSpinner />}>
-        <BenniVoz isBriefing={isBriefingMode} />
-      </Suspense>
+      <ToastProvider>
+        <Suspense fallback={<LoadingSpinner />}>
+          <BenniVoz isBriefing={isBriefingMode} />
+        </Suspense>
+      </ToastProvider>
     );
   }
 

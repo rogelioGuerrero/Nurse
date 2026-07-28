@@ -832,7 +832,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
                       key={state}
                       src={`/benni/${state}.png`}
                       alt={`Benni ${state}`}
-                      className="absolute w-full h-full object-cover transition-opacity duration-500"
+                      className={`absolute w-full h-full object-cover transition-opacity duration-500 ${benniState === state ? (state === 'speaking' ? 'benni-anim-talk' : state === 'listening' ? 'benni-anim-listen' : state === 'idle' ? 'benni-anim-breathe' : '') : ''}`}
                       style={{
                         opacity: benniState === state ? 1 : 0,
                         filter: benniState === state ? 'brightness(1)' : 'brightness(0.8)',
@@ -1036,7 +1036,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
                     key={state}
                     src={`/benni/${state}.png`}
                     alt={`Benni ${state}`}
-                    className="absolute w-full h-full object-cover transition-opacity duration-500"
+                    className={`absolute w-full h-full object-cover transition-opacity duration-500 ${benniState === state ? (state === 'speaking' ? 'benni-anim-talk' : state === 'listening' ? 'benni-anim-listen' : state === 'idle' ? 'benni-anim-breathe' : '') : ''}`}
                     style={{
                       opacity: benniState === state ? 1 : 0,
                       filter: benniState === state ? 'brightness(1)' : 'brightness(0.8)',

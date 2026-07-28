@@ -485,7 +485,7 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
                 key={state}
                 src={`/benni/${state === 'transcribing' ? 'listening' : state}.png`}
                 alt={`Benni ${state}`}
-                className="absolute w-full h-full object-cover transition-opacity duration-500"
+                className={`absolute w-full h-full object-cover transition-opacity duration-500 ${orbState === state ? (state === 'speaking' ? 'benni-anim-talk' : state === 'listening' || state === 'transcribing' ? 'benni-anim-listen' : state === 'idle' ? 'benni-anim-breathe' : '') : ''}`}
                 style={{
                   opacity: orbState === state ? 1 : 0,
                   filter: orbState === state ? 'brightness(1)' : 'brightness(0.8)',
