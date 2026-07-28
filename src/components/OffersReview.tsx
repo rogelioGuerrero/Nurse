@@ -258,9 +258,9 @@ export const OffersReview: FC = () => {
 
                   <div className="text-[10px] text-slate-500 mt-0.5 leading-tight">
 
-                    + US$ 5.65 gestión fiscal<br/>
+                    + US$ {(calculateFamilyPrice(offer.offered_rate, true) - offer.offered_rate).toFixed(2)} gestión fiscal<br/>
 
-                    <span className="font-bold text-slate-700">Total: US$ {(offer.offered_rate + 5.65).toFixed(2)}</span>
+                    <span className="font-bold text-slate-700">Total: US$ {calculateFamilyPrice(offer.offered_rate, true).toFixed(2)}</span>
 
                   </div>
 

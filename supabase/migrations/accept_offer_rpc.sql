@@ -38,6 +38,11 @@ BEGIN
     RETURN jsonb_build_object('error', 'request_not_found');
   END IF;
 
+  -- AUTH CHECK: only the request owner can accept offers
+  IF auth.uid() IS NULL OR v_request.user_id != auth.uid() THEN
+    RAISE EXCEPTION 'Not authorized';
+  END IF;
+
   IF v_request.status != 'open' THEN
     RETURN jsonb_build_object('error', 'request_not_open', 'current_status', v_request.status);
   END IF;
@@ -108,5 +113,9 @@ BEGIN
 END;
 $$;
 
--- Grant execute to authenticated users
+-- Revoke access from anon and PUBLIC (security: only authenticated users)
+REVOKE EXECUTE ON FUNCTION public.accept_offer(UUID) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.accept_offer(UUID) FROM PUBLIC;
+
+-- Grant execute to authenticated users only
 GRANT EXECUTE ON FUNCTION public.accept_offer(UUID) TO authenticated;

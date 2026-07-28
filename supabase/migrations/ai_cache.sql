@@ -14,3 +14,7 @@ CREATE INDEX IF NOT EXISTS idx_ai_cache_hash ON public.ai_cache(prompt_hash);
 CREATE INDEX IF NOT EXISTS idx_ai_cache_expires ON public.ai_cache(expires_at);
 
 COMMENT ON TABLE public.ai_cache IS 'Cache de respuestas LLM para evitar llamadas redundantes a Groq';
+
+-- Enable RLS: edge functions use service_role (bypasses RLS), so no policies needed.
+-- This prevents anon/authenticated from reading cached LLM responses (may contain patient symptoms).
+ALTER TABLE public.ai_cache ENABLE ROW LEVEL SECURITY;

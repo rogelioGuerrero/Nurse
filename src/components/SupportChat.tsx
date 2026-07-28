@@ -237,7 +237,7 @@ function getWelcomeMessage(role: string, country?: CountryCode | null): string {
   return `Hola. Soy el asistente de BienCuidar. Puedo ayudarte con dudas sobre ${topics.join(', ')}. ¿Qué necesitas?`;
 }
 
-export const SupportChat: FC<{ userRole?: string; userEmail?: string; country?: CountryCode | null }> = ({ userRole = 'nurse', userEmail, country }) => {
+export const SupportChat: FC<{ userRole?: string; userEmail?: string; userId?: string; country?: CountryCode | null }> = ({ userRole = 'nurse', userEmail, userId, country }) => {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -259,7 +259,7 @@ export const SupportChat: FC<{ userRole?: string; userEmail?: string; country?: 
     try {
       const { data, error } = await supabase
         .from('chat_sessions')
-        .insert({ user_role: userRole, message_count: 0 })
+        .insert({ user_role: userRole, message_count: 0, ...(userId ? { user_id: userId } : {}) })
         .select('id')
         .single();
       if (error) {

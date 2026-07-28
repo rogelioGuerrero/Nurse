@@ -20,6 +20,64 @@ export interface VisitPlan {
   uncoveredSlots: number;
 }
 
+interface ScoredNurse {
+  nurse: Nurse;
+  distance: number;
+  score: number;
+}
+
+// Score a nurse by distance, rating, and assignment bonus (shared by both plan builders)
+function scoreNurse(
+  nurse: Nurse,
+  originLat: number,
+  originLng: number,
+  assignedNurseIds: Set<string>,
+): ScoredNurse {
+  const distance = getDistanceKm(originLat, originLng, nurse.lat, nurse.lng);
+  const distanceScore = 1 - (distance / nurse.coverage_radius);
+  const ratingScore = nurse.rating / 5;
+  const assignmentBonus = assignedNurseIds.has(nurse.id) ? 0.15 : 0;
+  const score = (distanceScore * 0.45) + (ratingScore * 0.4) + assignmentBonus;
+  return { nurse, distance: parseFloat(distance.toFixed(1)), score };
+}
+
+// Build a covered slot (nurse assigned)
+function buildCoveredSlot(slot: CareRequestSlot, nurse: Nurse, distance: number, wantsInvoice: boolean): VisitPlanSlot {
+  return {
+    slot,
+    nurse,
+    distance,
+    shiftHours: 0,
+    price: calculateFamilyPrice(nurse.shift_rate, wantsInvoice),
+  };
+}
+
+// Build an uncovered slot (no nurse)
+function buildUncoveredSlot(slot: CareRequestSlot, reason: string): VisitPlanSlot {
+  return { slot, nurse: null, distance: 0, shiftHours: 0, price: 0, reason };
+}
+
+// Assemble the final VisitPlan from slots and assigned nurse IDs
+function assemblePlan(
+  slots: VisitPlanSlot[],
+  assignedNurseIds: Set<string>,
+  nurseLookup: (id: string) => Nurse | undefined,
+): VisitPlan {
+  const totalPrice = slots.reduce((sum, s) => sum + s.price, 0);
+  const uncoveredSlots = slots.filter(s => s.nurse === null).length;
+  const assignedNurses = Array.from(assignedNurseIds)
+    .map(nurseLookup)
+    .filter((n): n is Nurse => n !== undefined);
+
+  return {
+    slots,
+    totalShifts: slots.length,
+    totalPrice: parseFloat(totalPrice.toFixed(2)),
+    assignedNurses,
+    uncoveredSlots,
+  };
+}
+
 // Build a visit plan: assign the best available nurse to each slot
 export function buildVisitPlan(
   request: CareRequest,
@@ -39,52 +97,19 @@ export function buildVisitPlan(
         const distance = getDistanceKm(originLat, originLng, n.lat, n.lng);
         return distance <= n.coverage_radius;
       })
-      .map(n => {
-        const distance = getDistanceKm(originLat, originLng, n.lat, n.lng);
-        const assignmentBonus = assignedNurseIds.has(n.id) ? 0.15 : 0;
-        const distanceScore = 1 - (distance / n.coverage_radius);
-        const ratingScore = n.rating / 5;
-        const score = (distanceScore * 0.45) + (ratingScore * 0.4) + assignmentBonus;
-        return { nurse: n, distance: parseFloat(distance.toFixed(1)), score };
-      })
+      .map(n => scoreNurse(n, originLat, originLng, assignedNurseIds))
       .sort((a, b) => b.score - a.score);
 
     if (candidates.length > 0) {
       const best = candidates[0];
       assignedNurseIds.add(best.nurse.id);
-      slots.push({
-        slot,
-        nurse: best.nurse,
-        distance: best.distance,
-        shiftHours: 0,
-        price: calculateFamilyPrice(best.nurse.shift_rate, request.wants_invoice)
-      });
+      slots.push(buildCoveredSlot(slot, best.nurse, best.distance, request.wants_invoice));
     } else {
-      slots.push({
-        slot,
-        nurse: null,
-        distance: 0,
-        shiftHours: 0,
-        price: 0,
-        reason: 'No hay enfermeras disponibles para este turno'
-      });
+      slots.push(buildUncoveredSlot(slot, 'No hay enfermeras disponibles para este turno'));
     }
   }
 
-  const totalShifts = slots.length;
-  const totalPrice = slots.reduce((sum, s) => sum + s.price, 0);
-  const uncoveredSlots = slots.filter(s => s.nurse === null).length;
-  const assignedNurses = Array.from(assignedNurseIds)
-    .map(id => nurses.find(n => n.id === id))
-    .filter((n): n is Nurse => n !== undefined);
-
-  return {
-    slots,
-    totalShifts,
-    totalPrice: parseFloat(totalPrice.toFixed(0)),
-    assignedNurses,
-    uncoveredSlots
-  };
+  return assemblePlan(slots, assignedNurseIds, id => nurses.find(n => n.id === id));
 }
 
 // Build a final visit plan from accepted offers only (after the response window closes)
@@ -109,14 +134,7 @@ export function buildFinalPlanFromOffers(
     );
 
     if (acceptedOffers.length === 0) {
-      slots.push({
-        slot,
-        nurse: null,
-        distance: 0,
-        shiftHours: 0,
-        price: 0,
-        reason: 'Ninguna enfermera confirmó este turno'
-      });
+      slots.push(buildUncoveredSlot(slot, 'Ninguna enfermera confirmó este turno'));
       continue;
     }
 
@@ -124,49 +142,19 @@ export function buildFinalPlanFromOffers(
       .map(o => {
         const nurse = nurseMap.get(o.nurse_id);
         if (!nurse) return null;
-        const distance = getDistanceKm(originLat, originLng, nurse.lat, nurse.lng);
-        const distanceScore = 1 - (distance / nurse.coverage_radius);
-        const ratingScore = nurse.rating / 5;
-        const assignmentBonus = assignedNurseIds.has(nurse.id) ? 0.15 : 0;
-        return { nurse, distance: parseFloat(distance.toFixed(1)), score: distanceScore * 0.45 + ratingScore * 0.4 + assignmentBonus };
+        return scoreNurse(nurse, originLat, originLng, assignedNurseIds);
       })
-      .filter((c): c is { nurse: Nurse; distance: number; score: number } => c !== null)
+      .filter((c): c is ScoredNurse => c !== null)
       .sort((a, b) => b.score - a.score);
 
     if (candidates.length > 0) {
       const best = candidates[0];
       assignedNurseIds.add(best.nurse.id);
-      slots.push({
-        slot,
-        nurse: best.nurse,
-        distance: best.distance,
-        shiftHours: 0,
-        price: calculateFamilyPrice(best.nurse.shift_rate, request.wants_invoice)
-      });
+      slots.push(buildCoveredSlot(slot, best.nurse, best.distance, request.wants_invoice));
     } else {
-      slots.push({
-        slot,
-        nurse: null,
-        distance: 0,
-        shiftHours: 0,
-        price: 0,
-        reason: 'Ninguna enfermera confirmó este turno'
-      });
+      slots.push(buildUncoveredSlot(slot, 'Ninguna enfermera confirmó este turno'));
     }
   }
 
-  const totalShifts = slots.length;
-  const totalPrice = slots.reduce((sum, s) => sum + s.price, 0);
-  const uncoveredSlots = slots.filter(s => s.nurse === null).length;
-  const assignedNurses = Array.from(assignedNurseIds)
-    .map(id => nurseMap.get(id))
-    .filter((n): n is Nurse => n !== undefined);
-
-  return {
-    slots,
-    totalShifts,
-    totalPrice: parseFloat(totalPrice.toFixed(0)),
-    assignedNurses,
-    uncoveredSlots
-  };
+  return assemblePlan(slots, assignedNurseIds, id => nurseMap.get(id));
 }

@@ -1,6 +1,6 @@
 import { useMemo, useState, type FC } from 'react';
 import { useApp } from '../context/AppContext';
-import { calculateNurseNet } from '../data/standardRates';
+import { calculateNurseNet, RETENTION_RATE } from '../data/standardRates';
 import type { CareRequest, Nurse, Profile, CareOffer } from '../types';
 import { SHIFTS, type ShiftType, type WeekDay } from '../types';
 import { Inbox, Calendar, Clock, Heart, MapPin, CheckCircle2, XCircle, AlertCircle, User, Sun, Moon, FileText, Send, Stethoscope } from 'lucide-react';
@@ -565,8 +565,8 @@ export const NurseInbox: FC = () => {
               {features.fiscalInvoicing && acceptModal.request.wants_invoice && (
                 <div className="mt-2 bg-indigo-50 border border-indigo-100 rounded-lg p-2.5 space-y-1 text-[11px]">
                   <div className="flex justify-between"><span className="text-slate-600">Tu oferta:</span><span className="font-bold text-slate-700">${offerRate.toFixed(2)}</span></div>
-                  <div className="flex justify-between"><span className="text-slate-500">ISR retenido (10%):</span><span className="font-bold text-rose-600">-${(offerRate * 0.10).toFixed(2)}</span></div>
-                  <div className="border-t border-indigo-100 pt-1 flex justify-between"><span className="font-bold text-slate-700">Recibes neto:</span><span className="font-black text-emerald-600">${(offerRate * 0.90).toFixed(2)}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">ISR retenido (10%):</span><span className="font-bold text-rose-600">-${(offerRate * RETENTION_RATE).toFixed(2)}</span></div>
+                  <div className="border-t border-indigo-100 pt-1 flex justify-between"><span className="font-bold text-slate-700">Recibes neto:</span><span className="font-black text-emerald-600">${calculateNurseNet(offerRate, true).toFixed(2)}</span></div>
                 </div>
               )}
             </div>
