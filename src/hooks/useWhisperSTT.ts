@@ -184,9 +184,9 @@ export function useWhisperSTT({
       if (mimeType) {
         recorderOptions.mimeType = mimeType;
       }
-      // Low bitrate: 16kHz mono = small files, faster upload on slow networks
+      // 64kbps: balance between clarity for Whisper and upload size
       try {
-        recorderOptions.audioBitsPerSecond = 16000;
+        recorderOptions.audioBitsPerSecond = 64000;
       } catch {}
 
       const recorder = new MediaRecorder(stream, recorderOptions);

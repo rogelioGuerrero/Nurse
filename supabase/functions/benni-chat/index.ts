@@ -305,7 +305,7 @@ Deno.serve(async (req: Request) => {
     for (let iteration = 0; iteration <= MAX_TOOL_ITERATIONS; iteration++) {
       const result = await callGroqRaw(messages, {
         temperature: 0.5,
-        maxTokens: 800,
+        maxTokens: 2000,
         tools: TOOLS_SCHEMA,
         toolChoice: "auto",
         timeoutMs: 15000,
