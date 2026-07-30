@@ -1,6 +1,6 @@
 ---
+name: fb-anuncio
 description: Generar y publicar un anuncio en Facebook de BienCuidar con texto + imagen
-auto_execution_mode: 3
 ---
 
 # Publicar anuncio en Facebook
@@ -50,19 +50,21 @@ A warm, professional scene of a Salvadoran family sitting with a female nurse in
 Mostrar el prompt al usuario para que lo copie y lo pegue en Gemini.
 Una vez que el usuario tenga la imagen generada, pedir la ruta del archivo descargado.
 
-## Paso 3: Publicar
+## Paso 3: Guardar texto y publicar
 
-Si el usuario proporciona una imagen local, ejecutar:
+1. Guardar el texto aprobado en un archivo, por ejemplo `scripts/fb-ad.txt`, para evitar que PowerShell corrompa caracteres UTF-8 (ver `.devin/rules/powershell-encoding.md`).
+2. Si el usuario proporciona una imagen local, ejecutar:
 
 ```
 // turbo
-node scripts/fb-post.mjs "<ruta-imagen>" "<mensaje con \n para saltos de línea>"
+node scripts/fb-post.mjs "<ruta-imagen>" @scripts/fb-ad.txt
 ```
 
 Notas:
-- El script reemplaza \n literales por saltos de línea reales automáticamente
-- La imagen se comprime automáticamente con sharp (resize 1200px + JPEG 80%)
-- Se envía como base64 a la edge function fb-publish en Supabase
-- NO se necesita Supabase Storage
-- NO se necesitan credenciales de Facebook localmente
-- Mostrar el Post ID al usuario como confirmación
+- PowerShell corrompe acentos/ñ/emojis si se pasan como argumentos; usar siempre `@archivo` para el texto.
+- El script reemplaza `\n` literales por saltos de línea reales automáticamente.
+- La imagen se comprime automáticamente con sharp (resize 1200px + JPEG 80%).
+- Se envía como base64 a la edge function `fb-publish` en Supabase.
+- NO se necesita Supabase Storage.
+- NO se necesitan credenciales de Facebook localmente.
+- Mostrar el Post ID al usuario como confirmación.
