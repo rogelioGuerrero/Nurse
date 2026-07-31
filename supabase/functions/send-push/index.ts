@@ -16,7 +16,7 @@ function corsHeaders(origin?: string) {
   const allowed = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
     "Access-Control-Allow-Origin": allowed,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "authorization, content-type, x-client-info, apikey",
   };
 }
@@ -248,6 +248,24 @@ async function sendPushNotification(
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders(req.headers.get("Origin") || undefined) });
+  }
+
+  // GET /vapid-key — returns the public VAPID key for push subscription setup
+  if (req.method === "GET") {
+    const url = new URL(req.url);
+    if (url.pathname.endsWith("/vapid-key")) {
+      return new Response(
+        JSON.stringify({ publicKey: VAPID_PUBLIC_KEY }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) },
+        }
+      );
+    }
+    return new Response(JSON.stringify({ error: "Método no permitido" }), {
+      status: 405,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   if (req.method !== "POST") {

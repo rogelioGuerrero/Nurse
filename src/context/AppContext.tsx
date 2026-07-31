@@ -193,8 +193,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       const { data: demoProfiles } = await supabase.from('profiles').select('id').eq('is_demo', true);
       demoUserIds = (demoProfiles || []).map((p: any) => p.id);
 
-      // Nurses list is public to authenticated users (for marketplace)
-      const { data: nursesResult } = await supabase.from('nurses').select('*');
+      // Nurses list is public to authenticated users (for marketplace) — use nurses_public view to mask PHI
+      const { data: nursesResult } = await supabase.from('nurses_public').select('*');
       nursesData = demoUserIds.length > 0
         ? (nursesResult || []).filter((n: any) => !demoUserIds.includes(n.user_id) || n.user_id === currentUser.id)
         : nursesResult;
@@ -240,7 +240,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       // Care requests: family sees own + open; nurse sees open + those with their offers; admin sees all
-      let requestsQuery = supabase.from('care_requests').select('*');
+      // Use care_requests_public view to mask PHI (patient_name, patient_data, notes) for non-owners
+      let requestsQuery = supabase.from('care_requests_public').select('*');
       if (!isAdmin) {
         if (isNurse) {
           requestsQuery = requestsQuery.or(`user_id.eq.${currentUser.id},status.eq.open`);
