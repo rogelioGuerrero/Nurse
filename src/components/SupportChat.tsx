@@ -360,46 +360,70 @@ export const SupportChat: FC<{ userRole?: string; userEmail?: string; userId?: s
 
         // Get user's JWT token for authenticated call
         const { data: sessionData } = await supabase.auth.getSession();
-        const userToken = sessionData?.session?.access_token || supabaseAnonKey;
+        const userToken = sessionData?.session?.access_token;
 
-        // Usar ai-agent con tools (usuario logueado)
-        const response = await fetch(`${supabaseUrl}/functions/v1/ai-agent`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${userToken}`,
-          },
-          body: JSON.stringify({
-            message: userMessage,
-            user_email: userEmail,
-            channel: 'chat',
-            history: userMessagesRef.current.slice(-12).map(m => ({ role: m.role, content: m.content })),
-            client_memory: clientMemory,
-            ...(pendingConfirmation ? { confirmed_action: pendingConfirmation } : {}),
-          }),
-        });
+        if (!userToken) {
+          // Session expired — fall back to visitor chat (no tools)
+          const response = await fetch(`${supabaseUrl}/functions/v1/ai-chat`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${supabaseAnonKey}`,
+            },
+            body: JSON.stringify({
+              messages: [
+                { role: 'system', content: getSystemPrompt(userRole, country) },
+                ...newMessages.filter(m => m.role === 'user').map(m => ({ role: m.role, content: m.content })),
+              ],
+              temperature: 0.3,
+              maxTokens: 300,
+            }),
+          });
 
-        if (!response.ok) throw new Error('Error en el servicio');
+          if (!response.ok) throw new Error('Error en el servicio');
 
-        const data = await response.json();
-        assistantReply = data.reply || 'No pude procesar tu consulta. Escribinos a info@agtisa.com.';
-
-        // Handle pending confirmation from destructive tools
-        if (data.pending_confirmation) {
-          setPendingConfirmation(data.pending_confirmation);
+          const data = await response.json();
+          assistantReply = data.content || 'No pude procesar tu consulta. Escribinos a info@agtisa.com.';
         } else {
-          setPendingConfirmation(null);
-        }
+          // Usar ai-agent con tools (usuario logueado con sesión válida)
+          const response = await fetch(`${supabaseUrl}/functions/v1/ai-agent`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${userToken}`,
+            },
+            body: JSON.stringify({
+              message: userMessage,
+              user_email: userEmail,
+              channel: 'chat',
+              history: userMessagesRef.current.slice(-12).map(m => ({ role: m.role, content: m.content })),
+              client_memory: clientMemory,
+              ...(pendingConfirmation ? { confirmed_action: pendingConfirmation } : {}),
+            }),
+          });
 
-        // Save conversation context to localStorage
-        try {
-          const mem = {
-            last_topic: userMessage.slice(0, 100),
-            last_visit: new Date().toISOString(),
-            visit_count: (clientMemory.visit_count || 0) + 1,
-          };
-          localStorage.setItem(`bc_agent_memory_${userEmail}`, JSON.stringify(mem));
-        } catch {}
+          if (!response.ok) throw new Error('Error en el servicio');
+
+          const data = await response.json();
+          assistantReply = data.reply || 'No pude procesar tu consulta. Escribinos a info@agtisa.com.';
+
+          // Handle pending confirmation from destructive tools
+          if (data.pending_confirmation) {
+            setPendingConfirmation(data.pending_confirmation);
+          } else {
+            setPendingConfirmation(null);
+          }
+
+          // Save conversation context to localStorage
+          try {
+            const mem = {
+              last_topic: userMessage.slice(0, 100),
+              last_visit: new Date().toISOString(),
+              visit_count: (clientMemory.visit_count || 0) + 1,
+            };
+            localStorage.setItem(`bc_agent_memory_${userEmail}`, JSON.stringify(mem));
+          } catch {}
+        }
       } else {
         // Usar ai-chat sin tools (visitante)
         const response = await fetch(`${supabaseUrl}/functions/v1/ai-chat`, {

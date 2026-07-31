@@ -623,22 +623,22 @@ function buildFallbackReply(toolResults: Array<{ name: string; result: any }>): 
 
 async function authenticateUser(req: Request, supabase: any, userEmail: string) {
   const authHeader = req.headers.get('Authorization') || '';
-  if (authHeader.startsWith('Bearer eyJ')) {
-    const { data: { user }, error } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
-    if (user && user.email === userEmail) {
-      const { data: profile } = await supabase.from('profiles').select('id, full_name, role, country').eq('id', user.id).single();
-      if (profile) {
-        const { data: memory } = await supabase.from('agent_memory').select('memory').eq('user_id', user.id).single();
-        return { userId: user.id, role: profile.role, userName: profile.full_name, country: profile.country || null, memory: memory?.memory || {}, authMethod: 'jwt' };
-      }
-    }
+  if (!authHeader.startsWith('Bearer eyJ')) {
+    return { error: 'Token JWT requerido', status: 401 };
   }
-  const { data: profile } = await supabase.from('profiles').select('id, full_name, role, country').eq('email', userEmail).single();
-  if (profile) {
-    const { data: memory } = await supabase.from('agent_memory').select('memory').eq('user_id', profile.id).single();
-    return { userId: profile.id, role: profile.role, userName: profile.full_name, country: profile.country || null, memory: memory?.memory || {}, authMethod: 'email' };
+  const { data: { user }, error } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''));
+  if (!user || error) {
+    return { error: 'Token JWT inválido o expirado', status: 401 };
   }
-  return { error: 'No se pudo autenticar', status: 401 };
+  if (user.email !== userEmail) {
+    return { error: 'El email no coincide con el token', status: 403 };
+  }
+  const { data: profile } = await supabase.from('profiles').select('id, full_name, role, country').eq('id', user.id).single();
+  if (!profile) {
+    return { error: 'Perfil no encontrado', status: 404 };
+  }
+  const { data: memory } = await supabase.from('agent_memory').select('memory').eq('user_id', user.id).single();
+  return { userId: user.id, role: profile.role, userName: profile.full_name, country: profile.country || null, memory: memory?.memory || {}, authMethod: 'jwt' };
 }
 
 // ===== MEMORY EXTRACTION =====
