@@ -135,7 +135,11 @@ export function useMarketplace({ currentUser, nurses, profiles, showToast, setBo
       response_deadline: newRequest.response_deadline,
       created_at: now
     }).then(({ error }) => {
-      if (error) { console.warn('Failed to republish care request:', error.message); showToast('No se pudo republicar la solicitud. Intenta de nuevo.', 'error'); }
+      if (error) {
+        console.warn('Failed to republish care request:', error.message);
+        setCareRequests(prev => prev.filter(r => r.id !== newRequest.id));
+        showToast('No se pudo republicar la solicitud. Intenta de nuevo.', 'error');
+      }
     });
   }, [careRequests, showToast]);
 
