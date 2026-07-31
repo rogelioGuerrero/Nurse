@@ -39,8 +39,8 @@ const FamilyProfileEdit = lazy(() => import('./components/FamilyProfileEdit').th
 const BenniVoz = lazy(() => import('./components/BenniVoz'));
 const PatientMode = lazy(() => import('./components/PatientMode'));
 const VoiceReminderConfig = lazy(() => import('./components/VoiceReminderConfig'));
-import { LandingPage } from './components/LandingPage';
-import { AuthForm } from './components/AuthForm';
+const LandingPage = lazy(() => import('./components/LandingPage').then(m => ({ default: m.LandingPage })));
+const AuthForm = lazy(() => import('./components/AuthForm').then(m => ({ default: m.AuthForm })));
 import { LegalDisclaimer } from './components/LegalDisclaimer';
 
 function PasswordRecoveryForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
@@ -372,6 +372,7 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                 }}
               />
             ) : isAdminAccess ? (
+              <Suspense fallback={<LoadingSpinner />}>
               <div className="min-h-[80vh] flex items-center justify-center px-5 py-8">
                 <div className="w-full max-w-sm space-y-4">
                   <div className="text-center space-y-2">
@@ -393,9 +394,11 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                   />
                 </div>
               </div>
+              </Suspense>
             ) : authMode === 'landing' ? (
+              <Suspense fallback={<LoadingSpinner />}>
               <LandingPage
-                onFamily={() => { 
+                onFamily={() => {
                   if (!currentUser) {
                     setAuthRole('family');
                     setAuthMode('register');
@@ -407,7 +410,9 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                 onAdminAccess={() => { setIsAdminAccess(true); setAuthMode('login'); }}
                 onLogin={() => { setAuthRole('family'); setAuthMode('login'); }}
               />
+              </Suspense>
             ) : (
+              <Suspense fallback={<LoadingSpinner />}>
               <AuthForm
                 mode={authMode}
                 role={authRole}
@@ -422,6 +427,7 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                   window.location.reload();
                 }}
               />
+              </Suspense>
             )}
           </>
         )}
