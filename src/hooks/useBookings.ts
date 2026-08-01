@@ -33,6 +33,7 @@ export function useBookings({ currentUser, nurses, profiles, showToast }: UseBoo
   const [careLogs, setCareLogs] = useState<Record<string, CareLog>>({});
 
   const saveCareLog = useCallback((bookingId: string, log: Omit<CareLog, 'bookingId' | 'updatedAt'>) => {
+    const prevLog = careLogs[bookingId];
     const updatedLog = {
       ...log,
       bookingId,
@@ -57,10 +58,13 @@ export function useBookings({ currentUser, nurses, profiles, showToast }: UseBoo
     }, { onConflict: 'booking_id' }).then(({ error }) => {
       if (error) {
         console.warn('Failed to save care log to Supabase:', error.message);
+        setCareLogs(prev => prev[bookingId] === updatedLog && prevLog
+          ? { ...prev, [bookingId]: prevLog }
+          : prev);
         showToast('No se pudo guardar el registro de cuidado. Intenta de nuevo.', 'error');
       }
     });
-  }, [showToast]);
+  }, [showToast, careLogs]);
 
   const createBooking = useCallback(async (bookingData: Omit<Booking, 'id' | 'user_id' | 'created_at' | 'status'> & { status?: Booking['status'] }): Promise<Booking> => {
     if (!currentUser) throw new Error('Debes iniciar sesión para agendar.');

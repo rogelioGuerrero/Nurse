@@ -324,15 +324,23 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     loadData();
 
     // Realtime subscriptions — filtered by user relevance
+    // Sanitize PHI fields from payload if user is not owner/admin (mirrors care_requests_public view)
+    const sanitizeRequestPHI = (r: any, userId: string, role: string) => {
+      if (r.user_id === userId || role === 'admin') return r;
+      const { patient_name, patient_data, notes, ...rest } = r;
+      return { ...rest, patient_name: null, patient_data: null, notes: null };
+    };
+
     const channel = supabase
       .channel('user-changes')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'care_requests' }, (payload) => {
-        const r = payload.new as any;
+        const raw = payload.new as any;
+        const r = sanitizeRequestPHI(raw, currentUser.id, currentUser.role);
         // Only add if user owns it or it's open (visible to them)
-        if (r.user_id === currentUser.id || r.status === 'open' || currentUser.role === 'admin') {
+        if (raw.user_id === currentUser.id || raw.status === 'open' || currentUser.role === 'admin') {
           setCareRequests(prev => prev.find(x => x.id === r.id) ? prev : [{ ...r, slots: typeof r.slots === 'string' ? JSON.parse(r.slots) : r.slots || [] }, ...prev]);
           // Notify nurse if request matches their specialization and they didn't create it
-          if (currentUser.role === 'nurse' && r.user_id !== currentUser.id && r.status === 'open') {
+          if (currentUser.role === 'nurse' && raw.user_id !== currentUser.id && raw.status === 'open') {
             const myNurse = nursesData?.find(n => n.user_id === currentUser.id);
             if (myNurse && myNurse.specialization?.includes(r.specialization_needed)) {
               notifyNewCareRequest(r.specialization_needed, currentUser.id);
@@ -341,7 +349,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         }
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'care_requests' }, (payload) => {
-        const r = payload.new as any;
+        const raw = payload.new as any;
+        const r = sanitizeRequestPHI(raw, currentUser.id, currentUser.role);
         setCareRequests(prev => prev.map(x => x.id === r.id ? { ...r, slots: typeof r.slots === 'string' ? JSON.parse(r.slots) : r.slots || [] } : x));
       })
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'care_offers' }, (payload) => {
