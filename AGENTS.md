@@ -1,4 +1,4 @@
-# AGENTS.md — BienCuidar (LocalNourse)
+# AGENTS.md — BienCuidar (LocalNurse)
 
 ## Project Identity
 
@@ -56,6 +56,36 @@
   generate image in Nano Banana with Omni prompt
   node scripts/add-branding.mjs "image.png"
   node scripts/fb-post.mjs "image_branded.png" @scripts/generated-article.txt
+  ```
+
+## Video Branding for Facebook
+
+- Two-script pipeline: `gen-cards.mjs` (pre-render intro/CTA cards) + `add-branding-video.mjs` (overlay + assemble).
+- Requires `ffmpeg-static` and `sharp` (devDependencies, project-local binaries — no system-wide install). `ffprobe` is NOT included in `ffmpeg-static`; scripts probe via `ffmpeg -i` (parses stderr).
+- Re-encodes with `libx264 crf=23 preset=veryfast` + AAC 128k + `yuv420p` + `+faststart` for web streaming.
+- Same rule as images: the Gemini/Nano Banana video prompt must NOT ask for text/logos; add branding post-generation.
+
+### `gen-cards.mjs` — Pre-rendered cards
+- Generates `scripts/.cards/intro.mp4` (2s, Ken Burns zoom, reutilizable para todos los videos) and `scripts/.cards/cta.mp4` (5s, sin zoom para legibilidad).
+- CTA text auto-extracted from `scripts/generated-article.txt` or via `--cta "texto"`.
+- Dimensions/FPS auto-detected from `--ref video.mp4` (default 1280x720@24fps).
+- Cards have fade in/out from black (0.4s intro, 0.5s CTA).
+- Usage: `node scripts/gen-cards.mjs --ref clip1.mp4 [--cta "texto"]`
+
+### `add-branding-video.mjs` — Ensamblaje final
+- Reads pre-rendered `intro.mp4` + `cta.mp4` from `scripts/.cards/`.
+- Applies branding overlay (bottom gradient, stethoscope icon, "BienCuidar" text, URL) to each clip via `ffmpeg-static`.
+- All clips get fade in/out through black (0.4s) for clean transitions between segments.
+- Concatenates: `intro → clip1 → clip2 → ... → cta` using concat demuxer.
+- Usage: `node scripts/add-branding-video.mjs clip1.mp4 [clip2.mp4 ...] [--output path] [--crf 23] [--preset veryfast]`
+
+### Complete flow (video path):
+  ```
+  groq-news.mjs → article + gemini-video-prompt.txt
+  generate video clips in Gemini
+  node scripts/gen-cards.mjs --ref clip1.mp4
+  node scripts/add-branding-video.mjs clip1.mp4 clip2.mp4 --output final.mp4
+  publish manually on Facebook with text from scripts/generated-article.txt
   ```
 
 ## Key Constants

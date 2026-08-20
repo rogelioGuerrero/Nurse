@@ -9,7 +9,7 @@ description: Generar contenido de Facebook para BienCuidar con el pipeline MoA d
 
 - `GROQ_API_KEY` seteada en el entorno (PowerShell: `$env:GROQ_API_KEY="..."`)
 - Node.js instalado
-- Proyecto en `d:\proyectoBolt\LocalNourse`
+- Proyecto en `d:\proyectoBolt\LocalNurse`
 
 ## Paso 1: Definir tema y ángulo editorial
 
