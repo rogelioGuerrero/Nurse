@@ -80,9 +80,10 @@ async function saveToContentHistory(topic, article, teaser, nextTopic) {
   }
 }
 
-const TOPIC = process.argv[2] || "burnout cuidadores adultos mayores";
+let TOPIC = process.argv[2] || "";
 const ANGLE_RAW = process.argv[3] || "";
 const NEXT_TOPIC_RAW = process.argv[4] || "";
+const DEFAULT_TOPIC = "burnout cuidadores adultos mayores";
 const MAX_SEARCH_ITERATIONS = 2;
 const MAX_REWRITE_ITERATIONS = 1;
 const MAX_EDIT_ITERATIONS = 2;
@@ -117,6 +118,26 @@ if (!GROQ_API_KEY) {
   console.error('  1. Crear archivo .env con GROQ_API_KEY=gsk_tu_key');
   console.error('  2. O setear: $env:GROQ_API_KEY="gsk_tu_key"');
   process.exit(1);
+}
+
+// ── Leer el next_topic del último artículo desde Supabase ──
+async function getLastNextTopic() {
+  if (!SUPABASE_ANON_KEY) return null;
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/content_history?select=next_topic&order=created_at.desc&limit=1&not.next_topic=is.null`;
+    const res = await fetch(url, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+    });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    if (rows.length > 0 && rows[0].next_topic) {
+      return rows[0].next_topic;
+    }
+  } catch {}
+  return null;
 }
 
 // ── Helper: llamar a Groq con retry automático ──
@@ -753,7 +774,7 @@ async function generateTeaser(article, nextTopic) {
 class MoAGraph {
   constructor() {
     this.state = {
-      topic: TOPIC,
+      topic: TOPIC || DEFAULT_TOPIC,
       angle: ANGLE,
       nextTopic: NEXT_TOPIC,
       // Datos que pasan entre agentes
@@ -872,6 +893,20 @@ class MoAGraph {
 
   // ── Runner: ejecuta el grafo ──
   async run() {
+    // Si no se pasó tema manual, intentar leer el next_topic del último artículo
+    if (!TOPIC) {
+      console.log("[Topic] No se proporcionó tema. Consultando content_history en Supabase...");
+      const nextTopic = await getLastNextTopic();
+      if (nextTopic) {
+        TOPIC = nextTopic;
+        console.log(`[Topic] Tema recuperado del último teaser: "${TOPIC}"`);
+      } else {
+        TOPIC = DEFAULT_TOPIC;
+        console.log(`[Topic] Sin teaser previo. Usando tema default: "${TOPIC}"`);
+      }
+      this.state.topic = TOPIC;
+    }
+
     const nodes = {
       SEARCH: () => this.nodeSearch(),
       WRITE: () => this.nodeWrite(),
