@@ -17,5 +17,24 @@ supabase-rag-toolkit/
 
 .gitignore.tmp
 
+# Pipeline outputs (generated, not tracked)
+scripts/articles/
+scripts/.cards/
+scripts/generated-article.txt
+scripts/gemini-prompt.txt
+scripts/gemini-video-prompt.txt
+scripts/gemini-video-prompt-*.txt
+scripts/gemini-video-script.json
+scripts/analysis-output.txt
+scripts/editorial-proposals.txt
+scripts/fb-insights-summary.txt
+scripts/fb-posts-list.json
+scripts/chat-test.json
+scripts/test-compound.json
+scripts/tts-test.json
+
+# Generated images
+public/img/
+
 # Research report (not related to BienCuidar)
 tmp/
