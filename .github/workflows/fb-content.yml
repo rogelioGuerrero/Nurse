@@ -31,6 +31,9 @@ jobs:
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
       VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      RESEND_FROM: content@agtisa.com
+      RESEND_TO: info@agtisa.com
 
     steps:
       - name: Checkout
@@ -60,6 +63,10 @@ jobs:
 
           echo "Running groq-news.mjs with args: $ARGS"
           node scripts/groq-news.mjs $ARGS
+
+      - name: Send article + prompt via email
+        if: success()
+        run: node scripts/notify-email.mjs
 
       - name: Save outputs as artifact
         if: always()
