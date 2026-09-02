@@ -6,7 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
-package-lock.json
 .playwright-mcp/
 
 # Local Netlify folder
@@ -16,9 +15,6 @@ package-lock.json
 Nurse/
 supabase-rag-toolkit/
 
-# Scripts folder (local pipeline, not tracked)
-scripts/
-public/img/
 .gitignore.tmp
 
 # Research report (not related to BienCuidar)
