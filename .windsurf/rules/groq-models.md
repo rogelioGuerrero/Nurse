@@ -14,10 +14,23 @@ Use only these production models in BienCuidar code:
 | Fallback / light | `openai/gpt-oss-20b` | QA, PII extraction, classification, memory extraction |
 | Safety | `openai/gpt-oss-safeguard-20b` | Jailbreak and content safety checks |
 
+## Vision Model
+
+| Role | Model | Notes |
+|------|-------|-------|
+| OCR / image extraction | `qwen/qwen3.6-27b` | Preview, text+image, 131K context, 30 RPM / 1K RPD / 8K TPM |
+
+Used in `rag-ingest` for extracting text from images (medical documents, legal docs).
+Supports up to 3 images per request, 20 MB max per image.
+Same OpenAI-compatible vision API format (content array with `type: "image_url"`).
+
 ## Deprecated — Never Use
 
 - `llama-3.3-70b-versatile` (deprecated by Groq 16 Aug 2026)
 - `llama-3.1-8b-instant` (deprecated by Groq 16 Aug 2026)
+- `meta-llama/llama-3.2-90b-vision-preview` (decommissioned — use `qwen/qwen3.6-27b`)
+- `meta-llama/llama-3.2-11b-vision-preview` (decommissioned — use `qwen/qwen3.6-27b`)
+- `meta-llama/llama-4-scout-17b-16e-instruct` (deprecated 17 Jul 2026 — use `qwen/qwen3.6-27b`)
 - `meta-llama/llama-prompt-guard-2-86m` (use `gpt-oss-safeguard-20b` instead)
 - `qwen/qwen3-32b` — leaks reasoning, ignores formatting rules, unstable rate limits
 

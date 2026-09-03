@@ -28,7 +28,7 @@ netlify deploy --prod
 ## Características Implementadas
 
 ### Asistente Clínico IA (Groq API)
-- Asistente con Llama-3 para familias y enfermeras
+- Asistente con GPT-OSS (OpenAI open-source) para familias y enfermeras
 - Sugerencias rápidas y preguntas personalizadas
 - Configurado vía Groq API
 
