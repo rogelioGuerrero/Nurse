@@ -68,14 +68,6 @@ jobs:
         if: success()
         run: node scripts/notify-email.mjs
 
-      - name: Generate image (Imagen 4 Fast)
-        if: success()
-        run: node scripts/generate-image.mjs
-
-      - name: Apply branding to image
-        if: success()
-        run: node scripts/add-branding.mjs scripts/generated-image.png --output scripts/generated-image-branded.png
-
       - name: Save outputs as artifact
         if: always()
         uses: actions/upload-artifact@v5
@@ -87,6 +79,4 @@ jobs:
             scripts/gemini-video-prompt.txt
             scripts/gemini-video-prompt-*.txt
             scripts/gemini-video-script.json
-            scripts/generated-image.png
-            scripts/generated-image-branded.png
           retention-days: 30
