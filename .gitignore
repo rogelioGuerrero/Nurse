@@ -25,6 +25,8 @@ scripts/gemini-prompt.txt
 scripts/gemini-video-prompt.txt
 scripts/gemini-video-prompt-*.txt
 scripts/gemini-video-script.json
+scripts/pipeline-result.json
+scripts/auto-image*.jpg
 scripts/analysis-output.txt
 scripts/editorial-proposals.txt
 scripts/fb-insights-summary.txt

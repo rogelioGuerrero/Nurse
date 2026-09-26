@@ -1,6 +1,8 @@
 /**
- * Prueba de Groq Compound — muestra respuesta + executed_tools
+ * Prueba de Groq browser_search (built-in) sobre gpt-oss-120b
+ * — muestra respuesta + tool_calls
  * Para verificar trazabilidad de las herramientas usadas.
+ * (groq/compound descontinuado 21-sep-2026)
  */
 import { readFileSync } from "fs";
 import { resolve, dirname } from "path";
@@ -28,7 +30,7 @@ const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
 const query = "Horas semanales promedio de cuidado informal en Latinoamerica y valor economico equivalente al salario minimo de El Salvador";
 
-console.log("Consultando a Groq Compound...");
+console.log("Consultando a gpt-oss-120b + browser_search...");
 console.log("Query:", query);
 console.log("\nEsto puede tardar 30-60 segundos...\n");
 
@@ -39,15 +41,12 @@ const res = await fetch(GROQ_API_URL, {
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    model: "groq/compound",
+    model: "openai/gpt-oss-120b",
     messages: [{ role: "user", content: query }],
-    compound_custom: {
-      models: {
-        reasoning_model: "openai/gpt-oss-120b",
-        answering_model: "openai/gpt-oss-120b",
-      },
-      tools: { enabled_tools: ["web_search", "code_interpreter", "wolfram_alpha"] },
-    },
+    tools: [{ type: "browser_search" }],
+    tool_choice: "required",
+    reasoning_effort: "low",
+    max_completion_tokens: 6000,
   }),
 });
 
@@ -61,27 +60,30 @@ const data = await res.json();
 const choice = data.choices[0];
 
 console.log("═══════════════════════════════════════════════════");
-console.log("RESPUESTA DE COMPOUND:");
+console.log("RESPUESTA:");
 console.log("═══════════════════════════════════════════════════\n");
 console.log(choice.message.content);
 
 console.log("\n═══════════════════════════════════════════════════");
-console.log("HERRAMIENTAS EJECUTADAS (executed_tools):");
+console.log("HERRAMIENTAS EJECUTADAS (tool_calls / executed_tools):");
 console.log("═══════════════════════════════════════════════════\n");
 
-if (choice.message.executed_tools) {
-  choice.message.executed_tools.forEach((tool, i) => {
-    console.log(`--- Tool ${i + 1}: ${tool.type} ---`);
-    console.log("Arguments:", tool.arguments);
-    console.log("Output (primeros 500 chars):", 
-      typeof tool.output === "string" 
-        ? tool.output.slice(0, 500) + (tool.output.length > 500 ? "..." : "")
-        : JSON.stringify(tool.output).slice(0, 500)
-    );
+const tools = choice.message.executed_tools || choice.message.tool_calls || [];
+if (tools.length > 0) {
+  tools.forEach((tool, i) => {
+    console.log(`--- Tool ${i + 1}: ${tool.type || tool.function?.name} ---`);
+    console.log("Arguments:", JSON.stringify(tool.arguments || tool.function?.arguments || {}).slice(0, 300));
+    if (tool.output) {
+      console.log("Output (primeros 500 chars):",
+        typeof tool.output === "string"
+          ? tool.output.slice(0, 500) + (tool.output.length > 500 ? "..." : "")
+          : JSON.stringify(tool.output).slice(0, 500)
+      );
+    }
     console.log("");
   });
 } else {
-  console.log("(No se retornaron executed_tools)");
+  console.log("(No se retornaron tool calls)");
 }
 
 console.log("\n═══════════════════════════════════════════════════");

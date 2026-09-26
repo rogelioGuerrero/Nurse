@@ -7,8 +7,8 @@
  * de los años de cuidado que necesitará."
  *
  * Arquitectura:
- *   Paso 1: Compound + Wolfram → datos demográficos curados
- *   Paso 2: Compound + Web search → datos locales (pensiones, SM, informalidad)
+ *   Paso 1: GPT-OSS 120B + browser_search → datos demográficos
+ *   Paso 2: GPT-OSS 120B + browser_search → datos locales (pensiones, SM, informalidad)
  *   Paso 3: Cálculo local (JS) → proyecciones y brecha
  *   Paso 4: GPT-OSS 120B → verificación cruzada + score de credibilidad
  *   Paso 5: Reporte con H1/H2/H3 confirmada o refutada
@@ -19,6 +19,7 @@
 import { readFileSync, writeFileSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { fetchNewsBundle, formatBundleForPrompt } from "./news-fetch.mjs";
 
 // ── Cargar .env ──
 function loadEnv() {
@@ -87,98 +88,66 @@ function delay(seconds) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PASO 1: Compound + Wolfram → datos demográficos curados
+// PASO 1: fetch real (GDELT + PubMed + GN) → datos demográficos
+// (groq/compound descontinuado 21-sep-2026; el retrieval ahora es
+// código propio via news-fetch.mjs — gratis, sin key, sin tokens)
 // ═══════════════════════════════════════════════════════════════
 async function step1_WolframDemographics() {
   console.log("\n═══════════════════════════════════════════════════");
-  console.log("PASO 1: Wolfram — Datos demográficos curados de El Salvador");
+  console.log("PASO 1: Datos demográficos de El Salvador");
   console.log("═══════════════════════════════════════════════════\n");
 
-  // Prompt corto para evitar 413
-  const prompt = "El Salvador population by age groups 2024, life expectancy at age 60, GDP per capita, birth rate";
+  const q = "El Salvador population aging elderly demographics GDP";
+  const bundle = await fetchNewsBundle({
+    newsQueries: [{ q, lang: "en", country: "US", maxItems: 8 }],
+    gdeltQuery: q,
+    pubmedQuery: "El Salvador aging population demographics",
+  });
 
-  const data = await callGroq(
-    "groq/compound",
-    prompt,
-    {
-      compound_custom: {
-        models: {
-          reasoning_model: "openai/gpt-oss-120b",
-          answering_model: "openai/gpt-oss-120b",
-        },
-        tools: { enabled_tools: ["wolfram_alpha"] },
-      },
-    },
-    "Wolfram"
-  );
-
-  if (!data) {
-    console.error("  Error: Wolfram no respondió.");
+  console.log(`  Fetched ${bundle.items.length} items — ${JSON.stringify(bundle.stats)}`);
+  if (bundle.items.length === 0) {
+    console.error("  Error: ninguna fuente respondió.");
     return null;
   }
 
-  const content = data.choices[0]?.message?.content || "";
-  const tools = data.choices[0]?.message?.executed_tools || [];
-
-  console.log("  Respuesta de Wolfram:");
+  const content = formatBundleForPrompt(bundle);
+  console.log("  Material fetcheado:");
   console.log("  " + content.slice(0, 500) + (content.length > 500 ? "..." : ""));
   console.log("");
 
-  if (tools.length > 0) {
-    console.log("  Herramientas ejecutadas:");
-    tools.forEach((t, i) => {
-      console.log(`    ${i + 1}. ${t.type}: ${JSON.stringify(t.arguments).slice(0, 100)}`);
-    });
-  }
-
-  return { content, tools, usage: data.usage };
+  return { content, tools: [], usage: null };
 }
 
 // ═══════════════════════════════════════════════════════════════
-// PASO 2: Compound + Web search → datos locales
+// PASO 2: fetch real → datos locales (pensiones, SM, informalidad)
 // ═══════════════════════════════════════════════════════════════
 async function step2_WebSearchLocal() {
   console.log("\n═══════════════════════════════════════════════════");
-  console.log("PASO 2: Web search — Datos locales de El Salvador");
+  console.log("PASO 2: Datos locales de El Salvador (pensiones, informalidad)");
   console.log("═══════════════════════════════════════════════════\n");
 
-  const prompt = "El Salvador 2025 pension coverage percentage informal economy rate CEPAL ILO";
+  const q = "El Salvador pension coverage informal economy CEPAL ILO";
+  const bundle = await fetchNewsBundle({
+    newsQueries: [
+      { q, lang: "en", country: "US", maxItems: 8 },
+      { q: "El Salvador cobertura pensiones economía informal", lang: "es", country: "SV", maxItems: 8 },
+    ],
+    gdeltQuery: q,
+    pubmedQuery: "",
+  });
 
-  const data = await callGroq(
-    "groq/compound",
-    prompt,
-    {
-      compound_custom: {
-        models: {
-          reasoning_model: "openai/gpt-oss-120b",
-          answering_model: "openai/gpt-oss-120b",
-        },
-        tools: { enabled_tools: ["web_search"] },
-      },
-    },
-    "WebSearch"
-  );
-
-  if (!data) {
-    console.error("  Error: Web search no respondió.");
+  console.log(`  Fetched ${bundle.items.length} items — ${JSON.stringify(bundle.stats)}`);
+  if (bundle.items.length === 0) {
+    console.error("  Error: ninguna fuente respondió.");
     return null;
   }
 
-  const content = data.choices[0]?.message?.content || "";
-  const tools = data.choices[0]?.message?.executed_tools || [];
-
-  console.log("  Respuesta de web search:");
+  const content = formatBundleForPrompt(bundle);
+  console.log("  Material fetcheado:");
   console.log("  " + content.slice(0, 500) + (content.length > 500 ? "..." : ""));
   console.log("");
 
-  if (tools.length > 0) {
-    console.log("  Búsquedas realizadas:");
-    tools.forEach((t, i) => {
-      console.log(`    ${i + 1}. ${t.type}: ${JSON.stringify(t.arguments).slice(0, 100)}`);
-    });
-  }
-
-  return { content, tools, usage: data.usage };
+  return { content, tools: [], usage: null };
 }
 
 // ═══════════════════════════════════════════════════════════════

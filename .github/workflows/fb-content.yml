@@ -25,7 +25,9 @@ concurrency:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Run observado ~3.5min; 15 min de margen para retries de rate-limit
+    # (Groq 429) y sleeps anti rate-limit de GDELT en el retrieval layer
+    timeout-minutes: 15
 
     env:
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -34,6 +36,9 @@ jobs:
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       RESEND_FROM: info@agtisa.com
       RESEND_TO: guerrero_vi@yahoo.com
+      PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+      # Toggle publicación automática: 'false' = solo genera + email (modo manual)
+      AUTOPUBLISH_ENABLED: 'true'
 
     steps:
       - name: Checkout
@@ -64,6 +69,13 @@ jobs:
           echo "Running groq-news.mjs with args: $ARGS"
           node scripts/groq-news.mjs $ARGS
 
+      - name: Auto-publish to Facebook (solo si QC aprobó)
+        # Nunca bloquea el email: si falla o el QC no pasó, el artículo
+        # llega por correo para publicación manual como siempre
+        if: success() && env.AUTOPUBLISH_ENABLED == 'true'
+        continue-on-error: true
+        run: node scripts/auto-publish.mjs
+
       - name: Send article + prompt via email
         if: success()
         run: node scripts/notify-email.mjs
@@ -75,6 +87,8 @@ jobs:
           name: fb-content-${{ github.run_id }}
           path: |
             scripts/generated-article.txt
+            scripts/pipeline-result.json
+            scripts/auto-image_branded.jpg
             scripts/gemini-prompt.txt
             scripts/gemini-video-prompt.txt
             scripts/gemini-video-prompt-*.txt

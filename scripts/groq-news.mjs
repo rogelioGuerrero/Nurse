@@ -3,7 +3,8 @@
  * 
  * 5 agentes con feedback loops, estado compartido y validación por nodo.
  * 
- * Agente 1 (Busca):    Groq Compound (gpt-oss-120b) busca datos en fuentes autorizadas
+ * Agente 1 (Busca):    Retrieval propio (Google News RSS + GDELT + PubMed) → GPT-OSS 120B sintetiza.
+ *                      Fallback automático a browser_search si las fuentes no devuelven material.
  * Agente 2 (Redacta):  GPT-OSS 120B escribe borrador con gancho narrativo
  * Agente 3 (Revisa):   GPT-OSS 120B fact-check + evaluación ética del ángulo
  * Agente 4 (Edita):    GPT-OSS 120B pulido editorial
@@ -23,6 +24,7 @@
 import { writeFileSync, readFileSync, mkdirSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
+import { fetchNewsBundle, formatBundleForPrompt, extractUrls } from "./news-fetch.mjs";
 
 // Cargar .env automáticamente si GROQ_API_KEY no está en el entorno
 function loadEnv() {
@@ -83,6 +85,9 @@ async function saveToContentHistory(topic, article, teaser, nextTopic) {
 let TOPIC = process.argv[2] || "";
 const ANGLE_RAW = process.argv[3] || "";
 const NEXT_TOPIC_RAW = process.argv[4] || "";
+
+// QC del retrieval para pipeline-result.json (lo lee auto-publish.mjs)
+let lastSearchQC = { urlsVerified: 0, fetched: 0, queries: {} };
 const DEFAULT_TOPIC = "burnout cuidadores adultos mayores";
 const MAX_SEARCH_ITERATIONS = 2;
 const MAX_REWRITE_ITERATIONS = 1;
@@ -355,7 +360,33 @@ function fillTemplate(template, vars) {
 }
 
 const PROMPTS = {
-  search: `Research the following topic for a healthcare Facebook post: "{topic}". Find real statistics, data, and facts from authoritative health sources. Return: 1) Key statistics with source URLs 2) 2-3 practical recommendations 3) Any relevant data for Latin America. Be concise.{feedback_section}`,
+  // Query builder: convierte el tema en queries de búsqueda (gpt-oss-20b, barato)
+  searchQueries: `Generate web search queries to research the topic "{topic}" for a healthcare Facebook post about elderly care in El Salvador / Latin America.{feedback_section}
+
+Respond ONLY with a JSON object (no markdown, no text before or after):
+{"news_es": "3-5 keyword Spanish query for Google News", "news_en": "3-5 keyword English query for Google News", "pubmed": "English PubMed query, 2-4 terms"}`,
+
+  // Síntesis: el LLM solo puede usar el material fetcheado — anti-humo por diseño
+  search: `You are a research analyst preparing material for a healthcare Facebook post on: "{topic}".
+
+Below is REAL material fetched from the web (news articles, institutional pages, PubMed papers). Use ONLY facts present in this material. Prefer sources from trusted domains when present: {domains}.
+
+Rules:
+- Every statistic or claim must come from a numbered source below.
+- Cite internally as (source name, year).
+- FORBIDDEN: inventing statistics, adding decimal precision not present in the material, or citing URLs not listed below.
+- If the material is thin, state what is missing instead of inventing.
+
+Return:
+1) KEY DATA: bullet statistics with (source, year)
+2) 2-3 practical recommendations grounded in the material
+3) Latin America / El Salvador angle if present in the material
+4) FUENTES: the URLs of the sources you actually used, copied exactly as listed
+
+{feedback_section}
+
+FETCHED MATERIAL:
+{material}`,
 
   write: `Eres el redactor jefe de BienCuidar, una plataforma salvadoreña que conecta familias con enfermeras profesionales para cuidado de salud en casa.
 
@@ -399,6 +430,7 @@ Verifica:
 4. ¿Hay errores médicos o información peligrosa?
 5. ¿El ángulo narrativo visibiliza el problema o lo sensacionaliza?
 6. ¿Faltan datos importantes que la investigación no cubrió?
+7. ¿El borrador agrega precisión que NO aparece literalmente en la investigación? (decimales, porcentajes exactos, años específicos ausentes del material = inventado)
 
 Responde EXACTAMENTE como un objeto JSON válido (sin markdown, sin texto antes o después):
 {
@@ -548,41 +580,110 @@ function delay(seconds) {
   return new Promise((r) => setTimeout(r, seconds * 1000));
 }
 
-// ── Agente 1: Compound busca datos ──
+// ── Agente 1: Retrieval propio + síntesis ──
+// groq/compound fue descontinuado (21-sep-2026). En lugar de otro sistema
+// bundled, el retrieval es código propio (news-fetch.mjs): Google News RSS +
+// GDELT (domain: → trusted) + PubMed. El LLM solo SINTETIZA el material
+// fetcheado — no puede inventar URLs porque solo recibe las reales.
+// Fallback: browser_search (built-in de gpt-oss) si las fuentes dan <3 items.
 async function agentSearch(feedback = null) {
-  console.log("[Agente 1/5] Compound buscando en fuentes autorizadas...");
+  console.log("[Agente 1/5] Retrieval real: Google News + GDELT + PubMed...");
   console.log(`Tema: ${TOPIC}`);
   if (feedback) console.log(`Refinando búsqueda: ${feedback.slice(0, 100)}`);
-  console.log(`Fuentes: ${TRUSTED_DOMAINS.join(", ")}`);
-  console.log("Esto puede tomar 15-30 segundos...\n");
 
-  const searchPrompt = fillTemplate(PROMPTS.search, {
+  // 1) Traducir tema → queries de búsqueda (gpt-oss-20b, barato)
+  const feedbackSection = feedback ? `\nAdditional focus needed: ${feedback}` : "";
+  const qData = await callGroq("openai/gpt-oss-20b", fillTemplate(PROMPTS.searchQueries, {
     topic: TOPIC,
-    feedback_section: feedback ? `\n\nADDITIONAL SEARCH NEEDED: ${feedback}` : "",
-  });
+    feedback_section: feedbackSection,
+  }), { max_completion_tokens: 600, reasoning_effort: "low", temperature: 0.2 });
 
-  const data = await callGroq("groq/compound", searchPrompt, {
-    search_settings: { include_domains: TRUSTED_DOMAINS },
-    compound_custom: {
-      models: {
-        reasoning_model: "openai/gpt-oss-120b",
-        answering_model: "openai/gpt-oss-120b",
-      },
-      tools: { enabled_tools: ["web_search"] },
-    },
+  const queries = parseJSONResponse(qData.choices[0]?.message?.content || "") || {};
+  console.log(`  Queries: ES="${(queries.news_es || "").slice(0, 60)}" EN="${(queries.news_en || "").slice(0, 60)}"`);
+
+  // 2) Fetch real (sin LLM, sin keys) — fuentes en paralelo
+  const bundle = await fetchNewsBundle({
+    newsQueries: [
+      { q: queries.news_es || TOPIC, lang: "es", country: "SV", maxItems: 6 },
+      { q: queries.news_en || TOPIC, lang: "en", country: "US", maxItems: 6 },
+    ],
+    siteQueries: [
+      { q: queries.news_en || TOPIC, domains: ["who.int", "paho.org", "nih.gov", "cdc.gov", "alz.org"], lang: "en", country: "US", perDomain: 3 },
+      { q: queries.news_es || TOPIC, domains: ["scielo.org", "cepal.org", "paho.org"], lang: "es", country: "SV", perDomain: 3 },
+    ],
+    trustedFeeds: true,
+    gdeltQuery: queries.news_en || TOPIC,
+    pubmedQuery: queries.pubmed || "",
+    trustedDomains: TRUSTED_DOMAINS,
+  });
+  console.log(`  Fetched ${bundle.items.length} items — ${JSON.stringify(bundle.stats)}`);
+  if (bundle.failed.length) console.log(`  (fuentes caídas, tolerado: ${bundle.failed.join("; ")})`);
+  lastSearchQC.fetched = bundle.items.length;
+  lastSearchQC.queries = queries;
+
+  // 3) Fallback a browser_search si el retrieval no trajo suficiente
+  if (bundle.items.length < 3) {
+    console.log("  Material insuficiente → fallback a browser_search\n");
+    return agentSearchBrowser(feedback);
+  }
+
+  // 4) Síntesis: gpt-oss-120b solo puede usar el material fetcheado
+  const material = formatBundleForPrompt(bundle);
+  const data = await callGroq("openai/gpt-oss-120b", fillTemplate(PROMPTS.search, {
+    topic: TOPIC,
+    domains: TRUSTED_DOMAINS.join(", "),
+    feedback_section: feedbackSection,
+    material,
+  }), { max_completion_tokens: 4000, reasoning_effort: "medium" });
+
+  let research = data.choices[0]?.message?.content || "";
+
+  // 5) QC determinístico anti-humo: toda URL citada debe existir en el material
+  const cited = extractUrls(research).map((u) => u.replace(/[.,;:"')\]]+$/, ""));
+  const realUrls = cited.filter((u) => bundle.fetchedUrls.has(u));
+  const fakeUrls = cited.filter((u) => !bundle.fetchedUrls.has(u));
+  lastSearchQC.urlsVerified = realUrls.length;
+  if (fakeUrls.length > 0) {
+    console.log(`  ⚠ QC: ${fakeUrls.length} URL(s) citadas que NO están en el material fetcheado`);
+    fakeUrls.forEach((u) => console.log(`     - ${u.slice(0, 90)}`));
+  }
+  if (realUrls.length === 0) {
+    // Guardrail SEARCH exige URLs: inyectar las URLs reales del bundle
+    const srcs = bundle.items.slice(0, 5).map((i) => i.url).filter(Boolean);
+    research += "\n\nFUENTES (verificadas, del material fetcheado):\n" + srcs.join("\n");
+    console.log("  (URLs citadas eran dudosas — se inyectaron FUENTES reales del bundle)");
+  }
+
+  return research;
+}
+
+// ── Fallback: browser_search (built-in de gpt-oss, server-side, Exa) ──
+// Solo se usa si el retrieval propio no devuelve material suficiente.
+// Ojo: consume mucho TPM (~170K tokens por llamada, trae páginas completas).
+async function agentSearchBrowser(feedback = null) {
+  console.log("[Agente 1/5-F] browser_search (fallback)...");
+
+  const searchPrompt = `Research the following topic for a healthcare Facebook post: "${TOPIC}". Find real statistics, data, and facts from authoritative health sources. PRIORITIZE sources from these trusted domains: ${TRUSTED_DOMAINS.join(", ")}. Return: 1) Key statistics with source URLs 2) 2-3 practical recommendations 3) Any relevant data for Latin America. Be concise.${feedback ? `\n\nADDITIONAL SEARCH NEEDED: ${feedback}` : ""}`;
+
+  const data = await callGroq("openai/gpt-oss-120b", searchPrompt, {
+    tools: [{ type: "browser_search" }],
+    tool_choice: "required",
+    reasoning_effort: "low",
+    max_completion_tokens: 6000,
   });
 
   const research = data.choices[0]?.message?.content || "";
-  const tools = data.choices[0]?.message?.executed_tools || [];
+  const tools = data.choices[0]?.message?.executed_tools || data.choices[0]?.message?.tool_calls || [];
 
   if (tools.length > 0) {
     console.log("Búsquedas realizadas:");
     tools.forEach((t, i) => {
       try {
-        const args = JSON.parse(t.arguments);
-        console.log(`  ${i + 1}. ${t.type}: ${(args.query || "").slice(0, 80)}`);
+        const rawArgs = typeof t.arguments === "string" ? t.arguments : t.function?.arguments;
+        const args = JSON.parse(rawArgs || "{}");
+        console.log(`  ${i + 1}. ${t.type || t.function?.name}: ${(args.query || "").slice(0, 80)}`);
       } catch {
-        console.log(`  ${i + 1}. ${t.type}`);
+        console.log(`  ${i + 1}. ${t.type || t.function?.name}`);
       }
     });
     console.log("");
@@ -833,7 +934,7 @@ class MoAGraph {
     this.state.research = research;
     this.state.searchFeedback = null;
     this.logEvent("search_done", { researchLen: research.length });
-    await delay(65);
+    await delay(20);
     return resolveTransition("SEARCH", this.state);
   }
 
@@ -1004,6 +1105,19 @@ class MoAGraph {
 
     // Registrar en Supabase content_history
     await saveToContentHistory(this.state.topic, article, this.state.teaser, this.state.nextTopic || null);
+
+    // Resultado estructurado para auto-publish.mjs (gate de calidad: solo
+    // publica si el QA aprobó limpio y el research traía URLs verificadas)
+    writeFileSync("scripts/pipeline-result.json", JSON.stringify({
+      approved: this.state.qaDecision?.veredicto === "APROBADO",
+      qaVeredicto: this.state.qaDecision?.veredicto || null,
+      urlsVerified: lastSearchQC.urlsVerified,
+      itemsFetched: lastSearchQC.fetched,
+      topic: this.state.topic,
+      newsQueryEn: lastSearchQC.queries.news_en || null,
+      article: OUTPUT_FILE,
+      generatedAt: new Date().toISOString(),
+    }, null, 2), "utf-8");
 
     const geminiPrompt = generateGeminiPrompt(article);
     writeFileSync(GEMINI_PROMPT_FILE, geminiPrompt, "utf-8");

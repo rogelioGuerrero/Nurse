@@ -18,7 +18,7 @@ Use only these production models in BienCuidar code:
 
 | Role | Model | Notes |
 |------|-------|-------|
-| OCR / image extraction | `qwen/qwen3.6-27b` | Preview, text+image, 131K context, 30 RPM / 1K RPD / 8K TPM |
+| OCR / image extraction | `qwen/qwen3.8-27b` | Text+image, 131K context, thinking/instruct modes |
 
 Used in `rag-ingest` for extracting text from images (medical documents, legal docs).
 Supports up to 3 images per request, 20 MB max per image.
@@ -26,11 +26,14 @@ Same OpenAI-compatible vision API format (content array with `type: "image_url"`
 
 ## Deprecated — Never Use
 
+- `groq/compound` (decommissioned 21 Sep 2026 — use `browser_search` tool on `gpt-oss-120b`)
+- `groq/compound-mini` (decommissioned 21 Sep 2026 — use `browser_search` tool on `gpt-oss-120b`)
+- `qwen/qwen3.6-27b` (deprecated 14 Sep 2026 — use `qwen/qwen3.8-27b`)
 - `llama-3.3-70b-versatile` (deprecated by Groq 16 Aug 2026)
 - `llama-3.1-8b-instant` (deprecated by Groq 16 Aug 2026)
-- `meta-llama/llama-3.2-90b-vision-preview` (decommissioned — use `qwen/qwen3.6-27b`)
-- `meta-llama/llama-3.2-11b-vision-preview` (decommissioned — use `qwen/qwen3.6-27b`)
-- `meta-llama/llama-4-scout-17b-16e-instruct` (deprecated 17 Jul 2026 — use `qwen/qwen3.6-27b`)
+- `meta-llama/llama-3.2-90b-vision-preview` (decommissioned — use `qwen/qwen3.8-27b`)
+- `meta-llama/llama-3.2-11b-vision-preview` (decommissioned — use `qwen/qwen3.8-27b`)
+- `meta-llama/llama-4-scout-17b-16e-instruct` (deprecated 17 Jul 2026 — use `qwen/qwen3.8-27b`)
 - `meta-llama/llama-prompt-guard-2-86m` (use `gpt-oss-safeguard-20b` instead)
 - `qwen/qwen3-32b` — leaks reasoning, ignores formatting rules, unstable rate limits
 
@@ -39,11 +42,18 @@ Same OpenAI-compatible vision API format (content array with `type: "image_url"`
 - `_shared/groq.ts` already provides automatic fallback via `callGroqRaw` and `callGroq` using `[PRIMARY_MODEL, FALLBACK_MODEL]`.
 - Edge functions using the default `callGroq`/`callGroqRaw` calls already get fallback to `gpt-oss-20b`.
 
-## Compound (`groq/compound`)
+## Search / Retrieval Layer (`scripts/news-fetch.mjs`)
 
-- **Do not call Compound from Supabase Edge Functions** — it returns 413 due to request expansion.
-- Call Compound directly from local scripts with very short prompts (≤2 lines, ~300 chars, no `max_tokens`/`temperature`).
-- Wait 30–45 s between Compound calls to respect free-tier TPM.
+`groq/compound` and `groq/compound-mini` were decommissioned 21 Sep 2026. Instead of another bundled vendor system, retrieval is owned code:
+
+- **Google News RSS** — real news sorted by date, free, no key, locale-configurable (`hl`/`gl`/`ceid`).
+- **GDELT 2.0 DOC API** — free, no key, `domain:` filter for trusted domains. Rate-limited (429) — treat as optional source.
+- **PubMed E-utilities** — free, no key (~3 req/s). Best source for clinical stats: esearch → esummary → efetch abstracts.
+
+Pattern: fetch real material (pure HTTP, ~0 tokens) → `gpt-oss-120b` synthesizes a research brief using ONLY the fetched items → deterministic QC: every URL cited in the brief must exist in the fetched set.
+
+- `browser_search` (built-in tool on gpt-oss) remains ONLY as fallback when retrieval returns <3 items — it works but pulls full pages (~170K prompt tokens/call).
+- Total pipeline search cost: ~5-8K tokens vs ~170K with browser_search.
 
 ## Reasoning Tokens
 
@@ -56,7 +66,7 @@ Same OpenAI-compatible vision API format (content array with `type: "image_url"`
 ## Rate Limits (Free Tier)
 
 - `gpt-oss-120b`: 30 RPM, 8000 TPM, 250 requests/day
-- Compound uses ~6000 TPM internally; wait **65 s** after Compound before next agent.
+- Retrieval layer (RSS/GDELT/PubMed): no Groq tokens; keep the 65 s delay only if `browser_search` fallback triggers (pulls full pages, ~170K tokens).
 - Wait **20 s** between consecutive `gpt-oss-120b` agent calls.
 
 ## smolagents

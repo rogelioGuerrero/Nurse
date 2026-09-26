@@ -5,7 +5,7 @@
  * Paso previo al pipeline MoA (groq-news.mjs).
  *
  * Arquitectura de 3 fases:
- * 1. SCAN:    Compound busca en 4 dominios fijos (web search, ~20s c/u)
+ * 1. SCAN:    GPT-OSS 120B + browser_search busca en 4 dominios fijos (~20s c/u)
  * 2. DIGEST:  GPT-OSS 120B destila cada dominio a 3 datos clave con fecha
  * 3. PROPOSE: GPT-OSS 120B sintetiza los 4 digests + artículos publicados + serie
  *             y propone 3-5 líneas editoriales con datos específicos
@@ -26,6 +26,7 @@ import { writeFileSync, readFileSync, readdirSync, existsSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { execSync } from "child_process";
+import { fetchGoogleNews } from "./news-fetch.mjs";
 
 // ── Cargar .env ──
 function loadEnv() {
@@ -54,36 +55,36 @@ const ANGLE_FILE = "scripts/editorial-angle.txt";
 const ARTICLES_DIR = "scripts/articles";
 
 // ── 4 dominios fijos (vigas maestras) ──
-// D1 (Innovación) eliminado: Compound no encuentra suficiente material sobre care-tech
+// D1 (Innovación) eliminado: el buscador no encuentra suficiente material sobre care-tech
 // D5 (Salud clínica) eliminado: rate limit severo + datos mezclados con otros dominios
 const DOMAINS = [
   {
     id: "D2",
     name: "Política pública y derechos",
     question: "¿Qué hace el Estado por el cuidado?",
+    query: "elderly care policy pension reform caregiver rights",
     prompt: "Find 2026 news about elderly care policies, pension reforms, caregiver rights legislation, long-term care laws, or government programs for aging populations. Include European Union models (France, Germany, Spain, Sweden) as advanced referents in care policy, long-term care insurance, and caregiver rights. Also cover Latin America and El Salvador. Return specific facts with dates and sources. Be concise.",
-    tools: ["web_search"],
   },
   {
     id: "D3",
     name: "Mercado laboral de cuidado",
     question: "¿Hay quien cuide? ¿En qué condiciones?",
+    query: "nursing shortage caregiver wages home care workers",
     prompt: "Find 2026 news about nursing shortage, caregiver labor market, wages, migration of healthcare workers, supply and demand of home care services, or working conditions of caregivers. Include European Union data on caregiver labor regulation, professionalization, and wages as referents. Also cover Latin America and El Salvador. Return specific facts with dates and sources. Be concise.",
-    tools: ["web_search"],
   },
   {
     id: "D4",
     name: "Economía familiar",
     question: "¿Qué le cuesta a la familia el cuidado?",
+    query: "cost of elderly care family caregivers out-of-pocket",
     prompt: "Find 2026 news about family spending on elderly care, out-of-pocket healthcare costs, financial impact on caregivers, gender gap in caregiving, lost income, or economic burden of informal care. Include European Union studies on economic impact of care and public financing models as referents. Also cover Latin America and El Salvador. Return specific facts with dates and sources. Be concise.",
-    tools: ["web_search"],
   },
   {
     id: "D6",
     name: "Cuidador informal, género y demografía",
     question: "¿Quién cuida? ¿Qué costo personal paga? ¿Qué dicen los datos poblacionales?",
+    query: "informal caregivers unpaid care work gender aging population",
     prompt: "Find recent data about informal caregivers: who provides unpaid care (gender, age), young people not in education or employment (NEET/Nini) who end up as caregivers, demographic projections for aging populations, labor force participation gaps for caregivers, and gender disparities in unpaid care work. Include European Union research on informal care, caregiver burnout studies, and gender care gap as referents. Also cover Latin America and El Salvador. Return specific facts with dates and sources. Be concise.",
-    tools: ["web_search", "wolfram_alpha"],
   },
 ];
 
@@ -140,7 +141,7 @@ async function callGroq(model, prompt, opts = {}) {
     }
 
     if (res.status === 413) {
-      console.error(`  Error 413 (prompt demasiado largo para Compound). Saltando...`);
+      console.error(`  Error 413 (prompt demasiado largo). Saltando...`);
       return null;
     }
 
@@ -191,11 +192,14 @@ async function getPublishedArticles() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// FASE 1: SCAN — Compound busca en cada dominio
+// FASE 1: SCAN — Google News RSS por dominio (EN + ES)
+// (groq/compound descontinuado 21-sep-2026; el retrieval ahora es
+// código propio via news-fetch.mjs — noticias reales, ordenadas por
+// fecha, gratis, sin key, sin quemar tokens de Groq)
 // ═══════════════════════════════════════════════════════════════
 async function scanDomains() {
   console.log("═══════════════════════════════════════════════════");
-  console.log("FASE 1: SCAN — 5 dominios (Compound web search)");
+  console.log("FASE 1: SCAN — 4 dominios (Google News RSS)");
   console.log("═══════════════════════════════════════════════════\n");
 
   const results = [];
@@ -204,30 +208,39 @@ async function scanDomains() {
     const dom = DOMAINS[i];
     console.log(`[${dom.id}] ${dom.name}`);
     console.log(`  Pregunta: ${dom.question}`);
-    console.log("  Compound buscando... (15-30s)\n");
+    console.log(`  Query: "${dom.query}"`);
 
-    const data = await callGroq("groq/compound", dom.prompt, {
-      compound_custom: {
-        models: {
-          reasoning_model: "openai/gpt-oss-120b",
-          answering_model: "openai/gpt-oss-120b",
-        },
-        tools: { enabled_tools: dom.tools },
-      },
+    // Fetch EN (cobertura global/UE) + ES (LatAm/SV) — gratis, sin límites
+    const [newsEn, newsEs] = await Promise.all([
+      fetchGoogleNews(dom.query, { lang: "en", country: "US", maxItems: 10 }).catch(() => []),
+      fetchGoogleNews(dom.query, { lang: "es", country: "SV", maxItems: 8 }).catch(() => []),
+    ]);
+
+    // Dedup por título
+    const seen = new Set();
+    const items = [...newsEn, ...newsEs].filter((it) => {
+      const key = (it.title || "").toLowerCase().slice(0, 60);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     });
 
-    if (data) {
-      const content = data.choices[0]?.message?.content || "";
-      const tools = data.choices[0]?.message?.executed_tools || [];
-      console.log(`  ✓ ${content.length} chars, ${tools.length} búsquedas web`);
-      results.push({ ...dom, raw: content });
+    // El material crudo para DIGEST: titular + medio + fecha + URL real
+    const raw = items
+      .slice(0, 14)
+      .map((it, j) => `[${j + 1}] ${it.title}\n    Medio: ${it.source} | Fecha: ${(it.date || "").slice(0, 16)}\n    URL: ${it.url}`)
+      .join("\n");
+
+    if (items.length > 0) {
+      console.log(`  ✓ ${items.length} noticias reales (EN:${newsEn.length} ES:${newsEs.length})`);
+      results.push({ ...dom, raw });
     } else {
-      console.log(`  ✗ Sin resultados (error o rate limit)`);
+      console.log(`  ✗ Sin resultados`);
       results.push({ ...dom, raw: "" });
     }
 
     if (i < DOMAINS.length - 1) {
-      await delay(35, `Esperando antes del siguiente dominio...`);
+      await delay(3, "Pausa entre dominios...");
     }
   }
 

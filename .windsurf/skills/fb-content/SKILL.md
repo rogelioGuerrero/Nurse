@@ -43,7 +43,7 @@ SEARCH → WRITE → REVIEW → EDIT → APPROVE → TEASER → END
 
 | # | Rol | Modelo | max_tokens | Función |
 |---|---|---|---|---|
-| 1 | Busca | `groq/compound` | — | Web search en fuentes autorizadas |
+| 1 | Busca | `news-fetch.mjs` + `openai/gpt-oss-120b` | 4000 | Fetch real (GN RSS+GDELT+PubMed) → síntesis |
 | 2 | Redacta | `openai/gpt-oss-120b` | 4000 | Borrador desde ángulo estructurado |
 | 3 | Revisa | `openai/gpt-oss-120b` | 4000 | Fact-check + evaluación ética |
 | 4 | Edita | `openai/gpt-oss-120b` | 4000 | Pulido editorial |
@@ -58,8 +58,8 @@ SEARCH → WRITE → REVIEW → EDIT → APPROVE → TEASER → END
 
 ### Delays anti rate-limit
 
-- Post-Compound → WRITE: **65 s**
-- Entre agentes 2–5: **20 s**
+- Entre agentes 1–5: **20 s** (SEARCH ya no consume tokens pesados; el fetch es HTTP puro)
+- Si fallback `browser_search` se activa, `callGroq` maneja 429 con retry automático
 
 ### Fuentes autorizadas
 
@@ -80,14 +80,25 @@ who.int, paho.org, mayoclinic.org, nih.gov, cdc.gov, alz.org, cepal.org, worldba
 
 ## Paso 6: Publicar en Facebook
 
+### Modo manual (local)
+
 ```powershell
 node scripts/fb-post.mjs "<ruta-imagen-branded>" @scripts/generated-article.txt
 ```
 
+### Modo automático (GitHub Actions, `fb-content.yml`)
+
+- `scripts/auto-publish.mjs` corre después de `groq-news.mjs` en el workflow.
+- **Gate de calidad:** solo publica si `pipeline-result.json` dice `approved=true` (QA veredicto APROBADO) y `urlsVerified >= 1` (URLs del fetch real). Si no → no publica; el email llega igual para revisión manual.
+- Imagen: busca en **Pexels** (`PEXELS_API_KEY` secret) con la query EN del SEARCH + branding automático (mismo overlay que `add-branding.mjs`).
+- Publica vía edge function `fb-publish` y marca `status: "published"` en `content_history`.
+- Toggle: `AUTOPUBLISH_ENABLED: 'true'|'false'` en el env del job (una línea para apagar).
+- `continue-on-error: true` — un fallo de publicación nunca rompe el pipeline ni el email.
+
 ## Notas
 
-- Frecuencia: una vez al día.
-- No automatizar (la imagen requiere intervención humana).
+- Frecuencia: una vez al día (cron lun/mié/vie 14:00 UTC en GitHub Actions).
+- Modo automático activo por defecto en CI; ver Paso 6 para el gate de calidad y el toggle.
 - BienCuidar es de El Salvador; publicaciones neutras para LatAm si se solicita.
 - No usar markdown en el post final.
 - No inventar estadísticas — solo datos de fuentes autorizadas.
