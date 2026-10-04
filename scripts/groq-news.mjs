@@ -83,6 +83,7 @@ async function saveToContentHistory(topic, article, teaser, nextTopic) {
 }
 
 let TOPIC = process.argv[2] || "";
+let ANGLE = "";
 const ANGLE_RAW = process.argv[3] || "";
 const NEXT_TOPIC_RAW = process.argv[4] || "";
 
@@ -94,7 +95,7 @@ const MAX_REWRITE_ITERATIONS = 1;
 const MAX_EDIT_ITERATIONS = 2;
 
 // Leer ángulo desde archivo si empieza con @ (evita corrupción UTF-8 de PowerShell)
-const ANGLE = ANGLE_RAW.startsWith("@")
+ANGLE = ANGLE_RAW.startsWith("@")
   ? readFileSync(ANGLE_RAW.slice(1), "utf-8").trim()
   : ANGLE_RAW;
 
@@ -143,6 +144,99 @@ async function getLastNextTopic() {
     }
   } catch {}
   return null;
+}
+
+// ── Cadena editorial: el próximo ángulo viaja como fila status='next_angle' ──
+// (topic = próximo tema, article_text = ángulo estructurado GANCHO/TONO/…)
+// Así el cron se autoalimenta sin columna nueva — y un humano siempre puede
+// romper la cadena pasando @editorial-angle.txt por CLI (override).
+async function getLastEditorial() {
+  if (!SUPABASE_ANON_KEY) return null;
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/content_history?status=eq.next_angle&select=topic,article_text&order=created_at.desc&limit=1`;
+    const res = await fetch(url, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+    });
+    if (!res.ok) return null;
+    const rows = await res.json();
+    if (rows.length > 0 && rows[0].topic) {
+      return { topic: rows[0].topic, angle: rows[0].article_text || "" };
+    }
+  } catch {}
+  return null;
+}
+
+// ── Contexto anti-repetición: últimos temas + apertura de cada post ──
+async function getRecentContext(limit = 6) {
+  if (!SUPABASE_ANON_KEY) return [];
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/content_history?status=in.(generated,published)&select=topic,article_text&order=created_at.desc&limit=${limit}`;
+    const res = await fetch(url, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+    });
+    if (!res.ok) return [];
+    const rows = await res.json();
+    return rows.map(r => `- Tema "${r.topic}": ${(r.article_text || "").slice(0, 90).replace(/\n/g, " ")}…`);
+  } catch {}
+  return [];
+}
+
+// ── Genera un ángulo editorial estructurado para un tema dado ──
+// Mismo formato que scripts/editorial-angle.txt (GANCHO/TONO/AUDIENCIA/
+// DATOS_CLAVE/CIERRE) para que pase intacto por el prompt de WRITE.
+async function generateAngle(topic, recentLines = []) {
+  const recent = recentLines.length
+    ? `\nPosts recientes (NO repitas protagonistas, enfoques ni temas):\n${recentLines.join("\n")}\n`
+    : "";
+  const prompt = `Eres el editor jefe de BienCuidar (plataforma salvadoreña que conecta familias con enfermeras verificadas para cuidado de adultos mayores en casa; cada visita queda documentada con un reporte para la familia).
+
+Define el ángulo editorial para el próximo post de Facebook sobre: "${topic}"
+${recent}
+Responde EXACTAMENTE con estos 5 campos, uno por línea de encabezado (sin markdown):
+
+GANCHO: <una frase de apertura con persona concreta o pregunta incómoda — nunca genérica>
+TONO: <actitud del post en 1-2 líneas; empático, sin paternalismo ni sensacionalismo>
+AUDIENCIA: <por defecto: hijos adultos de El Salvador o de la diáspora que deciden el cuidado de un padre/madre. Solo si el tema lo amerita: enfermeras, y entonces ligado a lo que BienCuidar les ofrece (gestión de visitas, bitácora, agenda)>
+DATOS_CLAVE: <líneas de investigación a verificar en el research — NO inventes cifras>
+CIERRE: <cómo debe cerrar la historia del protagonista y conectar con BienCuidar antes del CTA>
+
+Devuelve SOLO los 5 campos.`;
+
+  const data = await callGroq("openai/gpt-oss-120b", prompt, {
+    max_completion_tokens: 1500,
+    temperature: 0.6,
+  });
+  return cleanMarkdown(data.choices[0]?.message?.content || "").trim();
+}
+
+// ── Persistir el ángulo del próximo post para el siguiente run (cron) ──
+async function saveNextAngle(nextTopic, angle) {
+  if (!SUPABASE_ANON_KEY || !nextTopic || !angle) return;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/content_history`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        Prefer: "return=minimal",
+      },
+      body: JSON.stringify({
+        topic: nextTopic,
+        article_text: angle,
+        status: "next_angle",
+      }),
+    });
+    console.log(res.ok ? "  ✓ Ángulo del próximo tema guardado (status: next_angle)" : `  (No se pudo guardar next_angle: ${res.status})`);
+  } catch {
+    console.log("  (Supabase no disponible para next_angle)");
+  }
 }
 
 // ── Helper: llamar a Groq con retry automático ──
@@ -267,6 +361,8 @@ const GUARDRAILS = {
     { check: out => out && out.length > 200, msg: "Borrador muy corto" },
     { check: out => out && !/\*\*|##/.test(out), msg: "Tiene markdown" },
     { check: out => out && out.includes("biencuidar.agtisa.com"), msg: "Falta CTA" },
+    { check: out => out && extractUrls(out).every(u => u.includes("biencuidar.agtisa.com")), msg: "URL ajena al CTA (DOI/link externo prohibido)" },
+    { check: out => out && !/doi\.org|10\.\d{4,9}\/|\bibid\b/i.test(out), msg: "Cita académica prohibida (DOI/ibid.)" },
   ],
   REVIEW: [
     { check: out => out && out.veredicto !== undefined, msg: "Falta veredicto" },
@@ -276,6 +372,8 @@ const GUARDRAILS = {
     { check: out => out && out.length > 200, msg: "Artículo editado muy corto" },
     { check: out => out && !/\*\*|##/.test(out), msg: "Tiene markdown" },
     { check: out => out && out.includes("biencuidar.agtisa.com"), msg: "Falta CTA" },
+    { check: out => out && extractUrls(out).every(u => u.includes("biencuidar.agtisa.com")), msg: "URL ajena al CTA (DOI/link externo prohibido)" },
+    { check: out => out && !/doi\.org|10\.\d{4,9}\/|\bibid\b/i.test(out), msg: "Cita académica prohibida (DOI/ibid.)" },
   ],
   APPROVE: [
     { check: out => out && out.veredicto !== undefined, msg: "Falta veredicto" },
@@ -403,12 +501,15 @@ Reglas:
 - Tono empático, profesional y cercano. NO condescendiente. NO suavices el mensaje.
 - 150-200 palabras MAXIMO
 - Estructura: gancho narrativo + 1 dato real + 1 reflexión o consejo práctico + CTA
+- El post es UNA historia con UN mensaje. Si el gancho presenta un protagonista (nombre, conflicto), su historia debe RESOLVER dentro del post — no lo abandones a mitad de camino.
+- RELEVANCIA: cada dato de la investigación que incluyas debe servir directamente a la decisión de la AUDIENCIA definida en el ángulo. PROHIBIDO rellenar con datos clínicos tangenciales (marcadores biológicos, fisiología, protocolos institucionales, mecanismos de enfermedad) aunque sean ciertos. Si un dato no le ayuda al lector a actuar, no va.
 - Si los datos están en inglés, tradúcelos al español
 - NO inventes estadísticas. Solo usa las que aparecen en la investigación o en el ángulo editorial.
 - El gancho debe visibilizar el problema, no sensacionalizarlo
 - MANTÉN el tono del ángulo editorial aunque haya feedback del revisor. El feedback corrige datos, no cambia el enfoque narrativo.
 - Si el ángulo editorial incluye datos específicos (ej: "70% no cotiza", "13% pensión"), ÚSALOS en el texto. No los omitas.
-- Cita fuentes como (OMS, 2023) o (CDC, 2022). NUNCA incluyas URLs en el texto final.
+- Menciona la fuente de forma natural en la oración ("según la OMS", "un estudio de Mayo Clinic"). NUNCA citas académicas con paréntesis "(Revista, año)", NUNCA DOIs, NUNCA "ibid.", NUNCA URLs en el texto — el único link permitido en todo el post es el del CTA.
+- UN SOLO CTA: el indicado abajo. No agregues otras frases comerciales, segundas llamadas a la acción ni más links.
 
 Termina con: {cta}
 Incluye 3 hashtags al final.
@@ -425,12 +526,15 @@ BORRADOR:
 
 Verifica:
 1. ¿Las estadísticas coinciden con la investigación? ¿Hay datos inventados?
-2. ¿Hay claims sin fuente? IMPORTANTE: un claim es aceptable si tiene referencia verificable (DOI, URL, nombre de medio/publicación, institución académica o gubernamental). NO rechaces un dato solo porque no esté en la lista de fuentes autorizadas del buscador. The Lancet, Nature, Science, Reuters, BBC, NYT, INEGI, UN Women, Banco Mundial, CEPAL, OIT y publicaciones académicas peer-reviewed son fuentes válidas. Solo marca como "sin fuente" los datos que no tienen NINGUNA referencia identificable.
+2. ¿Hay claims sin fuente? IMPORTANTE: un claim es aceptable si tiene referencia verificable (nombre de medio/publicación, institución académica o gubernamental). NO rechaces un dato solo porque no esté en la lista de fuentes autorizadas del buscador. The Lancet, Nature, Science, Reuters, BBC, NYT, INEGI, UN Women, Banco Mundial, CEPAL, OIT y publicaciones académicas peer-reviewed son fuentes válidas. Solo marca como "sin fuente" los datos que no tienen NINGUNA referencia identificable. EXCEPCIÓN: una cita con DOI o URL solo es válida si ese DOI/URL aparece literalmente en los DATOS DE INVESTIGACIÓN — un DOI citado que no esté ahí es inventado y va en "datos_inventados".
 3. ¿El tono es apropiado para una página de salud profesional?
 4. ¿Hay errores médicos o información peligrosa?
 5. ¿El ángulo narrativo visibiliza el problema o lo sensacionaliza?
 6. ¿Faltan datos importantes que la investigación no cubrió?
 7. ¿El borrador agrega precisión que NO aparece literalmente en la investigación? (decimales, porcentajes exactos, años específicos ausentes del material = inventado)
+8. RELEVANCIA: ¿cada dato incluido sirve a la decisión de la AUDIENCIA? Un dato verdadero pero tangente al tema del post (detalles clínicos, mecanismos fisiológicos, protocolos institucionales que no le importan a una familia) debe listarse en "correcciones" como "dato fuera de foco — eliminar".
+9. ARCO NARRATIVO: si el gancho presenta un protagonista, ¿su historia se resuelve en el post? Si queda abandonado o sin cierre, listar en "correcciones" como "protagonista sin resolución".
+10. FORMATO: ¿hay DOIs, URLs, citas con paréntesis académico "(Revista, año)" o "ibid."? Es formato prohibido — listar en "correcciones".
 
 Responde EXACTAMENTE como un objeto JSON válido (sin markdown, sin texto antes o después):
 {
@@ -462,11 +566,14 @@ REVISIÓN DEL VERIFICADOR:
 {review}
 
 Tu trabajo como editor:
-1. Aplica las correcciones de datos sugeridas
+1. Aplica las correcciones de datos sugeridas — incluyendo eliminar datos "fuera de foco" aunque sean ciertos
 2. Mejora el flujo narrativo: que la historia respire, que el gancho atrape
 3. Corta lo que sobra. 150-200 palabras es el límite.
 4. Asegura que el tono sea empático sin ser condescendiente
 5. Verifica que el CTA y hashtags estén presentes
+6. Si hay un protagonista en el gancho, su historia debe tener resolución dentro del post
+7. UN SOLO CTA: elimina cualquier otra llamada a la acción, segundo link o frase comercial duplicada
+8. Elimina citas académicas con paréntesis, DOIs, URLs e "ibid." — las fuentes se mencionan naturalmente en la oración
 
 Mantén:
 - Sin markdown
@@ -490,7 +597,10 @@ Evalúa cada punto del checklist y responde EXACTAMENTE como un objeto JSON vál
     "cta_ok": true,
     "hashtags_ok": true,
     "datos_verificados": true,
-    "tono_ok": true
+    "tono_ok": true,
+    "protagonista_resuelto": true,
+    "un_solo_cta": true,
+    "sin_citas_academicas": true
   },
   "palabras": 180,
   "veredicto": "APROBADO",
@@ -500,7 +610,10 @@ Evalúa cada punto del checklist y responde EXACTAMENTE como un objeto JSON vál
 Reglas:
 - "veredicto" debe ser "APROBADO" o "RECHAZADO"
 - Si es "RECHAZADO", lista cada problema en "issues" (ej: ["Falta CTA", "Tiene markdown"])
-- "palabras" es el conteo de palabras del post`,
+- "palabras" es el conteo de palabras del post
+- "protagonista_resuelto": false si el gancho presenta una persona con nombre/conflicto y su historia no se cierra en el post
+- "un_solo_cta": false si hay más de una llamada a la acción o más de un link
+- "sin_citas_academicas": false si hay DOIs, URLs ajenas al CTA, citas "(Revista, año)" o "ibid."`,
 
   teaser: `Eres el redactor jefe de BienCuidar (plataforma salvadoreña de enfermería en casa).
 
@@ -795,6 +908,28 @@ async function agentApprove(finalText) {
   return decision;
 }
 
+// ── Verificación determinística de los links del artículo final ──
+// El gate de auto-publish solo contaba las URLs verificadas del RESEARCH —
+// los links que el redactor inserta en el texto (ej: un DOI inventado con
+// pinta de real) nunca se resolvían. Aquí cada URL del post final se pide
+// de verdad; cualquiera que falle tira el approved del pipeline-result.
+async function verifyArticleLinks(article) {
+  const urls = [...new Set(extractUrls(article).map(u => u.replace(/[.,;:"')\]]+$/, "")))];
+  const broken = [];
+  for (const url of urls) {
+    try {
+      let res = await fetch(url, { method: "HEAD", redirect: "follow", signal: AbortSignal.timeout(10000) });
+      if (res.status === 403 || res.status === 405) {
+        res = await fetch(url, { method: "GET", redirect: "follow", signal: AbortSignal.timeout(10000) });
+      }
+      if (!res.ok) broken.push({ url, status: res.status });
+    } catch (e) {
+      broken.push({ url, status: String(e.message || e).slice(0, 80) });
+    }
+  }
+  return { urls, broken };
+}
+
 // ── Generar prompt para Gemini Nano Banana ──
 function generateGeminiPrompt(article) {
   return fillTemplate(PROMPTS.gemini, {
@@ -994,18 +1129,43 @@ class MoAGraph {
 
   // ── Runner: ejecuta el grafo ──
   async run() {
+    // Resolver tema + ángulo: CLI (override humano) > fila next_angle de
+    // content_history (cadena autoalimentada del run anterior) > generado
+    const lastEditorial = (!TOPIC || !ANGLE) ? await getLastEditorial() : null;
+
     // Si no se pasó tema manual, intentar leer el next_topic del último artículo
     if (!TOPIC) {
       console.log("[Topic] No se proporcionó tema. Consultando content_history en Supabase...");
-      const nextTopic = await getLastNextTopic();
-      if (nextTopic) {
-        TOPIC = nextTopic;
-        console.log(`[Topic] Tema recuperado del último teaser: "${TOPIC}"`);
+      if (lastEditorial?.topic) {
+        TOPIC = lastEditorial.topic;
+        console.log(`[Topic] Tema de la cadena editorial (next_angle): "${TOPIC}"`);
       } else {
-        TOPIC = DEFAULT_TOPIC;
-        console.log(`[Topic] Sin teaser previo. Usando tema default: "${TOPIC}"`);
+        const nextTopic = await getLastNextTopic();
+        if (nextTopic) {
+          TOPIC = nextTopic;
+          console.log(`[Topic] Tema recuperado del último teaser: "${TOPIC}"`);
+        } else {
+          TOPIC = DEFAULT_TOPIC;
+          console.log(`[Topic] Sin teaser previo. Usando tema default: "${TOPIC}"`);
+        }
       }
       this.state.topic = TOPIC;
+    }
+
+    // Si no se pasó ángulo por CLI: usar el encadenado (si corresponde a este
+    // tema) o generar uno automático con contexto anti-repetición.
+    if (!ANGLE) {
+      if (lastEditorial?.angle && lastEditorial.topic === TOPIC) {
+        ANGLE = lastEditorial.angle;
+        console.log("[Ángulo] Ángulo encadenado del run anterior (next_angle)");
+      } else {
+        const recent = await getRecentContext();
+        ANGLE = await generateAngle(TOPIC, recent);
+        console.log("[Ángulo] Ángulo editorial generado automáticamente");
+      }
+      this.state.angle = ANGLE;
+    } else {
+      console.log("[Ángulo] Ángulo editorial provisto por CLI (override humano)");
     }
 
     const nodes = {
@@ -1056,25 +1216,19 @@ class MoAGraph {
         break;
       }
     }
+    let blockIndex;
     if (insertIndex > -1) {
       article = article.slice(0, insertIndex) + BIENCUIDAR_BLOCK + "\n\n" + article.slice(insertIndex);
+      blockIndex = insertIndex;
     } else {
       article = article + "\n\n" + BIENCUIDAR_BLOCK;
+      blockIndex = article.length - BIENCUIDAR_BLOCK.length;
     }
 
-    // Insertar teaser antes del CTA si existe (buscar cualquier variante)
+    // El teaser cierra la historia: va ANTES del bloque comercial, nunca
+    // emparedado entre el bloque BienCuidar y el CTA (eso duplicaba el cierre)
     if (this.state.teaser) {
-      const ctaMarkers = ["Publicá tu necesidad de cuido", "¿Tu familiar olvida tomar su medicina?", "¿Y si tu familiar se siente mal", "¿Sabés qué pasa cuando la enfermera"];
-      let ctaIndex = -1;
-      for (const m of ctaMarkers) {
-        ctaIndex = article.indexOf(m);
-        if (ctaIndex > -1) break;
-      }
-      if (ctaIndex > -1) {
-        article = article.slice(0, ctaIndex) + this.state.teaser + "\n" + article.slice(ctaIndex);
-      } else {
-        article = article + "\n" + this.state.teaser;
-      }
+      article = article.slice(0, blockIndex) + this.state.teaser + "\n\n" + article.slice(blockIndex);
     }
 
     writeFileSync(OUTPUT_FILE, article, "utf-8");
@@ -1103,15 +1257,33 @@ class MoAGraph {
     }, null, 2), "utf-8");
     console.log(`Event log: ${logPath}`);
 
+    // QC determinístico: toda URL del post final debe resolver de verdad
+    // (atrapa DOIs/links inventados por el redactor que el QA no detecta)
+    const linkCheck = await verifyArticleLinks(article);
+    if (linkCheck.broken.length > 0) {
+      console.log(`  ⚠ Links rotos en el artículo (bloquea auto-publish):`);
+      linkCheck.broken.forEach(b => console.log(`     - ${b.url} → ${b.status}`));
+    }
+
     // Registrar en Supabase content_history
     await saveToContentHistory(this.state.topic, article, this.state.teaser, this.state.nextTopic || null);
+
+    // Cadena editorial: generar el ángulo del próximo tema y guardarlo para
+    // que el siguiente run (cron o manual) lo use sin intervención humana
+    if (this.state.nextTopic) {
+      const recent = await getRecentContext();
+      const nextAngle = await generateAngle(this.state.nextTopic, recent);
+      await saveNextAngle(this.state.nextTopic, nextAngle);
+    }
 
     // Resultado estructurado para auto-publish.mjs (gate de calidad: solo
     // publica si el QA aprobó limpio y el research traía URLs verificadas)
     writeFileSync("scripts/pipeline-result.json", JSON.stringify({
-      approved: this.state.qaDecision?.veredicto === "APROBADO",
+      approved: this.state.qaDecision?.veredicto === "APROBADO" && linkCheck.broken.length === 0,
       qaVeredicto: this.state.qaDecision?.veredicto || null,
       urlsVerified: lastSearchQC.urlsVerified,
+      linksChecked: linkCheck.urls.length,
+      linksBroken: linkCheck.broken,
       itemsFetched: lastSearchQC.fetched,
       topic: this.state.topic,
       newsQueryEn: lastSearchQC.queries.news_en || null,

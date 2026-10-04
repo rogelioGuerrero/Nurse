@@ -29,6 +29,7 @@ scripts/pipeline-result.json
 scripts/auto-image*.jpg
 scripts/analysis-output.txt
 scripts/editorial-proposals.txt
+scripts/editorial-angle.txt
 scripts/fb-insights-summary.txt
 scripts/fb-posts-list.json
 scripts/chat-test.json
