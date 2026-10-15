@@ -22,6 +22,11 @@ function htmlToText(html: string): string {
 }
 const CSSP_SEARCH_URL = "https://cssp.gob.sv/profesionales/faces/consulta/buscar.xhtml";
 
+// Cuentas registradas solo con teléfono usan un correo sintético sin buzón real
+function isSyntheticEmail(email?: string | null): boolean {
+  return !email || email.toLowerCase().trim().endsWith("@tel.biencuidar.com");
+}
+
 /**
  * Verifica si el portal del CSSP está en línea.
  * Hace dos checks: dominio base + ruta específica.
@@ -401,7 +406,7 @@ Deno.serve(async (req: Request) => {
         for (const nurse of nursesToNotify) {
           const nurseEmail = nurse.profiles?.email || "";
           const nurseName = nurse.profiles?.full_name || "";
-          if (!nurseEmail) continue;
+          if (isSyntheticEmail(nurseEmail)) continue;
           const sent = await sendNurseEmail(supabaseUrl, supabaseKey, {
             nurse_name: nurseName,
             nurse_email: nurseEmail,
@@ -448,7 +453,7 @@ Deno.serve(async (req: Request) => {
             if (shouldSend) {
               const nurseEmail = nurse.profiles?.email || "";
               const nurseName = nurse.profiles?.full_name || "";
-              if (!nurseEmail) continue;
+              if (isSyntheticEmail(nurseEmail)) continue;
               const sent = await sendNurseEmail(supabaseUrl, supabaseKey, {
                 nurse_name: nurseName, nurse_email: nurseEmail,
                 cssp_registration: "", cssp_level: "",
@@ -569,7 +574,7 @@ Deno.serve(async (req: Request) => {
         const profile = nurse.profiles;
         const nurseEmail = profile?.email || "";
         const nurseName = profile?.full_name || "";
-        if (!nurseEmail) continue;
+        if (isSyntheticEmail(nurseEmail)) continue;
 
         const notes = nurse.cssp_verification_notes || "";
         let problemDetail = notes;
@@ -689,7 +694,7 @@ Deno.serve(async (req: Request) => {
         if (shouldSend) {
           const nurseEmail = nurse.profiles?.email || "";
           const nurseName = nurse.profiles?.full_name || "";
-          if (!nurseEmail) continue;
+          if (isSyntheticEmail(nurseEmail)) continue;
 
           const sent = await sendNurseEmail(supabaseUrl, supabaseKey, {
             nurse_name: nurseName,

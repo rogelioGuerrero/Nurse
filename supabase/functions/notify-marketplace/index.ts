@@ -67,7 +67,15 @@ function esign(): string {
   return `<p style="margin: 0; font-size: 14px; color: #64748b;">Saludos,<br><strong>Equipo BienCuidar</strong></p>`;
 }
 
+function isSyntheticEmail(email?: string | null): boolean {
+  return !email || email.toLowerCase().trim().endsWith("@tel.biencuidar.com");
+}
+
 async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+  if (isSyntheticEmail(to)) {
+    console.log(`[notify-marketplace] Skipping email for phone-only account: ${to}`);
+    return false;
+  }
   if (!RESEND_API_KEY) {
     console.warn("RESEND_API_KEY not set, skipping email");
     return false;

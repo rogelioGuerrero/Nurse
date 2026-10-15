@@ -366,18 +366,17 @@ export const AdminPanel: FC = () => {
     familyName?: string; patientName?: string; offerCount?: number; location?: string;
     nurseName?: string; offeredRate?: number; shift?: string;
   }): Promise<string> => {
-    const systemPrompt = 'Redactas mensajes cortos de WhatsApp para BienCuidar, plataforma de cuidado de salud en El Salvador. REGLAS: (1) Usa SOLO los datos proporcionados. (2) Máximo 40 palabras. (3) Tono cálido y personal, no robótico. (4) Incluye el link https://biencuidar.app al final. (5) No saludes con "Estimado/a".';
+    const systemPrompt = 'Redactas mensajes cortos de WhatsApp para BienCuidar, plataforma de cuidado de salud en El Salvador. REGLAS: (1) Usa SOLO los datos proporcionados. (2) Máximo 40 palabras. (3) Tono cálido y personal, no robótico. (4) Es una notificación unidireccional: NO incluyas tarifas, nombres de enfermeras ni detalles que permitan cerrar el trato fuera de la plataforma. (5) Indica que ingresen a su cuenta con su número de teléfono para ver los detalles. (6) Termina con el link https://biencuidar.agtisa.com (7) No saludes con "Estimado/a".';
     let userContent = '';
     if (type === 'family') {
       userContent = `Redacta un mensaje para ${data.familyName || 'la familia'}:
-- Tienen ${data.offerCount} enfermera(s) interesada(s) en cuidar a ${data.patientName}
+- Tienen ${data.offerCount} nueva(s) oferta(s) de cuidado para ${data.patientName}
 - Ubicación: ${data.location || 'no especificada'}
-Mensaje para avisarles que revisen las ofertas en la app.`;
+Avisales que ingresen a su cuenta con su número de teléfono para ver la tarifa y el perfil de la enfermera.`;
     } else {
       userContent = `Redacta un mensaje para ${data.nurseName || 'la enfermera'}:
-- Su oferta para cuidar a ${data.patientName} fue aceptada
-- Tarifa acordada: $${data.offeredRate}/turno
-Mensaje para avisarle que revise los detalles en la app.`;
+- Una familia aceptó su oferta en BienCuidar
+Avisale que ingrese a su cuenta con su número de teléfono para ver la ubicación y detalles del servicio.`;
     }
     try {
       return await groqChat(
@@ -386,9 +385,9 @@ Mensaje para avisarle que revise los detalles en la app.`;
       );
     } catch {
       if (type === 'family') {
-        return `Hola ${data.familyName || ''}, tienes ${data.offerCount} enfermera(s) interesada(s) en cuidar a ${data.patientName}. Revisa las ofertas en BienCuidar: https://biencuidar.app`;
+        return `Hola ${data.familyName || ''}, tienes ${data.offerCount} nueva(s) oferta(s) de cuidado para ${data.patientName} en BienCuidar. Por seguridad, ingresa con tu número de teléfono para ver la tarifa y perfil de la enfermera: https://biencuidar.agtisa.com`;
       }
-      return `Hola ${data.nurseName || ''}, tu oferta para cuidar a ${data.patientName} fue aceptada. Revisa los detalles en BienCuidar: https://biencuidar.app`;
+      return `Hola ${data.nurseName || ''}, una familia aceptó tu oferta en BienCuidar. Ingresa con tu número de teléfono para ver la ubicación y detalles del servicio: https://biencuidar.agtisa.com`;
     }
   };
 

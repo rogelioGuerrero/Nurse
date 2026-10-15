@@ -483,6 +483,9 @@ async function sendEmail(supabase: any, userId: string, role: string, args: any)
     return { error: 'Destinatario no válido para tu rol' };
   }
 
+  // Excluir correos sintéticos de cuentas solo-teléfono (no tienen buzón real)
+  recipients = recipients.filter((e: string) => e && !e.toLowerCase().trim().endsWith('@tel.biencuidar.com'));
+
   if (recipients.length === 0) {
     return { error: 'No hay destinatarios válidos' };
   }

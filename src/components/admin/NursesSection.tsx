@@ -1,6 +1,7 @@
 import { type FC } from 'react';
 import { Users, Phone, MapPin, DollarSign, ShieldCheck, List, LayoutGrid } from 'lucide-react';
 import type { Nurse, Profile } from '../../types';
+import { isSyntheticEmail } from '../../lib/phoneAuth';
 
 const PAY_LABELS: Record<string, string> = {
   per_shift: 'Por turno',
@@ -43,7 +44,7 @@ const NurseCard: FC<{ nurse: Nurse; profile?: Profile; viewMode: 'list' | 'grid'
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-slate-700 truncate">{profile?.full_name || 'Sin nombre'}</p>
-            <p className="text-[10px] text-slate-500 truncate">{profile?.email}</p>
+            <p className="text-[10px] text-slate-500 truncate">{isSyntheticEmail(profile?.email) ? 'Registro por teléfono' : profile?.email}</p>
           </div>
           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${csspBadge.color}`}>{csspBadge.label}</span>
         </div>
@@ -68,7 +69,7 @@ const NurseCard: FC<{ nurse: Nurse; profile?: Profile; viewMode: 'list' | 'grid'
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0 flex-1">
           <p className="text-xs font-bold text-slate-700">{profile?.full_name || 'Sin nombre'}</p>
-          <p className="text-[10px] text-slate-500">{profile?.email}</p>
+          <p className="text-[10px] text-slate-500">{isSyntheticEmail(profile?.email) ? 'Registro por teléfono' : profile?.email}</p>
         </div>
         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${csspBadge.color}`}>{csspBadge.label}</span>
       </div>

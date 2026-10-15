@@ -244,6 +244,15 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Cuentas registradas solo con teléfono no tienen buzón real; nunca enviar a Resend
+    if (nurse.nurse_email.toLowerCase().trim().endsWith("@tel.biencuidar.com")) {
+      console.log(`[send-nurse-email] Skipping synthetic phone-only email: ${nurse.nurse_email}`);
+      return new Response(
+        JSON.stringify({ error: "synthetic_email_not_sendable", sent_to: nurse.nurse_email }),
+        { status: 422, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     const buildFn = templates[nurse.template_type];
     if (!buildFn) {
       return new Response(

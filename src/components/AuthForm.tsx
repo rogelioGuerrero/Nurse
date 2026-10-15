@@ -9,6 +9,7 @@ import { DEPARTMENTS, DEPARTMENTS_WITH_MUNICIPALITIES } from '../data/districts'
 import { validatePasswordStrength, getPasswordStrengthColor, getPasswordStrengthLabel } from '../lib/passwordValidation';
 import { track } from '../lib/analytics';
 import { detectCountry, getCachedCountry, type CountryCode } from '../lib/countryDetect';
+import { validatePhoneInput, buildSyntheticEmail, isSyntheticEmail, isEmailInput, getDialConfig } from '../lib/phoneAuth';
 import { getFeatures, LATAM_COUNTRIES, countryNameFromCode, type CountryFeatures } from '../lib/features';
 
 interface AuthFormProps {
@@ -28,6 +29,8 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
   
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
+  const [loginIdentifier, setLoginIdentifier] = useState('');
+  const [showOptionalEmail, setShowOptionalEmail] = useState(false);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -86,8 +89,15 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
       return;
     }
 
-    if (!validateEmail(email)) {
-      setError('Ingresa un email válido');
+    const phoneCheck = validatePhoneInput(phone, country);
+    if (!phoneCheck.valid) {
+      setError(phoneCheck.message);
+      return;
+    }
+
+    const optionalEmail = email.trim();
+    if (optionalEmail && !validateEmail(optionalEmail)) {
+      setError('Ingresa un correo válido o déjalo vacío para registrarte solo con tu teléfono');
       return;
     }
 
@@ -104,16 +114,6 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
 
     if (!acceptedTerms) {
       setError('Debes aceptar los Términos y Condiciones para registrarte');
-      return;
-    }
-
-    const phoneTrimmed = phone.trim();
-    if (!phoneTrimmed) {
-      setError('El teléfono es obligatorio');
-      return;
-    }
-    if (phoneTrimmed.replace(/\D/g, '').length < 8) {
-      setError('Ingresa un teléfono válido (mínimo 8 dígitos)');
       return;
     }
 
@@ -158,15 +158,31 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
     setLoading(true);
 
     try {
+      // Verificar si el teléfono ya está asociado a otra cuenta (con o sin email real)
+      const syntheticForPhone = buildSyntheticEmail(phoneCheck.localDigits, country);
+      const { data: phoneTaken } = await supabase.rpc('is_phone_registered', {
+        p_phone: phoneCheck.localDigits,
+        p_country: country || 'SV',
+      });
+      if (phoneTaken === true) {
+        setError('Este número de teléfono ya tiene una cuenta registrada. Inicia sesión.');
+        setLoading(false);
+        return;
+      }
+
+      const finalAuthEmail = optionalEmail
+        ? optionalEmail.toLowerCase()
+        : syntheticForPhone;
+
       // Register with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
+        email: finalAuthEmail,
         password,
         options: {
           data: {
             full_name: fullName,
             role: role === 'nurse' ? 'nurse' : 'user',
-            phone: phone.trim(),
+            phone: phoneCheck.localDigits,
             location_name: prefillLocation || (features.salvadoranDistricts ? `${locationName.trim()}, ${selectedMunicipalities.join(', ')}` : locationName.trim()),
             country: country || 'SV'
           }
@@ -174,7 +190,11 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
       });
 
       if (authError) {
-        setError(authError.message);
+        if (authError.message.toLowerCase().includes('already registered')) {
+          setError('Este número de teléfono o correo ya tiene una cuenta registrada. Inicia sesión.');
+        } else {
+          setError(authError.message);
+        }
         setLoading(false);
         return;
       }
@@ -190,10 +210,10 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
         .from('profiles')
         .upsert({
           id: authData.user.id,
-          email: email,
+          email: finalAuthEmail,
           full_name: fullName,
           role: role === 'nurse' ? 'nurse' : 'user',
-          phone: phone.trim(),
+          phone: phoneCheck.localDigits,
           location_name: prefillLocation || (features.salvadoranDistricts ? `${locationName.trim()}, ${selectedMunicipalities.join(', ')}` : locationName.trim()),
           country: country || 'SV'
         }, { onConflict: 'id' });
@@ -270,10 +290,24 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
 
   const handleLogin = async () => {
     setError('');
-    
-    if (!validateEmail(email)) {
-      setError('Ingresa un email válido');
+
+    const identifier = loginIdentifier.trim();
+    if (!identifier) {
+      setError('Ingresa tu teléfono o correo electrónico');
       return;
+    }
+
+    if (isEmailInput(identifier)) {
+      if (!validateEmail(identifier)) {
+        setError('Ingresa un correo válido');
+        return;
+      }
+    } else {
+      const phoneCheck = validatePhoneInput(identifier, country);
+      if (!phoneCheck.valid) {
+        setError(phoneCheck.message);
+        return;
+      }
     }
 
     if (!validatePassword(password)) {
@@ -284,14 +318,28 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
     setLoading(true);
 
     try {
+      // Resolver teléfono → email de la cuenta (real o sintético)
+      let loginEmail = identifier.toLowerCase();
+      if (!isEmailInput(loginEmail)) {
+        const { data: resolved, error: rpcError } = await supabase.rpc('resolve_login_identifier', {
+          p_identifier: loginEmail,
+          p_country: country || 'SV',
+        });
+        loginEmail = (!rpcError && resolved) ? resolved : buildSyntheticEmail(loginEmail, country);
+      }
+
       // Login with Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
+        email: loginEmail,
         password
       });
 
       if (authError) {
-        setError(authError.message);
+        if (authError.message.toLowerCase().includes('invalid login credentials')) {
+          setError('Teléfono/correo o contraseña incorrectos.');
+        } else {
+          setError(authError.message);
+        }
         setLoading(false);
         return;
       }
@@ -334,17 +382,49 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
   const handleForgotPassword = async () => {
     setError('');
     setMessage('');
-    
-    if (!validateEmail(email)) {
-      setError('Ingresa un email válido');
+
+    const identifier = loginIdentifier.trim();
+    if (!identifier) {
+      setError('Ingresa tu teléfono o correo electrónico');
       return;
+    }
+
+    if (isEmailInput(identifier)) {
+      if (!validateEmail(identifier)) {
+        setError('Ingresa un correo válido');
+        return;
+      }
+    } else {
+      const phoneCheck = validatePhoneInput(identifier, country);
+      if (!phoneCheck.valid) {
+        setError(phoneCheck.message);
+        return;
+      }
     }
 
     setLoading(true);
 
     try {
+      // Resolver identificador → email de la cuenta
+      let resolvedEmail = identifier.toLowerCase();
+      if (!isEmailInput(resolvedEmail)) {
+        const { data: resolved, error: rpcError } = await supabase.rpc('resolve_login_identifier', {
+          p_identifier: resolvedEmail,
+          p_country: country || 'SV',
+        });
+        resolvedEmail = (!rpcError && resolved) ? resolved : buildSyntheticEmail(resolvedEmail, country);
+      }
+
+      // Cuentas creadas solo con teléfono no tienen buzón real
+      if (isSyntheticEmail(resolvedEmail)) {
+        setMessage('');
+        setError('Tu cuenta fue registrada solo con tu número de teléfono. Para recuperar tu contraseña, escríbenos a info@agtisa.com verificando tu número.');
+        setLoading(false);
+        return;
+      }
+
       // Send password reset email via Supabase
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      const { error } = await supabase.auth.resetPasswordForEmail(resolvedEmail, {
         redirectTo: window.location.origin
       });
 
@@ -353,8 +433,8 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
         setLoading(false);
         return;
       }
-      
-      setMessage('Email de recuperación enviado. Revisa tu bandeja de entrada.');
+
+      setMessage('Te enviamos un enlace de recuperación a tu correo electrónico.');
       setLoading(false);
     } catch (err) {
       setLoading(false);
@@ -424,6 +504,8 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
                 </div>
                 <input
                   type="text"
+                  name="name"
+                  autoComplete="name"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="María García"
@@ -433,23 +515,85 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-              Correo Electrónico
-            </label>
-            <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
-              <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
-                <Mail className="h-4 w-4" />
+          {authMode === 'register' && !prefillPhone && (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                Teléfono / WhatsApp *
+              </label>
+              <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                <div className="absolute inset-y-0 left-3 flex items-center gap-1 text-slate-400">
+                  <Phone className="h-4 w-4" />
+                  <span className="text-xs font-bold text-slate-500">+{getDialConfig(country).dial}</span>
+                </div>
+                <input
+                  type="tel"
+                  name="tel"
+                  inputMode="tel"
+                  autoComplete="tel-national"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder={getDialConfig(country).placeholder}
+                  className="w-full bg-transparent pl-16 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
+                />
               </div>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="maria@gmail.com"
-                className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
-              />
+              <p className="text-[10px] text-slate-400">Con este número iniciarás sesión y recibirás avisos de la plataforma.</p>
             </div>
-          </div>
+          )}
+
+          {authMode === 'register' && (
+            showOptionalEmail ? (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                  Correo Electrónico (Opcional)
+                </label>
+                <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                  <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
+                    <Mail className="h-4 w-4" />
+                  </div>
+                  <input
+                    type="email"
+                    name="email"
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="maria@gmail.com"
+                    className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
+                  />
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowOptionalEmail(true)}
+                className="text-[11px] font-semibold text-indigo-600 hover:underline cursor-pointer"
+              >
+                + Agregar correo electrónico (opcional)
+              </button>
+            )
+          )}
+
+          {authMode !== 'register' && (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
+                Teléfono o Correo Electrónico
+              </label>
+              <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
+                  {isEmailInput(loginIdentifier) ? <Mail className="h-4 w-4" /> : <Phone className="h-4 w-4" />}
+                </div>
+                <input
+                  type="text"
+                  name="username"
+                  inputMode="text"
+                  autoComplete="username"
+                  value={loginIdentifier}
+                  onChange={(e) => setLoginIdentifier(e.target.value)}
+                  placeholder="Ej: 7000-1234 o tu@correo.com"
+                  className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
+                />
+              </div>
+            </div>
+          )}
 
           {authMode !== 'forgot-password' && (
             <div className="space-y-1.5">
@@ -496,27 +640,6 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
                   className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
                 />
               </div>
-            </div>
-          )}
-
-          {authMode === 'register' && !prefillPhone && (
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
-                Teléfono / WhatsApp *
-              </label>
-              <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
-                <div className="absolute inset-y-0 left-3 flex items-center text-slate-400">
-                  <Phone className="h-4 w-4" />
-                </div>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="7000-1234"
-                  className="w-full bg-transparent pl-10 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
-                />
-              </div>
-              <p className="text-[10px] text-slate-400">{role === 'nurse' ? 'Para que las familias te contacten tras aceptar una oferta.' : 'Para coordinar con la enfermera. No se comparte públicamente.'}</p>
             </div>
           )}
 
@@ -795,7 +918,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
                     Crear Cuenta
                   </>
                 ) : authMode === 'forgot-password' ? (
-                  'Enviar Email'
+                  'Recuperar'
                 ) : (
                   'Iniciar Sesión'
                 )}

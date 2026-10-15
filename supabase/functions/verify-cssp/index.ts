@@ -451,6 +451,8 @@ async function sendCsspEmail(
       .single();
 
     if (!profile?.email) return;
+    // Cuentas registradas solo con teléfono no tienen buzón real
+    if (profile.email.toLowerCase().trim().endsWith("@tel.biencuidar.com")) return;
 
     // Llamar a send-nurse-email edge function
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
