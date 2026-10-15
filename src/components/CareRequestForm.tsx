@@ -44,7 +44,7 @@ const STEPS = [
 ];
 
 export const CareRequestForm: FC = () => {
-  const { createCareRequest, currentUser, careRequests, careOffers, closeCareRequest, republisheCareRequest, preferredNurseId, setPreferredNurseId, nurses, profiles } = useApp();
+  const { createCareRequest, currentUser, careRequests, careOffers, closeCareRequest, republisheCareRequest, preferredNurseId, setPreferredNurseId, nurses, profiles, setActiveTab } = useApp();
   const features: CountryFeatures = getFeatures(currentUser?.country);
 
   const [step, setStep] = useState(1);
@@ -228,6 +228,7 @@ export const CareRequestForm: FC = () => {
       expected_duration: deducedDuration,
       preferred_nurse_id: preferredNurseId || undefined,
     });
+    setPreferredNurseId(null);
     setPublished(true);
   };
 
@@ -477,9 +478,16 @@ export const CareRequestForm: FC = () => {
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-slate-500">
-                        {offersCount > 0 ? `${offersCount} oferta(s) recibida(s)` : 'Esperando ofertas...'}
-                      </span>
+                      {offersCount > 0 ? (
+                        <button
+                          onClick={() => setActiveTab('offers-review')}
+                          className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 transition cursor-pointer"
+                        >
+                          {offersCount} oferta(s) recibida(s) →
+                        </button>
+                      ) : (
+                        <span className="text-[10px] text-slate-500">Esperando ofertas...</span>
+                      )}
                       <button
                         onClick={() => closeCareRequest(req.id)}
                         className="text-[10px] font-bold text-slate-400 hover:text-rose-600 transition flex items-center gap-1 cursor-pointer"

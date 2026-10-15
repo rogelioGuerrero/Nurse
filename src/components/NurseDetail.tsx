@@ -8,7 +8,7 @@ import { useApp } from '../context/AppContext';
 import { SHIFTS } from '../types';
 import {
   Star, Clock, ChevronLeft, MapPin, Award, ShieldCheck,
-  Stethoscope, AlertCircle, Heart, CheckCircle2, BadgeCheck, FileText
+  Stethoscope, AlertCircle, Heart, BadgeCheck, FileText
 } from 'lucide-react';
 import { LegalDisclaimer } from './LegalDisclaimer';
 import { CSSPVerificationBadge } from './CSSPVerificationBadge';
@@ -19,7 +19,6 @@ export const NurseDetail: FC = () => {
   const {
     nurses,
     profiles,
-    bookings,
     selectedNurseId,
     setSelectedNurseId,
     setPreferredNurseId,
@@ -182,41 +181,6 @@ export const NurseDetail: FC = () => {
 
             </div>
 
-            {/* Portfolio: completed services track record */}
-            {(() => {
-              const completedBookings = bookings.filter(b => b.nurse_id === nurse.id && b.status === 'completed');
-              if (completedBookings.length === 0) return null;
-              return (
-                <div className="pt-4 border-t border-slate-100">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-                    <Award className="h-4 w-4 text-amber-500" />
-                    Portafolio de Servicios ({completedBookings.length})
-                  </h4>
-                  <div className="space-y-2">
-                    {completedBookings.slice(0, 8).map((b) => {
-                      const familyProfile = profiles.find(p => p.id === b.user_id);
-                      return (
-                        <div key={b.id} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3 border border-slate-100">
-                          <div className="flex-shrink-0 w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-                            <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-xs font-bold text-slate-700 truncate">
-                              {b.patient_name || 'Paciente'}
-                            </div>
-                            <div className="text-[10px] text-slate-400">
-                              {new Date(b.date + 'T00:00:00').toLocaleDateString('es-SV', { day: 'numeric', month: 'short', year: 'numeric' })} · {b.patient_condition || 'Cuidado general'}
-                            </div>
-                          </div>
-                          <span className="text-xs font-bold text-emerald-700">${b.total_price}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })()}
-
           </div>
 
           {/* Platform request CTA */}
@@ -267,7 +231,7 @@ export const NurseDetail: FC = () => {
               <LegalDisclaimer variant="full" />
 
               <p className="text-[10px] text-slate-400 text-center leading-normal">
-                No realizamos cargos a tu tarjeta hasta que el cuidador confirme su visita. La política de cancelación aplica solo con factura.
+                Pedir una propuesta o publicar tu solicitud es gratis. Solo pagas cuando aceptas la oferta de la enfermera.
               </p>
             </div>
           </div>

@@ -303,6 +303,7 @@ async function handleNewCareRequest(supabase: any, data: { request_id: string })
       `)
       .eq("id", preferredNurseId)
       .eq("is_active", true)
+      .eq("cssp_verified", true)
       .maybeSingle();
     if (preferred) matchingNurses.unshift(preferred);
   }

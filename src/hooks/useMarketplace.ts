@@ -16,10 +16,11 @@ interface UseMarketplaceArgs {
   profiles: Profile[];
   showToast: ShowToast;
   setBookings: React.Dispatch<React.SetStateAction<Booking[]>>;
+  setProfiles: React.Dispatch<React.SetStateAction<Profile[]>>;
   bookingsRef: React.MutableRefObject<Booking[]>;
 }
 
-export function useMarketplace({ currentUser, showToast, setBookings, bookingsRef }: UseMarketplaceArgs) {
+export function useMarketplace({ currentUser, nurses, showToast, setBookings, setProfiles, bookingsRef }: UseMarketplaceArgs) {
   const [careRequests, setCareRequests] = useState<CareRequest[]>([]);
   const [careOffers, setCareOffers] = useState<CareOffer[]>([]);
 
@@ -264,6 +265,20 @@ export function useMarketplace({ currentUser, showToast, setBookings, bookingsRe
         }
       }
 
+      // Refresh the accepted nurse's public profile — her phone is unlocked
+      // by has_service_contact() once the booking exists, so re-fetch from the view.
+      const nurseUserId = nurses.find(n => n.id === offer.nurse_id)?.user_id;
+      if (nurseUserId) {
+        const { data: refreshedProfile } = await supabase
+          .from('profiles_public')
+          .select('id, full_name, avatar_url, location_name, role, country, phone, created_at, updated_at')
+          .eq('id', nurseUserId)
+          .maybeSingle();
+        if (refreshedProfile) {
+          setProfiles(prev => prev.map(p => p.id === nurseUserId ? { ...p, ...refreshedProfile } : p));
+        }
+      }
+
       // Server-side notify-marketplace already sends email + push to the nurse
       notifyMarketplace({ type: 'offer_accepted', offer_id: offer.id });
       track.offerAccepted();
@@ -273,7 +288,7 @@ export function useMarketplace({ currentUser, showToast, setBookings, bookingsRe
       console.warn('acceptCareOffer RPC error:', err);
       showToast('No se pudo aceptar la oferta. Intenta de nuevo.', 'error');
     }
-  }, [currentUser, showToast, setBookings, slotsConflict]);
+  }, [currentUser, nurses, showToast, setBookings, setProfiles, slotsConflict]);
 
   const updatePatientName = useCallback(async (requestId: string, patientName: string, patientAge?: string, emergencyContact?: string) => {
     const prevRequests = careRequestsRef.current;

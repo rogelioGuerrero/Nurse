@@ -108,7 +108,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     createCareRequest, closeCareRequest, republisheCareRequest,
     createCareOffer, withdrawCareOffer, rejectCareOffer, acceptCareOffer,
     updatePatientName, updateRequestLocation,
-  } = useMarketplace({ currentUser, nurses, profiles, showToast, setBookings, bookingsRef });
+  } = useMarketplace({ currentUser, nurses, profiles, showToast, setBookings, setProfiles, bookingsRef });
 
   const {
     nurseReviews, setNurseReviews,
@@ -374,10 +374,11 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         // Only add if user owns it or it's open (visible to them)
         if (raw.user_id === currentUser.id || raw.status === 'open' || currentUser.role === 'admin') {
           setCareRequests(prev => prev.find(x => x.id === r.id) ? prev : [{ ...r, slots: typeof r.slots === 'string' ? JSON.parse(r.slots) : r.slots || [] }, ...prev]);
-          // Notify nurse if request matches their specialization and they didn't create it
+          // Notify nurse if request matches their specialization, targets them
+          // directly (preferred_nurse_id), and they didn't create it
           if (currentUser.role === 'nurse' && raw.user_id !== currentUser.id && raw.status === 'open') {
             const myNurse = nursesRef.current.find(n => n.user_id === currentUser.id);
-            if (myNurse && myNurse.specialization?.includes(r.specialization_needed)) {
+            if (myNurse && (raw.preferred_nurse_id === myNurse.id || myNurse.specialization?.includes(r.specialization_needed))) {
               // Local-only: event already arrived via Realtime (no remote push needed)
               notifyNewCareRequest(r.specialization_needed);
             }
@@ -423,6 +424,21 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
         if (!isRelevant) return;
         if (payload.eventType === 'INSERT') {
           setBookings(prev => prev.find(x => x.id === b.id) ? prev : [b, ...prev]);
+          // Refresh the counterparty's public profile — has_service_contact() now
+          // unlocks their phone, so re-fetch from the view to get it without reload.
+          const counterpartId = isMyNurse ? b.user_id : nursesRef.current.find(n => n.id === b.nurse_id)?.user_id;
+          if (counterpartId) {
+            supabase
+              .from('profiles_public')
+              .select('id, full_name, avatar_url, location_name, role, country, phone, created_at, updated_at')
+              .eq('id', counterpartId)
+              .maybeSingle()
+              .then(({ data: refreshedProfile }) => {
+                if (refreshedProfile) {
+                  setProfiles(prev => prev.map(p => p.id === counterpartId ? { ...p, ...refreshedProfile } : p));
+                }
+              });
+          }
           // Notify nurse: a new booking was created (family accepted their offer)
           if (isMyNurse && b.user_id !== currentUser.id) {
             // Local-only (push already sent server-side by notify-marketplace)

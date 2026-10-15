@@ -330,16 +330,14 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                   {currentUser.full_name?.split(' ')[0] || 'Usuario'}
                 </span>
               </div>
-              {currentUser.role !== 'nurse' && (
-                <button
-                  onClick={async () => { await supabase.auth.signOut(); }}
-                  className="p-2 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
-                  title="Cerrar sesión"
-                  aria-label="Cerrar sesión"
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
-              )}
+              <button
+                onClick={async () => { await supabase.auth.signOut(); }}
+                className="p-2 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                title="Cerrar sesión"
+                aria-label="Cerrar sesión"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
           )}
         </div>
@@ -830,13 +828,6 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                 >
                   <Sparkles className="h-5 w-5 text-amber-500" />
                   <span className="text-[9px] font-bold">Apoyo</span>
-                </button>
-                <button
-                  onClick={async () => { await supabase.auth.signOut(); }}
-                  className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer text-slate-400 hover:text-rose-600"
-                >
-                  <LogOut className="h-5 w-5" />
-                  <span className="text-[9px] font-bold">Salir</span>
                 </button>
               </>
             )}
