@@ -67,6 +67,8 @@ interface AppContextType {
   setActiveTab: (tab: string) => void;
   selectedNurseId: string | null;
   setSelectedNurseId: (id: string | null) => void;
+  preferredNurseId: string | null;
+  setPreferredNurseId: (id: string | null) => void;
   passwordRecoveryMode: boolean;
   setPasswordRecoveryMode: (val: boolean) => void;
 }
@@ -81,6 +83,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
   const [currentUser, setCurrentUser] = useState<Profile | null>(null);
   const [activeTab, setActiveTab] = useState<string>('landing');
   const [selectedNurseId, setSelectedNurseId] = useState<string | null>(null);
+  const [preferredNurseId, setPreferredNurseId] = useState<string | null>(null);
   const [passwordRecoveryMode, setPasswordRecoveryMode] = useState(false);
 
   // --- Nurses state ---
@@ -592,6 +595,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     setActiveTab,
     selectedNurseId,
     setSelectedNurseId,
+    preferredNurseId,
+    setPreferredNurseId,
     passwordRecoveryMode,
     setPasswordRecoveryMode
   }), [
@@ -604,7 +609,7 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
     careOffers, createCareOffer, withdrawCareOffer, rejectCareOffer, acceptCareOffer,
     nurseReviews, submitReview, familyReviews, submitFamilyReview,
     confirmPayment, updatePatientName, updateRequestLocation,
-    activeTab, selectedNurseId, passwordRecoveryMode,
+    activeTab, selectedNurseId, preferredNurseId, passwordRecoveryMode,
   ]);
 
   return (

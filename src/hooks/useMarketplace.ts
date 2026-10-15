@@ -73,6 +73,7 @@ export function useMarketplace({ currentUser, showToast, setBookings, bookingsRe
       notes: data.notes || null,
       wants_invoice: data.wants_invoice,
       expected_duration: data.expected_duration || 'shifts',
+      preferred_nurse_id: data.preferred_nurse_id || null,
       status: 'open',
       response_deadline: newRequest.response_deadline,
       created_at: now
@@ -138,6 +139,7 @@ export function useMarketplace({ currentUser, showToast, setBookings, bookingsRe
       lng: newRequest.lng,
       notes: newRequest.notes,
       wants_invoice: newRequest.wants_invoice,
+      preferred_nurse_id: newRequest.preferred_nurse_id || null,
       status: 'open',
       response_deadline: newRequest.response_deadline,
       created_at: now

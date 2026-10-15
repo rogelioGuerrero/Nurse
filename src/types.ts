@@ -165,6 +165,7 @@ export interface CareRequest {
   notes?: string;
   wants_invoice: boolean;
   expected_duration?: ExpectedDuration;
+  preferred_nurse_id?: string; // nurse invited directly by the family (directed proposal)
   status: CareRequestStatus;
   response_deadline: string; // ISO datetime when the response window closes
   created_at: string;

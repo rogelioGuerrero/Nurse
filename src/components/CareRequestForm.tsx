@@ -44,7 +44,7 @@ const STEPS = [
 ];
 
 export const CareRequestForm: FC = () => {
-  const { createCareRequest, currentUser, careRequests, careOffers, closeCareRequest, republisheCareRequest } = useApp();
+  const { createCareRequest, currentUser, careRequests, careOffers, closeCareRequest, republisheCareRequest, preferredNurseId, setPreferredNurseId, nurses, profiles } = useApp();
   const features: CountryFeatures = getFeatures(currentUser?.country);
 
   const [step, setStep] = useState(1);
@@ -71,6 +71,13 @@ export const CareRequestForm: FC = () => {
   const [triageConfirmed, setTriageConfirmed] = useState(false);
   const [triageError, setTriageError] = useState(false);
   const [republishingRequest, setRepublishingRequest] = useState<CareRequest | null>(null);
+
+  // Directed invite: family picked this nurse in the directory
+  const preferredNurse = useMemo(() => nurses.find(n => n.id === preferredNurseId) || null, [nurses, preferredNurseId]);
+  const preferredNurseName = useMemo(() => {
+    if (!preferredNurse) return null;
+    return profiles.find(p => p.id === preferredNurse.user_id)?.full_name?.split(' ')[0] || 'la enfermera elegida';
+  }, [preferredNurse, profiles]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -219,6 +226,7 @@ export const CareRequestForm: FC = () => {
       notes: notes.trim() || undefined,
       wants_invoice: wantsInvoice,
       expected_duration: deducedDuration,
+      preferred_nurse_id: preferredNurseId || undefined,
     });
     setPublished(true);
   };
@@ -253,6 +261,7 @@ export const CareRequestForm: FC = () => {
     setTriageConfirmed(false);
     setTriageError(false);
     setRepublishingRequest(null);
+    setPreferredNurseId(null);
   };
 
   const handleRepublishWithDates = (req: CareRequest) => {
@@ -423,6 +432,24 @@ export const CareRequestForm: FC = () => {
 
   return (
     <div className="min-h-[80vh] flex flex-col px-5 py-6 max-w-md mx-auto w-full">
+
+      {/* Directed invite banner */}
+      {preferredNurseId && preferredNurseName && (
+        <div className="mb-4 flex items-center gap-2.5 bg-indigo-600 text-white rounded-2xl px-4 py-3 shadow-sm">
+          <Heart className="h-4 w-4 flex-shrink-0" />
+          <p className="flex-1 text-xs font-semibold leading-snug">
+            Propuesta dirigida a <span className="font-black">{preferredNurseName}</span> — le llegará una invitación personal para enviar su oferta.
+          </p>
+          <button
+            type="button"
+            onClick={() => setPreferredNurseId(null)}
+            className="text-white/70 hover:text-white flex-shrink-0 cursor-pointer"
+            aria-label="Quitar invitación dirigida"
+          >
+            <XCircle className="h-4.5 w-4.5" />
+          </button>
+        </div>
+      )}
 
       {/* My active/expired requests */}
       {currentUser && (activeRequests.length > 0 || expiredRequests.length > 0) && (

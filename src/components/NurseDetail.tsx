@@ -22,6 +22,7 @@ export const NurseDetail: FC = () => {
     bookings,
     selectedNurseId,
     setSelectedNurseId,
+    setPreferredNurseId,
     setActiveTab
   } = useApp();
 
@@ -249,11 +250,18 @@ export const NurseDetail: FC = () => {
 
               <button
                 type="button"
-                onClick={() => { setSelectedNurseId(null); setActiveTab('care-request'); }}
+                onClick={() => { setPreferredNurseId(nurse.id); setSelectedNurseId(null); setActiveTab('care-request'); }}
                 className="w-full py-3 bg-indigo-600 hover:bg-slate-900 active:scale-95 text-white font-bold rounded-xl text-xs transition cursor-pointer shadow-sm"
                 id="btn-request-care-platform"
               >
-                Solicitar cuidado en la plataforma
+                Pedir propuesta a {profile.full_name.split(' ')[0]}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setSelectedNurseId(null); setActiveTab('care-request'); }}
+                className="w-full text-[11px] font-semibold text-slate-400 hover:text-slate-600 transition cursor-pointer"
+              >
+                O publica una solicitud general para todas las enfermeras →
               </button>
 
               <LegalDisclaimer variant="full" />

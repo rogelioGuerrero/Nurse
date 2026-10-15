@@ -241,7 +241,7 @@ async function handleNewCareRequest(supabase: any, data: { request_id: string })
     .from("care_requests")
     .select(`
       id, patient_name, patient_condition, specialization_needed, location_name, lat, lng,
-      user_id, profiles!inner(email, full_name)
+      user_id, preferred_nurse_id, profiles!inner(email, full_name)
     `)
     .eq("id", data.request_id)
     .single();
@@ -291,6 +291,22 @@ async function handleNewCareRequest(supabase: any, data: { request_id: string })
     return specMatch && geoMatch;
   });
 
+  // Directed invite: if the family picked a specific nurse in the directory,
+  // make sure she's notified even if spec/geo filters wouldn't match.
+  const preferredNurseId: string | null = request.preferred_nurse_id || null;
+  if (preferredNurseId && !matchingNurses.some((n: any) => n.id === preferredNurseId)) {
+    const { data: preferred } = await supabase
+      .from("nurses")
+      .select(`
+        id, user_id, lat, lng, coverage_radius, specialization,
+        profiles!inner(email, full_name)
+      `)
+      .eq("id", preferredNurseId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (preferred) matchingNurses.unshift(preferred);
+  }
+
   let emails = 0;
   let pushes = 0;
 
@@ -300,11 +316,14 @@ async function handleNewCareRequest(supabase: any, data: { request_id: string })
     matchingNurses.map(async (nurse: any) => {
       const nurseName = nurse.profiles?.full_name?.split(" ")[0] || "Enfermera";
       const nurseEmail = nurse.profiles?.email;
+      const isPreferred = preferredNurseId !== null && nurse.id === preferredNurseId;
 
       const html = nurseEmail
         ? emailWrap(`
             ${ep(`Hola ${nurseName},`)}
-            ${ep(`Hay una <strong>nueva solicitud de cuidado</strong> que coincide con tu especialización.`)}
+            ${ep(isPreferred
+              ? `Una familia <strong>te eligió directamente</strong> en el directorio de BienCuidar y quiere recibir tu propuesta.`
+              : `Hay una <strong>nueva solicitud de cuidado</strong> que coincide con tu especialización.`)}
             ${ep(`<strong>Paciente:</strong> ${request.patient_name}<br>
                   <strong>Condición:</strong> ${request.patient_condition || "No especificada"}<br>
                   <strong>Especialidad requerida:</strong> ${specLabel}<br>
@@ -317,12 +336,20 @@ async function handleNewCareRequest(supabase: any, data: { request_id: string })
 
       const [emailOk, pushResult] = await Promise.all([
         html && nurseEmail
-          ? sendEmail(nurseEmail, `Nueva solicitud de cuidado: ${request.patient_name}`, html)
+          ? sendEmail(
+              nurseEmail,
+              isPreferred
+                ? `Una familia te eligió: solicitud para ${request.patient_name}`
+                : `Nueva solicitud de cuidado: ${request.patient_name}`,
+              html
+            )
           : Promise.resolve(false),
         sendPushToUser(supabase, nurse.user_id, {
-          title: "Nueva solicitud de cuidado",
-          body: `Hay una nueva solicitud que coincide con tu especialización: ${specLabel}.`,
-          tag: "new-request",
+          title: isPreferred ? "Una familia te eligió" : "Nueva solicitud de cuidado",
+          body: isPreferred
+            ? `Te invitaron personalmente a enviar una propuesta para ${request.patient_name}.`
+            : `Hay una nueva solicitud que coincide con tu especialización: ${specLabel}.`,
+          tag: isPreferred ? "directed-invite" : "new-request",
         }),
       ]);
 

@@ -108,7 +108,13 @@ export const NurseInbox: FC = () => {
     return careRequests
       .filter(req => req.status === 'open')
       .filter(req => !careOffers.some(o => o.request_id === req.id && o.nurse_id === myNurse.id))
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      .sort((a, b) => {
+        // Directed invites first, then most recent
+        const aInvited = a.preferred_nurse_id === myNurse.id ? 1 : 0;
+        const bInvited = b.preferred_nurse_id === myNurse.id ? 1 : 0;
+        if (aInvited !== bInvited) return bInvited - aInvited;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
   }, [careRequests, careOffers, myNurse]);
 
   // This nurse's offers — excluding accepted (go to Servicios) and rejected older than 48h
@@ -256,9 +262,17 @@ export const NurseInbox: FC = () => {
                         <FamilyTrustBadge familyProfile={familyProfile} familyReviews={familyReviews} variant="compact" />
                       </div>
                     </div>
-                    <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full flex-shrink-0">
-                      {req.specialization_needed}
-                    </span>
+                    <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                      <span className="text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-1 rounded-full">
+                        {req.specialization_needed}
+                      </span>
+                      {req.preferred_nurse_id === myNurse.id && (
+                        <span className="text-[9px] font-black bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200 flex items-center gap-0.5">
+                          <Heart className="h-2.5 w-2.5" />
+                          Te eligieron
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Patient info */}
