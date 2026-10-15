@@ -24,8 +24,12 @@ export function hasNotificationPermission(): boolean {
   return 'Notification' in window && Notification.permission === 'granted';
 }
 
-export function sendNotification({ title, body, tag, pushUserId }: NotifPayload): void {
-  // Local notification (works only if tab is open)
+/**
+ * Show a LOCAL browser notification only — never invokes Web Push.
+ * Use this inside Realtime handlers: if the event arrived via Realtime,
+ * the user is already online; remote push is redundant.
+ */
+export function showLocalNotification({ title, body, tag }: Omit<NotifPayload, 'pushUserId'>): void {
   if (hasNotificationPermission()) {
     try {
       const n = new Notification(title, {
@@ -47,6 +51,11 @@ export function sendNotification({ title, body, tag, pushUserId }: NotifPayload)
       }
     }
   }
+}
+
+export function sendNotification({ title, body, tag, pushUserId }: NotifPayload): void {
+  // Local notification (works only if tab is open)
+  showLocalNotification({ title, body, tag });
 
   // Web Push (delivers even if tab is closed, to other devices)
   if (pushUserId) {

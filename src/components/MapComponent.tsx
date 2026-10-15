@@ -9,6 +9,8 @@ import 'leaflet/dist/leaflet.css';
 
 interface MapComponentProps {
   filteredNurses: Nurse[];
+  /** Reactive user coordinates — defaults to USER_COORDS (SS centroid) */
+  userCoords?: { lat: number; lng: number };
 }
 
 const userIcon = L.divIcon({
@@ -40,9 +42,10 @@ function MapResizer() {
   return null;
 }
 
-export const MapComponent = ({ filteredNurses }: MapComponentProps) => {
+export const MapComponent = ({ filteredNurses, userCoords }: MapComponentProps) => {
   const { profiles, selectedNurseId, setSelectedNurseId, setActiveTab } = useApp();
   const [filterRadius, setFilterRadius] = useState<number>(10);
+  const coords = userCoords ?? USER_COORDS;
 
   // O(1) profile lookup
   const profileMap = useMemo(() => {
@@ -54,7 +57,7 @@ export const MapComponent = ({ filteredNurses }: MapComponentProps) => {
   const mapItems = useMemo(() => {
     return filteredNurses.map(nurse => {
       const profile = profileMap.get(nurse.user_id);
-      const distance = getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, nurse.lat, nurse.lng);
+      const distance = getDistanceKm(coords.lat, coords.lng, nurse.lat, nurse.lng);
       const isWithinRadius = distance <= filterRadius;
 
       return {
@@ -64,7 +67,7 @@ export const MapComponent = ({ filteredNurses }: MapComponentProps) => {
         isWithinRadius
       };
     });
-  }, [filteredNurses, profileMap, filterRadius]);
+  }, [filteredNurses, profileMap, filterRadius, coords]);
 
   const handleInspectNurse = (nurseId: string) => {
     setSelectedNurseId(nurseId);
@@ -107,7 +110,7 @@ export const MapComponent = ({ filteredNurses }: MapComponentProps) => {
 
       <div className="relative flex-1 min-h-[380px] md:min-h-[460px]">
         <MapContainer
-          center={[USER_COORDS.lat, USER_COORDS.lng]}
+          center={[coords.lat, coords.lng]}
           zoom={12}
           scrollWheelZoom={false}
           style={{ height: '100%', width: '100%', zIndex: 0 }}
@@ -119,7 +122,7 @@ export const MapComponent = ({ filteredNurses }: MapComponentProps) => {
           />
 
           <Circle
-            center={[USER_COORDS.lat, USER_COORDS.lng]}
+            center={[coords.lat, coords.lng]}
             radius={filterRadius * 1000}
             pathOptions={{
               color: '#0d9488',
@@ -129,7 +132,7 @@ export const MapComponent = ({ filteredNurses }: MapComponentProps) => {
             }}
           />
 
-          <Marker position={[USER_COORDS.lat, USER_COORDS.lng]} icon={userIcon}>
+          <Marker position={[coords.lat, coords.lng]} icon={userIcon}>
             <Popup>
               <strong>Tu ubicacion</strong><br />San Salvador, El Salvador
             </Popup>

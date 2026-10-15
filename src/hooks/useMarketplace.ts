@@ -5,7 +5,6 @@ import {
   CareOffer, CareOfferStatus, Nurse, Profile, Booking,
 } from '../types';
 import { getResponseDeadline } from '../data/platformSettings';
-import { notifyNewOffer, notifyOfferAccepted } from '../lib/notifications';
 import { notifyMarketplace } from '../lib/marketplace-notify';
 import { track } from '../lib/analytics';
 
@@ -20,7 +19,7 @@ interface UseMarketplaceArgs {
   bookingsRef: React.MutableRefObject<Booking[]>;
 }
 
-export function useMarketplace({ currentUser, nurses, profiles, showToast, setBookings, bookingsRef }: UseMarketplaceArgs) {
+export function useMarketplace({ currentUser, showToast, setBookings, bookingsRef }: UseMarketplaceArgs) {
   const [careRequests, setCareRequests] = useState<CareRequest[]>([]);
   const [careOffers, setCareOffers] = useState<CareOffer[]>([]);
 
@@ -30,10 +29,18 @@ export function useMarketplace({ currentUser, nurses, profiles, showToast, setBo
   useEffect(() => { careRequestsRef.current = careRequests; }, [careRequests]);
   useEffect(() => { careOffersRef.current = careOffers; }, [careOffers]);
 
+  // Two shifts conflict when they share the date AND either the shift matches
+  // or one of them covers the whole day.
+  const slotsConflict = useCallback((a?: CareRequestSlot, b?: CareRequestSlot): boolean => {
+    if (!a || !b) return false;
+    if (a.date !== b.date) return false;
+    return a.shift === b.shift || a.shift === 'full_day' || b.shift === 'full_day';
+  }, []);
+
   const createCareRequest = useCallback((data: Omit<CareRequest, 'id' | 'user_id' | 'created_at' | 'status' | 'response_deadline'>): CareRequest => {
     if (!currentUser) throw new Error('Debes iniciar sesión para publicar una solicitud.');
 
-    const activeRequestsCount = careRequests.filter(r => r.user_id === currentUser.id && r.status === 'open').length;
+    const activeRequestsCount = careRequestsRef.current.filter(r => r.user_id === currentUser.id && r.status === 'open').length;
     if (activeRequestsCount >= 2) {
       throw new Error('Por seguridad y control de calidad en fase de arranque, solo puedes tener un máximo de 2 solicitudes activas simultáneamente.');
     }
@@ -80,11 +87,11 @@ export function useMarketplace({ currentUser, nurses, profiles, showToast, setBo
     });
     track.careRequestSubmit(data.specialization_needed, data.urgency);
     return newRequest;
-  }, [currentUser, careRequests, showToast]);
+  }, [currentUser, showToast]);
 
   const closeCareRequest = useCallback((requestId: string) => {
-    const prevRequests = careRequests;
-    const prevOffers = careOffers;
+    const prevRequests = careRequestsRef.current;
+    const prevOffers = careOffersRef.current;
     setCareRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'closed' as CareRequestStatus } : r));
     setCareOffers(prev => prev.map(o => o.request_id === requestId && o.status === 'pending' ? { ...o, status: 'rejected' as CareOfferStatus, reject_reason: 'auto' } : o));
     Promise.all([
@@ -98,10 +105,10 @@ export function useMarketplace({ currentUser, nurses, profiles, showToast, setBo
         showToast('No se pudo cerrar la solicitud en el servidor.', 'error');
       }
     });
-  }, [careRequests, careOffers, showToast]);
+  }, [showToast]);
 
   const republisheCareRequest = useCallback((requestId: string, newSlots?: CareRequestSlot[], newDuration?: ExpectedDuration) => {
-    const original = careRequests.find(r => r.id === requestId);
+    const original = careRequestsRef.current.find(r => r.id === requestId);
     if (!original) return;
     const now = new Date().toISOString();
     const newRequest: CareRequest = {
@@ -141,7 +148,7 @@ export function useMarketplace({ currentUser, nurses, profiles, showToast, setBo
         showToast('No se pudo republicar la solicitud. Intenta de nuevo.', 'error');
       }
     });
-  }, [careRequests, showToast]);
+  }, [showToast]);
 
   const createCareOffer = useCallback((data: Omit<CareOffer, 'id' | 'created_at' | 'status'> & { status?: CareOffer['status'] }): CareOffer => {
     const newOffer: CareOffer = {
@@ -166,21 +173,19 @@ export function useMarketplace({ currentUser, nurses, profiles, showToast, setBo
         setCareOffers(prev => prev.filter(o => o.id !== newOffer.id));
         showToast('No se pudo enviar tu oferta. Intenta de nuevo.', 'error');
       } else {
-        const request = careRequests.find(r => r.id === data.request_id);
+        const request = careRequestsRef.current.find(r => r.id === data.request_id);
         if (request && currentUser?.id !== request.user_id) {
-          const nurse = nurses.find(n => n.id === data.nurse_id);
-          const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
-          notifyNewOffer(nurseProfile?.full_name || 'Una enfermera', request.patient_name, request.user_id);
+          // Server-side notify-marketplace already sends email + push to the family
           notifyMarketplace({ type: 'new_offer', offer_id: newOffer.id });
           track.offerSubmit(Number(data.offered_rate));
         }
       }
     });
     return newOffer;
-  }, [careRequests, currentUser, nurses, profiles, showToast]);
+  }, [currentUser, showToast]);
 
   const withdrawCareOffer = useCallback((offerId: string) => {
-    const prevOffers = careOffers;
+    const prevOffers = careOffersRef.current;
     setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'rejected' as CareOfferStatus, reject_reason: 'voluntary' } : o));
     supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'voluntary' }).eq('id', offerId).then(({ error }) => {
       if (error) {
@@ -189,10 +194,25 @@ export function useMarketplace({ currentUser, nurses, profiles, showToast, setBo
         showToast('No se pudo retirar la oferta del servidor.', 'error');
       }
     });
-  }, [careOffers, showToast]);
+  }, [showToast]);
+
+  // Family rejects a pending offer on their own request
+  const rejectCareOffer = useCallback((offerId: string) => {
+    const prevOffers = careOffersRef.current;
+    setCareOffers(prev => prev.map(o => o.id === offerId ? { ...o, status: 'rejected' as CareOfferStatus, reject_reason: 'voluntary' } : o));
+    supabase.from('care_offers').update({ status: 'rejected', reject_reason: 'voluntary' }).eq('id', offerId).then(({ error }) => {
+      if (error) {
+        console.warn('rejectCareOffer sync error:', error.message);
+        setCareOffers(prevOffers);
+        showToast('No se pudo rechazar la oferta. Intenta de nuevo.', 'error');
+      }
+    });
+  }, [showToast]);
 
   const acceptCareOffer = useCallback(async (offerId: string) => {
-    const offer = careOffers.find(o => o.id === offerId);
+    const allOffers = careOffersRef.current;
+    const allRequests = careRequestsRef.current;
+    const offer = allOffers.find(o => o.id === offerId);
     if (!offer) return;
 
     try {
@@ -201,24 +221,35 @@ export function useMarketplace({ currentUser, nurses, profiles, showToast, setBo
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
+      const acceptedReq = allRequests.find(r => r.id === offer.request_id);
+      const acceptedSlot = acceptedReq?.slots[offer.slot_index];
+
       setCareOffers(prev => prev.map(o => {
         if (o.id === offerId) return { ...o, status: 'accepted' as CareOfferStatus };
-        if (o.request_id === offer.request_id && o.status === 'pending')
+        // Reject only sibling offers for the SAME slot (multi-turno support)
+        if (o.request_id === offer.request_id && o.slot_index === offer.slot_index && o.status === 'pending')
           return { ...o, status: 'rejected' as CareOfferStatus, reject_reason: 'auto' };
-        const req = careRequests.find(r => r.id === o.request_id);
-        const acceptedReq = careRequests.find(r => r.id === offer.request_id);
-        if (req && acceptedReq && o.nurse_id === offer.nurse_id && o.status === 'pending') {
+        // Withdraw this nurse's pending offers that conflict on date + shift
+        const req = allRequests.find(r => r.id === o.request_id);
+        if (req && o.nurse_id === offer.nurse_id && o.status === 'pending') {
           const otherSlot = req.slots[o.slot_index];
-          const acceptedSlot = acceptedReq.slots[offer.slot_index];
-          if (otherSlot && acceptedSlot && otherSlot.date === acceptedSlot.date)
+          if (slotsConflict(otherSlot, acceptedSlot))
             return { ...o, status: 'rejected' as CareOfferStatus, reject_reason: 'auto' };
         }
         return o;
       }));
 
-      setCareRequests(prev => prev.map(r =>
-        r.id === offer.request_id ? { ...r, status: 'matched' as CareRequestStatus } : r
-      ));
+      // Mark request 'matched' only when every slot index has an accepted offer
+      const requestFullyMatched = acceptedReq
+        ? acceptedReq.slots.every((_, idx) =>
+            idx === offer.slot_index ||
+            allOffers.some(o => o.request_id === acceptedReq.id && o.slot_index === idx && o.status === 'accepted'))
+        : false;
+      if (requestFullyMatched) {
+        setCareRequests(prev => prev.map(r =>
+          r.id === offer.request_id ? { ...r, status: 'matched' as CareRequestStatus } : r
+        ));
+      }
 
       if (data?.booking_id) {
         const { data: newBooking } = await supabase
@@ -231,24 +262,20 @@ export function useMarketplace({ currentUser, nurses, profiles, showToast, setBo
         }
       }
 
+      // Server-side notify-marketplace already sends email + push to the nurse
       notifyMarketplace({ type: 'offer_accepted', offer_id: offer.id });
       track.offerAccepted();
-
-      const request = careRequests.find(r => r.id === offer.request_id);
-      const nurse = nurses.find(n => n.id === offer.nurse_id);
-      if (nurse && currentUser?.id !== nurse.user_id && request) {
-        notifyOfferAccepted(request.patient_name, nurse.user_id);
-      }
 
       showToast('Oferta aceptada. Se ha creado el servicio.', 'success');
     } catch (err) {
       console.warn('acceptCareOffer RPC error:', err);
       showToast('No se pudo aceptar la oferta. Intenta de nuevo.', 'error');
     }
-  }, [careOffers, careRequests, nurses, currentUser, showToast, setBookings]);
+  }, [currentUser, showToast, setBookings, slotsConflict]);
 
   const updatePatientName = useCallback(async (requestId: string, patientName: string, patientAge?: string, emergencyContact?: string) => {
-    const prevRequests = careRequests;
+    const prevRequests = careRequestsRef.current;
+    const prevBookings = bookingsRef.current;
     setCareRequests(prev => prev.map(r => r.id === requestId ? {
       ...r,
       patient_name: patientName,
@@ -257,28 +284,21 @@ export function useMarketplace({ currentUser, nurses, profiles, showToast, setBo
         emergency_contact: emergencyContact ?? r.patient_data?.emergency_contact ?? '',
       }
     } : r));
-    setBookings(prev => {
-      const req = careRequests.find(r => r.id === requestId);
-      if (req && (prev.find(b => b.id === '')?.patient_name === 'Por confirmar')) {
-        // no-op placeholder — actual matching done below
-      }
-      return prev.map(b => {
-        if (req && (b.patient_name === 'Por confirmar' || b.patient_name === req.patient_name)) {
-          return {
+    setBookings(prev => prev.map(b =>
+      b.request_id === requestId
+        ? {
             ...b,
             patient_name: patientName,
             patient_age: patientAge || b.patient_age,
             emergency_contact: emergencyContact || b.emergency_contact,
-          };
-        }
-        return b;
-      });
-    });
+          }
+        : b
+    ));
 
     try {
       const updateData: Record<string, unknown> = { patient_name: patientName };
       if (emergencyContact !== undefined) {
-        const request = careRequests.find(r => r.id === requestId);
+        const request = careRequestsRef.current.find(r => r.id === requestId);
         const patientData = {
           ...(request?.patient_data || { diagnosis: '', autonomy: '', allergies: '', medications: '', emergency_contact: '' }),
           emergency_contact: emergencyContact
@@ -286,50 +306,40 @@ export function useMarketplace({ currentUser, nurses, profiles, showToast, setBo
         updateData.patient_data = JSON.stringify(patientData);
       }
       await supabase.from('care_requests').update(updateData).eq('id', requestId);
-      const request = careRequests.find(r => r.id === requestId);
-      const relatedBookings = bookingsRef.current.filter(b =>
-        request && (b.patient_name === 'Por confirmar' || b.patient_name === request.patient_name)
-      );
-      for (const b of relatedBookings) {
-        await supabase.from('bookings').update({
-          patient_name: patientName,
-          patient_age: patientAge || null,
-          emergency_contact: emergencyContact || null,
-        }).eq('id', b.id);
-      }
+      // Single batch update via the bookings.request_id FK (no N+1, no name matching)
+      await supabase.from('bookings').update({
+        patient_name: patientName,
+        patient_age: patientAge || null,
+        emergency_contact: emergencyContact || null,
+      }).eq('request_id', requestId);
     } catch (err) {
       setCareRequests(prevRequests);
+      setBookings(prevBookings);
       console.warn('Patient name update failed, rolled back:', err);
       showToast('No se pudo actualizar el nombre del paciente. Revertido.', 'error');
     }
-  }, [careRequests, showToast, setBookings]);
+  }, [showToast, setBookings]);
 
   const updateRequestLocation = useCallback(async (requestId: string, lat: number, lng: number, locationName: string) => {
-    const prevRequests = careRequests;
+    const prevRequests = careRequestsRef.current;
+    const prevBookings = bookingsRef.current;
     setCareRequests(prev => prev.map(r => r.id === requestId ? { ...r, lat, lng, location_name: locationName } : r));
-    setBookings(prev => prev.map(b => {
-      const req = careRequests.find(r => r.id === requestId);
-      if (req && (b.patient_name === 'Por confirmar' || b.patient_name === req.patient_name)) {
-        return { ...b, lat, lng, location_name: locationName };
-      }
-      return b;
-    }));
+    setBookings(prev => prev.map(b =>
+      b.request_id === requestId
+        ? { ...b, lat, lng, location_name: locationName }
+        : b
+    ));
 
     try {
       await supabase.from('care_requests').update({ lat, lng, location_name: locationName }).eq('id', requestId);
-      const request = careRequests.find(r => r.id === requestId);
-      const relatedBookings = bookingsRef.current.filter(b =>
-        request && (b.patient_name === 'Por confirmar' || b.patient_name === request.patient_name)
-      );
-      for (const b of relatedBookings) {
-        await supabase.from('bookings').update({ lat, lng, location_name: locationName }).eq('id', b.id);
-      }
+      await supabase.from('bookings').update({ lat, lng, location_name: locationName }).eq('request_id', requestId);
     } catch (err) {
       setCareRequests(prevRequests);
+      setBookings(prevBookings);
       console.warn('Location update failed, rolled back:', err);
       showToast('No se pudo actualizar la ubicacion. Revertido.', 'error');
     }
-  }, [careRequests, showToast, setBookings]);
+  }, [showToast, setBookings]);
 
   // Auto-expire care requests past their response_deadline (client-side mirror only)
   useEffect(() => {
@@ -391,9 +401,7 @@ export function useMarketplace({ currentUser, nurses, profiles, showToast, setBo
       const shouldWithdraw = accepted.some(ao => {
         const acceptedReq = careRequests.find(r => r.id === ao.request_id);
         if (!acceptedReq) return false;
-        const acceptedSlot = acceptedReq.slots[ao.slot_index];
-        if (!acceptedSlot) return false;
-        return acceptedSlot.date === offerSlot.date;
+        return slotsConflict(offerSlot, acceptedReq.slots[ao.slot_index]);
       });
 
       if (shouldWithdraw) toWithdrawIds.push(o.id);
@@ -406,7 +414,7 @@ export function useMarketplace({ currentUser, nurses, profiles, showToast, setBo
           : o
       ));
     }
-  }, [careOffers, careRequests, currentUser]);
+  }, [careOffers, careRequests, currentUser, slotsConflict]);
 
   return {
     careRequests,
@@ -419,6 +427,7 @@ export function useMarketplace({ currentUser, nurses, profiles, showToast, setBo
     republisheCareRequest,
     createCareOffer,
     withdrawCareOffer,
+    rejectCareOffer,
     acceptCareOffer,
     updatePatientName,
     updateRequestLocation,

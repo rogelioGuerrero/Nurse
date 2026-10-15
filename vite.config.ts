@@ -9,9 +9,10 @@ export default defineConfig(() => {
       rollupOptions: {
         output: {
           manualChunks: {
-            'react-vendor': ['react', 'react-dom'],
             'supabase-vendor': ['@supabase/supabase-js'],
             'icons': ['lucide-react'],
+            'map-vendor': ['leaflet', 'react-leaflet'],
+            'markdown-vendor': ['react-markdown'],
           },
         },
       },

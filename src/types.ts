@@ -113,6 +113,9 @@ export interface Booking {
   // Payment
   payment_status?: 'pending' | 'paid';
   wants_invoice?: boolean;
+  // Marketplace lineage (bookings created via accepted offers)
+  request_id?: string; // care_requests FK
+  offer_id?: string; // care_offers FK
 }
 
 export interface Availability {

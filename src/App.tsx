@@ -6,8 +6,6 @@
 import { useState, useMemo, useEffect, lazy, Suspense } from 'react';
 import { AppContextProvider, useApp } from './context/AppContext';
 import { supabase, supabaseUrl } from './lib/supabase';
-import { SupportChat } from './components/SupportChat';
-import { MapComponent } from './components/MapComponent';
 import { SearchFilters } from './components/SearchFilters';
 import { ToastProvider } from './components/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -41,6 +39,9 @@ const PatientMode = lazy(() => import('./components/PatientMode'));
 const VoiceReminderConfig = lazy(() => import('./components/VoiceReminderConfig'));
 const LandingPage = lazy(() => import('./components/LandingPage').then(m => ({ default: m.LandingPage })));
 const AuthForm = lazy(() => import('./components/AuthForm').then(m => ({ default: m.AuthForm })));
+// Heavy deps (leaflet, react-markdown) are code-split — loaded only when needed
+const MapComponent = lazy(() => import('./components/MapComponent').then(m => ({ default: m.MapComponent })));
+const SupportChat = lazy(() => import('./components/SupportChat').then(m => ({ default: m.SupportChat })));
 import { LegalDisclaimer } from './components/LegalDisclaimer';
 
 function PasswordRecoveryForm({ onSuccess, onCancel }: { onSuccess: () => void; onCancel: () => void }) {
@@ -193,6 +194,8 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
   const [authMode, setAuthMode] = useState<'landing' | 'login' | 'register'>('landing');
   const [authRole, setAuthRole] = useState<'family' | 'nurse'>('family');
   const [isAdminAccess, setIsAdminAccess] = useState(false);
+  // Reactive user coordinates (updated when geolocation resolves)
+  const [userCoords, setUserCoords] = useState(USER_COORDS);
 
   // Detect /?admin=true for hidden admin login
   useEffect(() => {
@@ -201,8 +204,8 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
       setIsAdminAccess(true);
       setAuthMode('login');
     }
-    // Request real geolocation on mount
-    requestUserLocation();
+    // Request real geolocation on mount — updates state so UI re-renders
+    requestUserLocation(setUserCoords);
   }, []);
 
   // Calcular ofertas pendientes para badge
@@ -245,6 +248,13 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
     return Array.from(specsSet);
   }, [nurses]);
 
+  // Precalculate distance per nurse once — reused by sorting and card rendering
+  const nurseDistances = useMemo(() => {
+    const map = new Map<string, number>();
+    nurses.forEach(n => map.set(n.id, getDistanceKm(userCoords.lat, userCoords.lng, n.lat, n.lng)));
+    return map;
+  }, [nurses, userCoords]);
+
   // Compute filtered nurses catalog
   const filteredNurses = useMemo(() => {
     let result = [...nurses];
@@ -272,7 +282,7 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
 
     // Sort accordingly
     if (sortBy === 'distance') {
-      result.sort((a, b) => getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, a.lat, a.lng) - getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, b.lat, b.lng));
+      result.sort((a, b) => (nurseDistances.get(a.id) ?? 0) - (nurseDistances.get(b.id) ?? 0));
     } else if (sortBy === 'rating') {
       result.sort((a, b) => b.rating - a.rating);
     } else if (sortBy === 'rate-asc') {
@@ -284,7 +294,7 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
     }
 
     return result;
-  }, [nurses, profileMap, debouncedSearch, selectedSpecialization, maxRate, sortBy]);
+  }, [nurses, profileMap, debouncedSearch, selectedSpecialization, maxRate, sortBy, nurseDistances]);
 
   const handleInspectNurse = (id: string) => {
     setSelectedNurseId(id);
@@ -362,9 +372,9 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
             {passwordRecoveryMode ? (
               <PasswordRecoveryForm
                 onSuccess={() => {
+                  // USER_UPDATED in AppContext rehydrates the session — no reload needed
                   setPasswordRecoveryMode(false);
                   setAuthMode('login');
-                  window.location.reload();
                 }}
                 onCancel={() => {
                   setPasswordRecoveryMode(false);
@@ -387,9 +397,9 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                     role="family"
                     onBack={() => { setIsAdminAccess(false); setAuthMode('landing'); }}
                     onSuccess={() => {
+                      // onAuthStateChange (SIGNED_IN) handles profile load — no reload needed
                       setIsAdminAccess(false);
                       setAuthMode('landing');
-                      window.location.reload();
                     }}
                   />
                 </div>
@@ -418,13 +428,13 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                 role={authRole}
                 onBack={() => setAuthMode('landing')}
                 onSuccess={() => {
+                  // onAuthStateChange (SIGNED_IN) sets currentUser + default tab — no reload needed
                   setAuthMode('landing');
                   if (authRole === 'nurse') {
                     setActiveTab('nurse-profile-edit');
                   } else {
                     setActiveTab('care-request');
                   }
-                  window.location.reload();
                 }}
               />
               </Suspense>
@@ -525,7 +535,7 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                                 </p>
                                 <p className="text-[10px] text-slate-500 font-bold flex items-center justify-center sm:justify-start gap-1">
                                   <MapPinned className="h-3.5 w-3.5 text-indigo-400" />
-                                  {getDistanceKm(USER_COORDS.lat, USER_COORDS.lng, nurse.lat, nurse.lng).toFixed(1)} km de ti
+                                  {(nurseDistances.get(nurse.id) ?? 0).toFixed(1)} km de ti
                                 </p>
                               </div>
                               <div className="text-slate-800 text-right shrink-0">
@@ -591,9 +601,12 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
 
               {/* Interactive custom coordinates map (Right pane) */}
               <div className="lg:col-span-5 h-full lg:sticky lg:top-28">
-                <MapComponent 
-                  filteredNurses={filteredNurses}
-                />
+                <Suspense fallback={<LoadingSpinner />}>
+                  <MapComponent
+                    filteredNurses={filteredNurses}
+                    userCoords={userCoords}
+                  />
+                </Suspense>
               </div>
 
             </div>
@@ -818,9 +831,11 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
         </nav>
       )}
 
-      {/* Support chat widget - visible when logged in */}
+      {/* Support chat widget - visible when logged in (lazy: react-markdown) */}
       {currentUser && (
-        <SupportChat userRole={currentUser.role} userEmail={currentUser.email} userId={currentUser.id} country={currentUser.country} />
+        <Suspense fallback={null}>
+          <SupportChat userRole={currentUser.role} userEmail={currentUser.email} userId={currentUser.id} country={currentUser.country} />
+        </Suspense>
       )}
 
     </div>

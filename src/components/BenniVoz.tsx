@@ -83,6 +83,12 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
   const familyUserIdRef = useRef<string>('');
   const patientUserIdRef = useRef<string>('');
   const escalationPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const escalationChannelRef = useRef<{ unsubscribe?: () => void } | null>(null);
+  // Latest-callback refs for listeners that must not re-register
+  const speakRef = useRef<(text: string, onEnd?: () => void) => void>(() => {});
+  const startListeningRef = useRef<() => void>(() => {});
+  const hasSTTRef = useRef(hasSTT);
+  hasSTTRef.current = hasSTT;
   const silenceCountRef = useRef(0);
   const inactivityTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const whisperFailedRef = useRef(false);
@@ -97,6 +103,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
   const [showDebug, setShowDebug] = useState(false);
   const [showQuickPhrases, setShowQuickPhrases] = useState(false);
 
+  // Effect 1/3 — speech support + voice loading (mount only; no re-run on voice change)
   useEffect(() => {
     if (!('speechSynthesis' in window)) {
       setIsSupported(false);
@@ -112,41 +119,28 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
       const available = window.speechSynthesis.getVoices();
       setVoices(available);
       const spanishVoice = available.find(v => v.lang.startsWith('es'));
-      if (spanishVoice && !selectedVoiceURI) {
-        setSelectedVoiceURI(spanishVoice.voiceURI);
+      if (spanishVoice) {
+        // Functional update — keeps the user's explicit choice, never re-triggers this effect
+        setSelectedVoiceURI(prev => prev || spanishVoice.voiceURI);
       }
     };
 
     loadVoices();
     window.speechSynthesis.onvoiceschanged = loadVoices;
 
-    const handleSWMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === 'SPEAK' && event.data.text) {
-        const text = event.data.text;
-        setPushMessage({ label: 'Recordatorio', message: text });
-        setMode('push');
-        modeRef.current = 'push';
-        setIsSpeaking(true);
-        reminderContextRef.current = text;
-        setTimeout(() => speak(text, () => {
-          const now = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
-          setHistory(prev => [{ label: 'Recordatorio', time: now }, ...prev].slice(0, 10));
-          setIsSpeaking(false);
-          if (hasSTT) {
-            setTimeout(() => startListening(), 800);
-          }
-        }), 100);
-      }
+    return () => {
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.onvoiceschanged = null;
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      if (inactivityTimeoutRef.current) clearTimeout(inactivityTimeoutRef.current);
+      stopListening();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.addEventListener('message', handleSWMessage);
-      navigator.serviceWorker.ready.then(() => {
-        navigator.serviceWorker.controller?.postMessage({ type: 'READY' });
-      });
-    }
-
-    // Fetch user IDs on mount for tool calling + session logging
+  // Effect 2/3 — fetch user IDs once on mount (tool calling + session logging)
+  useEffect(() => {
     const fetchUserIds = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -176,19 +170,42 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
       }
     };
     fetchUserIds();
+  }, []);
+
+  // Effect 3/3 — service worker SPEAK listener (registered once; reads via refs)
+  useEffect(() => {
+    const handleSWMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'SPEAK' && event.data.text) {
+        const text = event.data.text;
+        setPushMessage({ label: 'Recordatorio', message: text });
+        setMode('push');
+        modeRef.current = 'push';
+        setIsSpeaking(true);
+        reminderContextRef.current = text;
+        setTimeout(() => speakRef.current(text, () => {
+          const now = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
+          setHistory(prev => [{ label: 'Recordatorio', time: now }, ...prev].slice(0, 10));
+          setIsSpeaking(false);
+          if (hasSTTRef.current) {
+            setTimeout(() => startListeningRef.current(), 800);
+          }
+        }), 100);
+      }
+    };
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleSWMessage);
+      navigator.serviceWorker.ready.then(() => {
+        navigator.serviceWorker.controller?.postMessage({ type: 'READY' });
+      });
+    }
 
     return () => {
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.onvoiceschanged = null;
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      if (countdownRef.current) clearInterval(countdownRef.current);
-      if (inactivityTimeoutRef.current) clearTimeout(inactivityTimeoutRef.current);
-      stopListening();
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener('message', handleSWMessage);
       }
     };
-  }, [selectedVoiceURI, voices, hasSTT]);
+  }, []);
 
   // === Morning Briefing ===
   const fetchMorningBriefing = useCallback(async () => {
@@ -280,6 +297,9 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
 
     window.speechSynthesis.speak(utterance);
   }, [voices, selectedVoiceURI]);
+
+  // Keep ref current so the (once-registered) SW listener always uses latest speak()
+  speakRef.current = speak;
 
   // === Stop listening (shared) ===
   const stopListening = useCallback(() => {
@@ -414,6 +434,9 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
     }
   }, [whisperSTT, startListeningFallback]);
 
+  // Keep ref current so the (once-registered) SW listener always uses latest startListening()
+  startListeningRef.current = startListening;
+
   // === Handle Whisper recording/transcribing state ===
   useEffect(() => {
     if (whisperSTT.isRecording) {
@@ -484,6 +507,10 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
         clearInterval(escalationPollRef.current);
         escalationPollRef.current = null;
       }
+      if (escalationChannelRef.current) {
+        supabase.removeChannel(escalationChannelRef.current as any);
+        escalationChannelRef.current = null;
+      }
       setIsEscalating(false);
       isEscalatingRef.current = false;
       const now = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
@@ -496,6 +523,30 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
       });
     }
   }, [speak, startListening]);
+
+  // Realtime listener (instant) + slow 30s fallback poll — replaces the old 5s poll
+  const startEscalationListener = useCallback(() => {
+    const familyId = familyUserIdRef.current;
+    if (familyId) {
+      escalationChannelRef.current = supabase
+        .channel(`benni-escalation-${familyId}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'benni_messages',
+          filter: `family_user_id=eq.${familyId}`,
+        }, (payload) => {
+          const row = payload.new as any;
+          if (row.direction === 'family_to_patient' && row.status === 'answered') {
+            checkEscalationResponse();
+          }
+        })
+        .subscribe();
+    }
+    escalationPollRef.current = setInterval(() => {
+      checkEscalationResponse();
+    }, 30000);
+  }, [checkEscalationResponse]);
 
   const handleUserMessage = useCallback(async (userText: string) => {
     if (!userText) return;
@@ -607,10 +658,8 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
                 context: reminderContextRef.current,
               },
             });
-            // Start polling for family response
-            escalationPollRef.current = setInterval(() => {
-              checkEscalationResponse();
-            }, 5000);
+            // Start listening for the family response (Realtime + 30s fallback poll)
+            startEscalationListener();
           } catch (err) {
             console.error('escalation error:', err);
             setIsEscalating(false);
@@ -638,9 +687,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
                 context: reminderContextRef.current,
               },
             });
-            escalationPollRef.current = setInterval(() => {
-              checkEscalationResponse();
-            }, 5000);
+            startEscalationListener();
           } catch (err) {
             console.error('family_request error:', err);
             setIsEscalating(false);
@@ -675,7 +722,7 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
         setTimeout(() => startListening(), 600);
       });
     }
-  }, [speak, startListening, stopListening, checkEscalationResponse]);
+  }, [speak, startListening, stopListening, checkEscalationResponse, startEscalationListener]);
 
   // Keep ref updated for use inside Whisper callbacks
   handleUserMessageRef.current = handleUserMessage;
@@ -764,6 +811,10 @@ export default function BenniVoz({ isBriefing = false }: { isBriefing?: boolean 
     if (escalationPollRef.current) {
       clearInterval(escalationPollRef.current);
       escalationPollRef.current = null;
+    }
+    if (escalationChannelRef.current) {
+      supabase.removeChannel(escalationChannelRef.current as any);
+      escalationChannelRef.current = null;
     }
     setIsActive(false);
     setMode('idle');

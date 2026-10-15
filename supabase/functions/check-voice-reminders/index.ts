@@ -4,7 +4,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
-const VAPID_SUBJECT = "mailto:admin@biencuidar.agtisa.com";
+const VAPID_SUBJECT = "mailto:info@agtisa.com";
 
 const ALLOWED_ORIGINS = [
   "https://biencuidar.agtisa.com",
@@ -166,12 +166,11 @@ Deno.serve(async (req: Request) => {
         morningBriefing: reminder.is_morning_briefing || false,
       });
 
-      let sent = 0;
-      for (const sub of subs) {
-        const ok = await sendPushToSubscription(sub, payload);
-        if (ok) sent++;
-        // Log each attempt
-        await supabase.from("notification_logs").insert({
+      // Send to all devices in parallel + single batch log insert
+      const results = await Promise.all(subs.map((sub) => sendPushToSubscription(sub, payload)));
+      const sent = results.filter(Boolean).length;
+      await supabase.from("notification_logs").insert(
+        subs.map((sub, i) => ({
           family_user_id: reminder.family_user_id,
           reminder_id: reminder.id,
           notification_type: "test",
@@ -180,9 +179,9 @@ Deno.serve(async (req: Request) => {
           body: reminder.label,
           payload: { speak: reminder.message, label: reminder.label },
           push_endpoint: sub.endpoint,
-          push_status: ok ? "sent" : "failed",
-        });
-      }
+          push_status: results[i] ? "sent" : "failed",
+        }))
+      );
 
       console.log(`[check-voice-reminders] test sent: ${sent} for reminder ${reminder.id}`);
       return new Response(JSON.stringify({ sent, mode: "test" }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) } });
@@ -190,8 +189,20 @@ Deno.serve(async (req: Request) => {
 
     // === MODE: cron — check all active reminders that match current time ===
     const now = new Date();
-    const currentTime = now.toTimeString().slice(0, 5); // HH:MM
-    const currentDay = now.getDay(); // 0=Sunday
+    // Business timezone is America/El_Salvador (UTC-6) — Deno servers run in UTC,
+    // so toTimeString()/getDay() would compare the wrong hour/day.
+    const svParts = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/El_Salvador",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      weekday: "short",
+    }).formatToParts(now);
+    const svHour = parseInt(svParts.find((p) => p.type === "hour")!.value, 10) % 24;
+    const svMinute = svParts.find((p) => p.type === "minute")!.value;
+    const dayMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    const currentDay = dayMap[svParts.find((p) => p.type === "weekday")!.value];
+    const currentTime = `${String(svHour).padStart(2, "0")}:${svMinute}`; // HH:MM
 
     const { data: reminders, error } = await supabase
       .from("voice_reminders")
@@ -205,27 +216,42 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({ checked: 0, sent: 0 }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) } });
     }
 
-    let totalSent = 0;
-    for (const reminder of reminders) {
-      // Check if today is in days_of_week
-      if (!reminder.days_of_week.includes(currentDay)) continue;
-
-      // Avoid duplicate sends within the same minute
+    // Filter by day-of-week + dedupe within the same minute
+    const eligible = reminders.filter((reminder: any) => {
+      if (!reminder.days_of_week.includes(currentDay)) return false;
       if (reminder.last_sent_at) {
-        const lastSent = new Date(reminder.last_sent_at);
-        const diffMin = (now.getTime() - lastSent.getTime()) / 60000;
-        if (diffMin < 1) continue;
+        const diffMin = (now.getTime() - new Date(reminder.last_sent_at).getTime()) / 60000;
+        if (diffMin < 1) return false;
       }
+      return true;
+    });
 
+    if (eligible.length === 0) {
+      return new Response(JSON.stringify({ checked: reminders.length, sent: 0 }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) } });
+    }
+
+    // One query for ALL target users' subscriptions (was 1 query per reminder)
+    const targetUserIds = [...new Set(eligible.map((r: any) => r.patient_user_id || r.family_user_id))];
+    const { data: allSubs } = await supabase
+      .from("push_subscriptions")
+      .select("user_id, endpoint, p256dh_key, auth_key")
+      .in("user_id", targetUserIds);
+    const subsByUser = new Map<string, any[]>();
+    for (const s of allSubs || []) {
+      const arr = subsByUser.get(s.user_id) || [];
+      arr.push(s);
+      subsByUser.set(s.user_id, arr);
+    }
+
+    // Process reminders in parallel; collect logs for ONE batch insert
+    const logRows: any[] = [];
+    const sentReminderIds: string[] = [];
+    await Promise.all(eligible.map(async (reminder: any) => {
       const targetUserId = reminder.patient_user_id || reminder.family_user_id;
-      const { data: subs } = await supabase
-        .from("push_subscriptions")
-        .select("endpoint, p256dh_key, auth_key")
-        .eq("user_id", targetUserId);
+      const subs = subsByUser.get(targetUserId) || [];
 
-      if (!subs || subs.length === 0) {
-        // Log: no subscription
-        await supabase.from("notification_logs").insert({
+      if (subs.length === 0) {
+        logRows.push({
           family_user_id: reminder.family_user_id,
           reminder_id: reminder.id,
           notification_type: "reminder",
@@ -234,7 +260,7 @@ Deno.serve(async (req: Request) => {
           body: reminder.label,
           push_status: "no_subscription",
         });
-        continue;
+        return;
       }
 
       const payload = JSON.stringify({
@@ -246,12 +272,11 @@ Deno.serve(async (req: Request) => {
         morningBriefing: reminder.is_morning_briefing || false,
       });
 
+      const sendResults = await Promise.all(subs.map((sub: any) => sendPushToSubscription(sub, payload)));
       let sent = 0;
-      for (const sub of subs) {
-        const ok = await sendPushToSubscription(sub, payload);
-        if (ok) sent++;
-        // Log each attempt
-        await supabase.from("notification_logs").insert({
+      subs.forEach((sub: any, i: number) => {
+        if (sendResults[i]) sent++;
+        logRows.push({
           family_user_id: reminder.family_user_id,
           reminder_id: reminder.id,
           notification_type: "reminder",
@@ -260,17 +285,22 @@ Deno.serve(async (req: Request) => {
           body: reminder.label,
           payload: { speak: reminder.message, label: reminder.label },
           push_endpoint: sub.endpoint,
-          push_status: ok ? "sent" : "failed",
+          push_status: sendResults[i] ? "sent" : "failed",
         });
-      }
+      });
+      if (sent > 0) sentReminderIds.push(reminder.id);
+    }));
 
-      if (sent > 0) {
-        totalSent++;
-        await supabase.from("voice_reminders").update({ last_sent_at: now.toISOString() }).eq("id", reminder.id);
-      }
+    // Batch writes (was: 1 insert per subscription + 1 update per reminder)
+    if (logRows.length > 0) {
+      await supabase.from("notification_logs").insert(logRows);
+    }
+    if (sentReminderIds.length > 0) {
+      await supabase.from("voice_reminders").update({ last_sent_at: now.toISOString() }).in("id", sentReminderIds);
     }
 
-    console.log(`[check-voice-reminders] cron: checked ${reminders.length}, sent ${totalSent} at ${currentTime}`);
+    const totalSent = sentReminderIds.length;
+    console.log(`[check-voice-reminders] cron: checked ${reminders.length}, sent ${totalSent} at ${currentTime} (America/El_Salvador)`);
     return new Response(JSON.stringify({ checked: reminders.length, sent: totalSent }), { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) } });
 
   } catch (err) {

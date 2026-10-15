@@ -4,7 +4,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
-const VAPID_SUBJECT = "mailto:admin@biencuidar.agtisa.com";
+const VAPID_SUBJECT = "mailto:info@agtisa.com";
 
 const ALLOWED_ORIGINS = [
   "https://biencuidar.agtisa.com",

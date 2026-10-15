@@ -114,65 +114,76 @@ Deno.serve(async (req: Request) => {
     if (accError) {
       results.errors.push(`fetch_accepted: ${accError.message}`);
     } else if (acceptedOffers && acceptedOffers.length > 0) {
-      // Build a map of nurse_id -> set of accepted dates
-      const nurseAcceptedDates = new Map<string, Set<string>>();
-      const requestCache = new Map<string, any>();
+      // Batch-load all referenced request slots in ONE query (was N+1)
+      const requestIds = [...new Set(acceptedOffers.map((o: any) => o.request_id))];
+      const { data: reqs } = await supabase
+        .from("care_requests")
+        .select("id, slots")
+        .in("id", requestIds);
+      const requestCache = new Map<string, any>((reqs || []).map((r: any) => [r.id, r]));
 
+      const getSlot = (requestId: string, slotIndex: number) => {
+        const req = requestCache.get(requestId);
+        if (!req || !req.slots) return null;
+        const slots = typeof req.slots === "string" ? JSON.parse(req.slots) : req.slots;
+        return slots?.[slotIndex] || null;
+      };
+
+      // Build a map of nurse_id -> accepted slots (date + shift)
+      const slotsConflict = (a: any, b: any): boolean => {
+        if (!a || !b || a.date !== b.date) return false;
+        return a.shift === b.shift || a.shift === "full_day" || b.shift === "full_day";
+      };
+
+      const nurseAcceptedSlots = new Map<string, any[]>();
       for (const offer of acceptedOffers) {
-        if (!requestCache.has(offer.request_id)) {
-          const { data: req } = await supabase
-            .from("care_requests")
-            .select("slots")
-            .eq("id", offer.request_id)
-            .single();
-          if (req) requestCache.set(offer.request_id, req);
-        }
-        const req = requestCache.get(offer.request_id);
-        if (req && req.slots) {
-          const slots = typeof req.slots === "string" ? JSON.parse(req.slots) : req.slots;
-          const slot = slots[offer.slot_index];
-          if (slot) {
-            if (!nurseAcceptedDates.has(offer.nurse_id)) {
-              nurseAcceptedDates.set(offer.nurse_id, new Set());
-            }
-            nurseAcceptedDates.get(offer.nurse_id)!.add(slot.date);
+        const slot = getSlot(offer.request_id, offer.slot_index);
+        if (slot) {
+          if (!nurseAcceptedSlots.has(offer.nurse_id)) {
+            nurseAcceptedSlots.set(offer.nurse_id, []);
           }
+          nurseAcceptedSlots.get(offer.nurse_id)!.push(slot);
         }
       }
 
-      // Find and withdraw conflicting pending offers
-      for (const [nurseId, dates] of nurseAcceptedDates) {
-        const { data: pendingOffers } = await supabase
-          .from("care_offers")
-          .select("id, request_id, slot_index")
-          .eq("nurse_id", nurseId)
-          .eq("status", "pending");
+      // Fetch ALL pending offers for those nurses in ONE query (was 1 per nurse)
+      const nurseIds = [...nurseAcceptedSlots.keys()];
+      const { data: pendingOffers } = nurseIds.length > 0
+        ? await supabase
+            .from("care_offers")
+            .select("id, nurse_id, request_id, slot_index")
+            .in("nurse_id", nurseIds)
+            .eq("status", "pending")
+        : { data: [] as any[] };
 
-        if (pendingOffers) {
-          const toWithdraw: string[] = [];
-          for (const pOffer of pendingOffers) {
-            const req = requestCache.get(pOffer.request_id) || (
-              await supabase.from("care_requests").select("slots").eq("id", pOffer.request_id).single()
-            ).data;
-            if (req && req.slots) {
-              const slots = typeof req.slots === "string" ? JSON.parse(req.slots) : req.slots;
-              const slot = slots[pOffer.slot_index];
-              if (slot && dates.has(slot.date)) {
-                toWithdraw.push(pOffer.id);
-              }
-            }
-          }
-          if (toWithdraw.length > 0) {
-            const { error: withdrawErr } = await supabase
-              .from("care_offers")
-              .update({ status: "rejected", reject_reason: "auto" })
-              .in("id", toWithdraw);
-            if (withdrawErr) {
-              results.errors.push(`withdraw_conflicting: ${withdrawErr.message}`);
-            } else {
-              results.withdrawn_conflicting += toWithdraw.length;
-            }
-          }
+      // Batch-load request slots for pending offers pointing at other requests
+      const missingIds = [...new Set((pendingOffers || []).map((o: any) => o.request_id))]
+        .filter((id) => !requestCache.has(id));
+      if (missingIds.length > 0) {
+        const { data: moreReqs } = await supabase
+          .from("care_requests")
+          .select("id, slots")
+          .in("id", missingIds);
+        for (const r of moreReqs || []) requestCache.set(r.id, r);
+      }
+
+      const toWithdraw = (pendingOffers || [])
+        .filter((o: any) => {
+          const slot = getSlot(o.request_id, o.slot_index);
+          const acceptedList = nurseAcceptedSlots.get(o.nurse_id) || [];
+          return slot && acceptedList.some((accSlot) => slotsConflict(slot, accSlot));
+        })
+        .map((o: any) => o.id);
+
+      if (toWithdraw.length > 0) {
+        const { error: withdrawErr } = await supabase
+          .from("care_offers")
+          .update({ status: "rejected", reject_reason: "auto" })
+          .in("id", toWithdraw);
+        if (withdrawErr) {
+          results.errors.push(`withdraw_conflicting: ${withdrawErr.message}`);
+        } else {
+          results.withdrawn_conflicting += toWithdraw.length;
         }
       }
     }

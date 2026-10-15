@@ -67,27 +67,8 @@ export default function VoiceReminderConfig() {
 
   const loadReminders = useCallback(async () => {
     if (!currentUser) return;
-    const { data, error } = await supabase
-      .from('voice_reminders')
-      .select('*')
-      .eq('family_user_id', currentUser.id)
-      .order('scheduled_time', { ascending: true });
-    if (error) {
-      console.error('Error loading reminders:', error);
-      return;
-    }
-    setReminders(data || []);
-    setLoading(false);
 
-    // Load patient activity
-    const { data: activity } = await supabase
-      .from('patient_activity')
-      .select('last_seen_at, last_interaction_type')
-      .eq('family_user_id', currentUser.id)
-      .maybeSingle();
-    if (activity) setPatientActivity(activity);
-
-    // Load weekly summary (current week only)
+    // Weekly summary window (current week only)
     const now = new Date();
     const day = now.getDay();
     const weekStart = new Date(now);
@@ -96,45 +77,63 @@ export default function VoiceReminderConfig() {
     const weekEnd = new Date(now);
     weekEnd.setHours(23, 59, 59, 999);
 
-    const { count: remindersCount } = await supabase
-      .from('notification_logs')
-      .select('*', { count: 'exact', head: true })
-      .eq('family_user_id', currentUser.id)
-      .eq('notification_type', 'reminder')
-      .eq('push_status', 'sent')
-      .gte('created_at', weekStart.toISOString())
-      .lte('created_at', weekEnd.toISOString());
+    // All 6 queries in parallel — previously a sequential waterfall
+    const [remindersRes, activityRes, remindersCountRes, escalationsCountRes, emergencyCountRes, wellnessCountRes] = await Promise.all([
+      supabase
+        .from('voice_reminders')
+        .select('*')
+        .eq('family_user_id', currentUser.id)
+        .order('scheduled_time', { ascending: true }),
+      supabase
+        .from('patient_activity')
+        .select('last_seen_at, last_interaction_type')
+        .eq('family_user_id', currentUser.id)
+        .maybeSingle(),
+      supabase
+        .from('notification_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('family_user_id', currentUser.id)
+        .eq('notification_type', 'reminder')
+        .eq('push_status', 'sent')
+        .gte('created_at', weekStart.toISOString())
+        .lte('created_at', weekEnd.toISOString()),
+      supabase
+        .from('benni_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('family_user_id', currentUser.id)
+        .eq('direction', 'patient_to_family')
+        .gte('created_at', weekStart.toISOString())
+        .lte('created_at', weekEnd.toISOString()),
+      supabase
+        .from('benni_messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('family_user_id', currentUser.id)
+        .eq('direction', 'patient_to_family')
+        .ilike('message', '%BOTÓN DE EMERGENCIA%')
+        .gte('created_at', weekStart.toISOString())
+        .lte('created_at', weekEnd.toISOString()),
+      supabase
+        .from('notification_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('family_user_id', currentUser.id)
+        .in('notification_type', ['wellness_alert', 'unread_reminders'])
+        .gte('created_at', weekStart.toISOString())
+        .lte('created_at', weekEnd.toISOString()),
+    ]);
 
-    const { count: escalationsCount } = await supabase
-      .from('benni_messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('family_user_id', currentUser.id)
-      .eq('direction', 'patient_to_family')
-      .gte('created_at', weekStart.toISOString())
-      .lte('created_at', weekEnd.toISOString());
-
-    const { count: emergencyCount } = await supabase
-      .from('benni_messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('family_user_id', currentUser.id)
-      .eq('direction', 'patient_to_family')
-      .ilike('message', '%BOTÓN DE EMERGENCIA%')
-      .gte('created_at', weekStart.toISOString())
-      .lte('created_at', weekEnd.toISOString());
-
-    const { count: wellnessCount } = await supabase
-      .from('notification_logs')
-      .select('*', { count: 'exact', head: true })
-      .eq('family_user_id', currentUser.id)
-      .in('notification_type', ['wellness_alert', 'unread_reminders'])
-      .gte('created_at', weekStart.toISOString())
-      .lte('created_at', weekEnd.toISOString());
+    if (remindersRes.error) {
+      console.error('Error loading reminders:', remindersRes.error);
+      return;
+    }
+    setReminders(remindersRes.data || []);
+    setLoading(false);
+    if (activityRes.data) setPatientActivity(activityRes.data);
 
     setWeeklySummary({
-      reminders_sent: remindersCount || 0,
-      escalations: escalationsCount || 0,
-      emergency_presses: emergencyCount || 0,
-      wellness_alerts: wellnessCount || 0,
+      reminders_sent: remindersCountRes.count || 0,
+      escalations: escalationsCountRes.count || 0,
+      emergency_presses: emergencyCountRes.count || 0,
+      wellness_alerts: wellnessCountRes.count || 0,
     });
   }, [currentUser]);
 
@@ -159,9 +158,19 @@ export default function VoiceReminderConfig() {
 
   useEffect(() => {
     loadPendingQuestions();
-    const interval = setInterval(() => loadPendingQuestions(), 5000);
-    return () => clearInterval(interval);
-  }, [loadPendingQuestions]);
+    if (!currentUser) return;
+    // Realtime subscription replaces the 5s polling loop
+    const channel = supabase
+      .channel('benni-family-questions')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'benni_messages',
+        filter: `family_user_id=eq.${currentUser.id}`,
+      }, () => loadPendingQuestions())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [loadPendingQuestions, currentUser]);
 
   const handleReply = async (questionId: string) => {
     const text = replyText[questionId]?.trim();

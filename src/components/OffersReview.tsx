@@ -38,7 +38,7 @@ function formatDate(dateStr: string): string {
 
 export const OffersReview: FC = () => {
 
-  const { careRequests, careOffers, nurses, profiles, currentUser, acceptCareOffer, updatePatientName, updateRequestLocation } = useApp();
+  const { careRequests, careOffers, nurses, profiles, currentUser, acceptCareOffer, rejectCareOffer, updatePatientName, updateRequestLocation } = useApp();
 
 
 
@@ -415,6 +415,8 @@ export const OffersReview: FC = () => {
               </button>
 
               <button
+
+                onClick={() => rejectCareOffer(offer.id)}
 
                 className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer"
 

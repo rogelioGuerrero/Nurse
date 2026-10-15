@@ -22,7 +22,7 @@ function htmlToText(html: string): string {
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
-const VAPID_SUBJECT = "mailto:admin@biencuidar.agtisa.com";
+const VAPID_SUBJECT = "mailto:info@agtisa.com";
 
 const ALLOWED_ORIGINS = [
   "https://biencuidar.agtisa.com",
@@ -207,13 +207,14 @@ async function sendPushToUser(supabase: any, userId: string, payload: { title: s
   if (error || !subs || subs.length === 0) return { sent: 0, expired: 0 };
 
   const json = JSON.stringify({ title: payload.title, body: payload.body, tag: payload.tag || "biencuidar" });
+  // Send to all devices in parallel (was a sequential loop)
+  const results = await Promise.all(subs.map((sub) => sendPushToSubscription(sub, json)));
   let sent = 0;
   const expired: string[] = [];
-  for (const sub of subs) {
-    const ok = await sendPushToSubscription(sub, json);
+  results.forEach((ok, i) => {
     if (ok) sent++;
-    else expired.push(sub.endpoint);
-  }
+    else expired.push(subs[i].endpoint);
+  });
   if (expired.length > 0) {
     await supabase.from("push_subscriptions").delete().in("endpoint", expired).eq("user_id", userId);
   }
@@ -258,11 +259,18 @@ async function handleNewCareRequest(supabase: any, data: { request_id: string })
   }
 
   // Filter by specialization match and geographic proximity
-  const requestSpecs = Array.isArray(request.specialization_needed) ? request.specialization_needed : [];
+  // NOTE: specialization_needed is TEXT in care_requests (not an array) —
+  // normalize it so "Cuidado general" and a real specialization both work.
+  const requestSpecs: string[] = Array.isArray(request.specialization_needed)
+    ? request.specialization_needed
+    : typeof request.specialization_needed === "string" && request.specialization_needed.trim()
+      ? [request.specialization_needed.trim()]
+      : [];
+  const isGeneral = requestSpecs.length === 0 || requestSpecs.includes("Cuidado general");
   const matchingNurses = nurses.filter((n: any) => {
     // Specialization match: nurse has at least one of the requested specializations
     const nurseSpecs = Array.isArray(n.specialization) ? n.specialization : [];
-    const specMatch = requestSpecs.length === 0 || nurseSpecs.some((s: string) => requestSpecs.includes(s));
+    const specMatch = isGeneral || nurseSpecs.some((s: string) => requestSpecs.includes(s));
 
     // Geographic match: within nurse's coverage radius (if both have coordinates)
     let geoMatch = true;
@@ -278,34 +286,49 @@ async function handleNewCareRequest(supabase: any, data: { request_id: string })
   let emails = 0;
   let pushes = 0;
 
-  for (const nurse of matchingNurses) {
-    const nurseName = nurse.profiles?.full_name?.split(" ")[0] || "Enfermera";
-    const nurseEmail = nurse.profiles?.email;
+  // Notify nurses in parallel (was a sequential loop of email + push per nurse)
+  const specLabel = requestSpecs.join(", ") || "Cuidado general";
+  const outcomes = await Promise.allSettled(
+    matchingNurses.map(async (nurse: any) => {
+      const nurseName = nurse.profiles?.full_name?.split(" ")[0] || "Enfermera";
+      const nurseEmail = nurse.profiles?.email;
 
-    // Send email
-    if (nurseEmail) {
-      const html = emailWrap(`
-        ${ep(`Hola ${nurseName},`)}
-        ${ep(`Hay una <strong>nueva solicitud de cuidado</strong> que coincide con tu especialización.`)}
-        ${ep(`<strong>Paciente:</strong> ${request.patient_name}<br>
-              <strong>Condición:</strong> ${request.patient_condition || "No especificada"}<br>
-              <strong>Especialidad requerida:</strong> ${requestSpecs.join(", ") || "General"}<br>
-              <strong>Ubicación:</strong> ${request.location_name || "No especificada"}`)}
-        ${ep(`Ingresá a BienCuidar para ver los detalles y enviar tu oferta.`)}
-        ${ebtn("Ver solicitud", "https://biencuidar.agtisa.com")}
-        ${esign()}
-      `);
-      const ok = await sendEmail(nurseEmail, `Nueva solicitud de cuidado: ${request.patient_name}`, html);
-      if (ok) emails++;
+      const html = nurseEmail
+        ? emailWrap(`
+            ${ep(`Hola ${nurseName},`)}
+            ${ep(`Hay una <strong>nueva solicitud de cuidado</strong> que coincide con tu especialización.`)}
+            ${ep(`<strong>Paciente:</strong> ${request.patient_name}<br>
+                  <strong>Condición:</strong> ${request.patient_condition || "No especificada"}<br>
+                  <strong>Especialidad requerida:</strong> ${specLabel}<br>
+                  <strong>Ubicación:</strong> ${request.location_name || "No especificada"}`)}
+            ${ep(`Ingresá a BienCuidar para ver los detalles y enviar tu oferta.`)}
+            ${ebtn("Ver solicitud", "https://biencuidar.agtisa.com")}
+            ${esign()}
+          `)
+        : null;
+
+      const [emailOk, pushResult] = await Promise.all([
+        html && nurseEmail
+          ? sendEmail(nurseEmail, `Nueva solicitud de cuidado: ${request.patient_name}`, html)
+          : Promise.resolve(false),
+        sendPushToUser(supabase, nurse.user_id, {
+          title: "Nueva solicitud de cuidado",
+          body: `Hay una nueva solicitud que coincide con tu especialización: ${specLabel}.`,
+          tag: "new-request",
+        }),
+      ]);
+
+      return { emailSent: emailOk === true, pushSent: pushResult.sent };
+    })
+  );
+
+  for (const o of outcomes) {
+    if (o.status === "fulfilled") {
+      if (o.value.emailSent) emails++;
+      pushes += o.value.pushSent;
+    } else {
+      console.error("Error notifying nurse:", o.reason);
     }
-
-    // Send push
-    const pushResult = await sendPushToUser(supabase, nurse.user_id, {
-      title: "Nueva solicitud de cuidado",
-      body: `Hay una nueva solicitud que coincide con tu especialización: ${requestSpecs.join(", ") || "General"}.`,
-      tag: "new-request",
-    });
-    pushes += pushResult.sent;
   }
 
   return { notified: matchingNurses.length, emails, pushes };
@@ -338,30 +361,34 @@ async function handleNewOffer(supabase: any, data: { offer_id: string }): Promis
   let emails = 0;
   let pushes = 0;
 
-  // Send email to family
-  if (familyEmail) {
-    const html = emailWrap(`
-      ${ep(`Hola ${familyName},`)}
-      ${ep(`<strong>${nurseName}</strong> ha enviado una oferta para cuidar a <strong>${patientName}</strong>.`)}
-      ${ep(`<strong>Tarifa ofrecida:</strong> $${offer.offered_rate}<br>
-            ${offer.notes ? `<strong>Mensaje:</strong> ${offer.notes}` : ""}`)}
-      ${ep(`Ingresá a BienCuidar para revisar la oferta y aceptarla.`)}
-      ${ebtn("Revisar oferta", "https://biencuidar.agtisa.com")}
-      ${esign()}
-    `);
-    const ok = await sendEmail(familyEmail, `${nurseName} envió una oferta para ${patientName}`, html);
-    if (ok) emails++;
-  }
+  const familyHtml = familyEmail
+    ? emailWrap(`
+        ${ep(`Hola ${familyName},`)}
+        ${ep(`<strong>${nurseName}</strong> ha enviado una oferta para cuidar a <strong>${patientName}</strong>.`)}
+        ${ep(`<strong>Tarifa ofrecida:</strong> $${offer.offered_rate}<br>
+              ${offer.notes ? `<strong>Mensaje:</strong> ${offer.notes}` : ""}`)}
+        ${ep(`Ingresá a BienCuidar para revisar la oferta y aceptarla.`)}
+        ${ebtn("Revisar oferta", "https://biencuidar.agtisa.com")}
+        ${esign()}
+      `)
+    : null;
 
-  // Send push to family
-  if (familyUserId) {
-    const pushResult = await sendPushToUser(supabase, familyUserId, {
-      title: "Nueva oferta de cuidado",
-      body: `${nurseName} ha enviado una oferta para cuidar a ${patientName}. Revisa tu panel para ver los detalles.`,
-      tag: "new-offer",
-    });
-    pushes += pushResult.sent;
-  }
+  // Email + push in parallel (was sequential)
+  const [emailOk, pushResult] = await Promise.all([
+    familyHtml && familyEmail
+      ? sendEmail(familyEmail, `${nurseName} envió una oferta para ${patientName}`, familyHtml)
+      : Promise.resolve(false),
+    familyUserId
+      ? sendPushToUser(supabase, familyUserId, {
+          title: "Nueva oferta de cuidado",
+          body: `${nurseName} ha enviado una oferta para cuidar a ${patientName}. Revisa tu panel para ver los detalles.`,
+          tag: "new-offer",
+        })
+      : Promise.resolve({ sent: 0, expired: 0 }),
+  ]);
+
+  if (emailOk === true) emails++;
+  pushes += pushResult.sent;
 
   return { emails, pushes };
 }
@@ -394,32 +421,36 @@ async function handleOfferAccepted(supabase: any, data: { offer_id: string }): P
   let emails = 0;
   let pushes = 0;
 
-  // Send email to nurse
-  if (nurseEmail) {
-    const html = emailWrap(`
-      ${ep(`Hola ${nurseName},`)}
-      ${ep(`¡Buenas noticias! La familia ha <strong>aceptado tu oferta</strong> para cuidar a <strong>${patientName}</strong>.`)}
-      ${ep(`<strong>Paciente:</strong> ${patientName}<br>
-            <strong>Condición:</strong> ${patientCondition}<br>
-            <strong>Ubicación:</strong> ${locationName}<br>
-            <strong>Tu tarifa:</strong> $${offer.offered_rate}`)}
-      ${ep(`Ingresá a BienCuidar para ver los detalles del servicio agendado.`)}
-      ${ebtn("Ver servicio", "https://biencuidar.agtisa.com")}
-      ${esign()}
-    `);
-    const ok = await sendEmail(nurseEmail, `Oferta aceptada: ${patientName}`, html);
-    if (ok) emails++;
-  }
+  const nurseHtml = nurseEmail
+    ? emailWrap(`
+        ${ep(`Hola ${nurseName},`)}
+        ${ep(`¡Buenas noticias! La familia ha <strong>aceptado tu oferta</strong> para cuidar a <strong>${patientName}</strong>.`)}
+        ${ep(`<strong>Paciente:</strong> ${patientName}<br>
+              <strong>Condición:</strong> ${patientCondition}<br>
+              <strong>Ubicación:</strong> ${locationName}<br>
+              <strong>Tu tarifa:</strong> $${offer.offered_rate}`)}
+        ${ep(`Ingresá a BienCuidar para ver los detalles del servicio agendado.`)}
+        ${ebtn("Ver servicio", "https://biencuidar.agtisa.com")}
+        ${esign()}
+      `)
+    : null;
 
-  // Send push to nurse
-  if (nurseUserId) {
-    const pushResult = await sendPushToUser(supabase, nurseUserId, {
-      title: "Oferta aceptada",
-      body: `La familia de ${patientName} ha aceptado tu oferta. Revisa tus servicios agendados.`,
-      tag: "offer-accepted",
-    });
-    pushes += pushResult.sent;
-  }
+  // Email + push in parallel (was sequential)
+  const [emailOk, pushResult] = await Promise.all([
+    nurseHtml && nurseEmail
+      ? sendEmail(nurseEmail, `Oferta aceptada: ${patientName}`, nurseHtml)
+      : Promise.resolve(false),
+    nurseUserId
+      ? sendPushToUser(supabase, nurseUserId, {
+          title: "Oferta aceptada",
+          body: `La familia de ${patientName} ha aceptado tu oferta. Revisa tus servicios agendados.`,
+          tag: "offer-accepted",
+        })
+      : Promise.resolve({ sent: 0, expired: 0 }),
+  ]);
+
+  if (emailOk === true) emails++;
+  pushes += pushResult.sent;
 
   return { emails, pushes };
 }

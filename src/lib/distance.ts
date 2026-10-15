@@ -5,11 +5,14 @@ export function setUserCoords(lat: number, lng: number): void {
   USER_COORDS.lng = lng;
 }
 
-export function requestUserLocation(): void {
+export interface Coords { lat: number; lng: number }
+
+export function requestUserLocation(onUpdate?: (coords: Coords) => void): void {
   if (!('geolocation' in navigator)) return;
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       setUserCoords(pos.coords.latitude, pos.coords.longitude);
+      onUpdate?.({ lat: USER_COORDS.lat, lng: USER_COORDS.lng });
     },
     () => {
       // User denied or error — keep default San Salvador

@@ -1,7 +1,9 @@
-import { type FC, useState, useRef } from 'react';
+import { type FC, useState, useRef, lazy, Suspense } from 'react';
 import { Stethoscope, Search, ShieldCheck, Calendar, DollarSign, ChevronDown, ChevronUp, UserCheck, Clock, MapPin, FileText, CheckCircle2, MessageCircle, Heart, LogIn, PlayCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { SupportChat } from './SupportChat';
+
+// Lazy — pulls in react-markdown only when the widget chunk is needed
+const SupportChat = lazy(() => import('./SupportChat').then(m => ({ default: m.SupportChat })));
 
 interface LandingPageProps {
   onFamily: () => void;
@@ -39,7 +41,8 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) { console.error('Demo login error:', error.message); setDemoLoading(false); return; }
-      window.location.reload();
+      // onAuthStateChange (SIGNED_IN) in AppContext handles session — no reload needed
+      setDemoLoading(false);
     } catch (err) { console.error('Demo login error:', err); setDemoLoading(false); }
   };
 
@@ -372,7 +375,9 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
       </div>
 
       {/* Support chat widget for visitors */}
-      <SupportChat userRole="visitor" country={undefined} />
+      <Suspense fallback={null}>
+        <SupportChat userRole="visitor" country={undefined} />
+      </Suspense>
     </div>
   );
 };

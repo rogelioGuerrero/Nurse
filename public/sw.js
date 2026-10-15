@@ -142,18 +142,39 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Hashed Vite assets (/assets/*) are immutable → strict Cache-First
+  if (url.pathname.startsWith('/assets/')) {
+    event.respondWith(
+      caches.match(request).then((cached) => {
+        return (
+          cached ||
+          fetch(request).then((res) => {
+            if (res.ok && res.type === 'basic') {
+              const copy = res.clone();
+              caches.open(CACHE_NAME).then((c) => c.put(request, copy));
+            }
+            return res;
+          })
+        );
+      })
+    );
+    return;
+  }
+
+  // Non-hashed same-origin assets (/benni/*, /icon.svg, /manifest.json):
+  // Stale-While-Revalidate — serve cache fast, refresh in background
   event.respondWith(
     caches.match(request).then((cached) => {
-      return (
-        cached ||
-        fetch(request).then((res) => {
+      const fetchPromise = fetch(request)
+        .then((res) => {
           if (res.ok && res.type === 'basic') {
             const copy = res.clone();
             caches.open(CACHE_NAME).then((c) => c.put(request, copy));
           }
           return res;
         })
-      );
+        .catch(() => cached);
+      return cached || fetchPromise;
     })
   );
 });

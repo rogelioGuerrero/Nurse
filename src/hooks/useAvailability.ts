@@ -17,38 +17,36 @@ function safeParse<T>(key: string, fallback: T): T {
   }
 }
 
-export function useAvailability(currentUser: Profile | null, showToast: ShowToast) {
-  const [availabilityCache, setAvailabilityCache] = useState<Availability[]>(() => {
-    const saved = safeParse<Availability[] | null>('biencuidar_availability', null);
-    if (saved) return saved;
-    const seed: Availability[] = [];
-    const today = new Date();
-    for (const nurse of INITIAL_NURSES) {
-      for (let d = 0; d < 30; d++) {
-        const date = new Date(today);
-        date.setDate(date.getDate() + d);
-        const dateStr = date.toISOString().split('T')[0];
-        if (date.getDay() === 0) continue;
-        seed.push({
-          id: crypto.randomUUID(),
-          nurse_id: nurse.id,
-          date: dateStr,
-          start_time: '06:00',
-          end_time: '18:00',
-          is_available: true,
-          created_at: today.toISOString(),
-          updated_at: today.toISOString()
-        });
-      }
+// Demo availability seed — generated lazily ONLY when getAvailability is
+// called without connectivity (avoids 150 UUIDs + localStorage write on boot)
+function generateDemoSeed(): Availability[] {
+  const seed: Availability[] = [];
+  const today = new Date();
+  for (const nurse of INITIAL_NURSES) {
+    for (let d = 0; d < 30; d++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() + d);
+      const dateStr = date.toISOString().split('T')[0];
+      if (date.getDay() === 0) continue;
+      seed.push({
+        id: crypto.randomUUID(),
+        nurse_id: nurse.id,
+        date: dateStr,
+        start_time: '06:00',
+        end_time: '18:00',
+        is_available: true,
+        created_at: today.toISOString(),
+        updated_at: today.toISOString()
+      });
     }
-    return seed;
-  });
+  }
+  return seed;
+}
 
-  useEffect(() => {
-    if (!currentUser) {
-      localStorage.setItem('biencuidar_availability', JSON.stringify(availabilityCache));
-    }
-  }, [availabilityCache, currentUser]);
+export function useAvailability(currentUser: Profile | null, showToast: ShowToast) {
+  const [availabilityCache, setAvailabilityCache] = useState<Availability[]>(() =>
+    safeParse<Availability[] | null>('biencuidar_availability', null) || []
+  );
 
   const getAvailability = useCallback(async (nurseId: string, startDate: string, endDate: string): Promise<Availability[]> => {
     try {
@@ -63,14 +61,23 @@ export function useAvailability(currentUser: Profile | null, showToast: ShowToas
       if (error) throw error;
       return (data || []) as Availability[];
     } catch {
-      return availabilityCache.filter(
+      // Offline/demo fallback — generate seed on first use only
+      let cache = availabilityCache;
+      if (cache.length === 0) {
+        cache = generateDemoSeed();
+        setAvailabilityCache(cache);
+        if (!currentUser) {
+          try { localStorage.setItem('biencuidar_availability', JSON.stringify(cache)); } catch {}
+        }
+      }
+      return cache.filter(
         a => a.nurse_id === nurseId &&
         a.date >= startDate &&
         a.date <= endDate &&
         a.is_available
       );
     }
-  }, [availabilityCache]);
+  }, [availabilityCache, currentUser]);
 
   const addAvailability = useCallback(async (availabilityData: Omit<Availability, 'id' | 'created_at' | 'updated_at'>): Promise<Availability> => {
     const newAvailability: Availability = {

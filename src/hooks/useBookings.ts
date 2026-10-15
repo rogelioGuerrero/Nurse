@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Booking, BookingStatus, Nurse, Profile } from '../types';
 import { notifyCheckIn, notifyCheckOut, notifyPaymentConfirmed } from '../lib/notifications';
@@ -32,17 +32,25 @@ export function useBookings({ currentUser, nurses, profiles, showToast }: UseBoo
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [careLogs, setCareLogs] = useState<Record<string, CareLog>>({});
 
+  // Refs keep callbacks stable — they always read the latest state
+  const bookingsRef = useRef<Booking[]>(bookings);
+  const nursesRef = useRef<Nurse[]>(nurses);
+  const profilesRef = useRef<Profile[]>(profiles);
+  useEffect(() => { bookingsRef.current = bookings; }, [bookings]);
+  useEffect(() => { nursesRef.current = nurses; }, [nurses]);
+  useEffect(() => { profilesRef.current = profiles; }, [profiles]);
+
   const saveCareLog = useCallback((bookingId: string, log: Omit<CareLog, 'bookingId' | 'updatedAt'>) => {
-    const prevLog = careLogs[bookingId];
+    let prevLog: CareLog | undefined;
     const updatedLog = {
       ...log,
       bookingId,
       updatedAt: new Date().toISOString()
     };
-    setCareLogs(prev => ({
-      ...prev,
-      [bookingId]: updatedLog
-    }));
+    setCareLogs(prev => {
+      prevLog = prev[bookingId];
+      return { ...prev, [bookingId]: updatedLog };
+    });
     supabase.from('care_logs').upsert({
       booking_id: bookingId,
       service_type: log.serviceType,
@@ -64,12 +72,12 @@ export function useBookings({ currentUser, nurses, profiles, showToast }: UseBoo
         showToast('No se pudo guardar el registro de cuidado. Intenta de nuevo.', 'error');
       }
     });
-  }, [showToast, careLogs]);
+  }, [showToast]);
 
   const createBooking = useCallback(async (bookingData: Omit<Booking, 'id' | 'user_id' | 'created_at' | 'status'> & { status?: Booking['status'] }): Promise<Booking> => {
     if (!currentUser) throw new Error('Debes iniciar sesión para agendar.');
 
-    const overlapping = bookings.find(b =>
+    const overlapping = bookingsRef.current.find(b =>
       b.nurse_id === bookingData.nurse_id &&
       b.date === bookingData.date &&
       b.status !== 'cancelled' &&
@@ -120,10 +128,10 @@ export function useBookings({ currentUser, nurses, profiles, showToast }: UseBoo
     } catch {
       throw new Error('No se pudo crear la reserva. Verifica tu conexión e intenta nuevamente.');
     }
-  }, [currentUser, bookings]);
+  }, [currentUser]);
 
   const updateBookingStatus = useCallback(async (bookingId: string, status: BookingStatus) => {
-    const prevBookings = bookings;
+    const prevBookings = bookingsRef.current;
     setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status } : b));
 
     try {
@@ -138,10 +146,10 @@ export function useBookings({ currentUser, nurses, profiles, showToast }: UseBoo
       console.warn('Booking status update failed, rolled back to previous state.');
       showToast('No se pudo actualizar el estado del servicio. Revertido.', 'error');
     }
-  }, [bookings, showToast]);
+  }, [showToast]);
 
   const checkInBooking = useCallback(async (bookingId: string, lat: number, lng: number, address: string, mismatch: boolean) => {
-    const prevBookings = bookings;
+    const prevBookings = bookingsRef.current;
     const now = new Date().toISOString();
     setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, check_in_at: now, check_in_lat: lat, check_in_lng: lng, check_in_address: address, address_mismatch: mismatch } : b));
 
@@ -152,10 +160,10 @@ export function useBookings({ currentUser, nurses, profiles, showToast }: UseBoo
         .eq('id', bookingId);
 
       if (error) throw error;
-      const booking = bookings.find(b => b.id === bookingId);
+      const booking = bookingsRef.current.find(b => b.id === bookingId);
       if (booking) {
-        const nurse = nurses.find(n => n.id === booking.nurse_id);
-        const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
+        const nurse = nursesRef.current.find(n => n.id === booking.nurse_id);
+        const nurseProfile = nurse ? profilesRef.current.find(p => p.id === nurse.user_id) : null;
         if (currentUser?.id !== booking.user_id) {
           notifyCheckIn(nurseProfile?.full_name || 'La enfermera', booking.user_id);
         }
@@ -165,12 +173,12 @@ export function useBookings({ currentUser, nurses, profiles, showToast }: UseBoo
       console.warn('Check-in failed, rolled back.');
       showToast('No se pudo registrar el check-in. Revertido.', 'error');
     }
-  }, [bookings, nurses, profiles, currentUser, showToast]);
+  }, [currentUser, showToast]);
 
   const checkOutBooking = useCallback(async (bookingId: string, lat: number, lng: number) => {
-    const prevBookings = bookings;
+    const prevBookings = bookingsRef.current;
     const now = new Date().toISOString();
-    const booking = bookings.find(b => b.id === bookingId);
+    const booking = bookingsRef.current.find(b => b.id === bookingId);
     const paymentUpdate = booking && !booking.wants_invoice ? { payment_status: 'paid' as const } : {};
     setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, check_out_at: now, check_out_lat: lat, check_out_lng: lng, status: 'completed', ...paymentUpdate } : b));
 
@@ -182,8 +190,8 @@ export function useBookings({ currentUser, nurses, profiles, showToast }: UseBoo
 
       if (error) throw error;
       if (booking) {
-        const nurse = nurses.find(n => n.id === booking.nurse_id);
-        const nurseProfile = nurse ? profiles.find(p => p.id === nurse.user_id) : null;
+        const nurse = nursesRef.current.find(n => n.id === booking.nurse_id);
+        const nurseProfile = nurse ? profilesRef.current.find(p => p.id === nurse.user_id) : null;
         if (currentUser?.id !== booking.user_id) {
           notifyCheckOut(nurseProfile?.full_name || 'La enfermera', booking.user_id);
         }
@@ -193,10 +201,10 @@ export function useBookings({ currentUser, nurses, profiles, showToast }: UseBoo
       console.warn('Check-out failed, rolled back.');
       showToast('No se pudo registrar el check-out. Revertido.', 'error');
     }
-  }, [bookings, nurses, profiles, currentUser, showToast]);
+  }, [currentUser, showToast]);
 
   const confirmPayment = useCallback(async (bookingId: string) => {
-    const booking = bookings.find(b => b.id === bookingId);
+    const booking = bookingsRef.current.find(b => b.id === bookingId);
     const newStatus = booking?.status === 'pending_payment' ? 'confirmed' : booking?.status;
     setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, payment_status: 'paid', status: newStatus || b.status } : b));
     try {
@@ -206,7 +214,7 @@ export function useBookings({ currentUser, nurses, profiles, showToast }: UseBoo
         .eq('id', bookingId);
       if (error) throw error;
       if (booking) {
-        const nurse = nurses.find(n => n.id === booking.nurse_id);
+        const nurse = nursesRef.current.find(n => n.id === booking.nurse_id);
         if (nurse && currentUser?.id !== nurse.user_id) {
           notifyPaymentConfirmed(booking.patient_name, nurse.user_id);
         }
@@ -216,7 +224,7 @@ export function useBookings({ currentUser, nurses, profiles, showToast }: UseBoo
       console.warn('Payment confirmation failed, rolled back:', err);
       showToast('No se pudo confirmar el pago. Se ha revertido el estado.', 'error');
     }
-  }, [bookings, nurses, currentUser, showToast]);
+  }, [currentUser, showToast]);
 
   return {
     bookings,

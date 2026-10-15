@@ -132,7 +132,7 @@ async function checkContentSafety(text: string): Promise<{ isSafe: boolean; reas
 }
 const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY")!;
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY")!;
-const VAPID_SUBJECT = "mailto:admin@biencuidar.agtisa.com";
+const VAPID_SUBJECT = "mailto:info@agtisa.com";
 
 webPush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
@@ -315,19 +315,22 @@ async function getCsspStatus(supabase: any, userId: string) {
 }
 
 async function getPlatformStats(supabase: any) {
-  const { count: nursesCount } = await supabase.from('nurses').select('*', { count: 'exact', head: true });
-  const { count: verifiedCount } = await supabase.from('nurses').select('*', { count: 'exact', head: true }).eq('cssp_verified', true);
-  const { count: pendingCount } = await supabase.from('nurses').select('*', { count: 'exact', head: true }).eq('cssp_verified', false).in('cssp_verification_status', ['pending', 'unverified']);
-  const { count: requestsCount } = await supabase.from('care_requests').select('*', { count: 'exact', head: true }).eq('status', 'open');
-  const { count: bookingsCount } = await supabase.from('bookings').select('*', { count: 'exact', head: true }).in('status', ['confirmed', 'in_progress']);
-  const { count: familiesCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'user');
+  // Run all 6 counts in parallel (was a sequential waterfall)
+  const [nursesRes, verifiedRes, pendingRes, requestsRes, bookingsRes, familiesRes] = await Promise.all([
+    supabase.from('nurses').select('*', { count: 'exact', head: true }),
+    supabase.from('nurses').select('*', { count: 'exact', head: true }).eq('cssp_verified', true),
+    supabase.from('nurses').select('*', { count: 'exact', head: true }).eq('cssp_verified', false).in('cssp_verification_status', ['pending', 'unverified']),
+    supabase.from('care_requests').select('*', { count: 'exact', head: true }).eq('status', 'open'),
+    supabase.from('bookings').select('*', { count: 'exact', head: true }).in('status', ['confirmed', 'in_progress']),
+    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'user'),
+  ]);
   return {
-    nurses: nursesCount || 0,
-    nurses_verified: verifiedCount || 0,
-    nurses_pending: pendingCount || 0,
-    care_requests_open: requestsCount || 0,
-    bookings_active: bookingsCount || 0,
-    families: familiesCount || 0,
+    nurses: nursesRes.count || 0,
+    nurses_verified: verifiedRes.count || 0,
+    nurses_pending: pendingRes.count || 0,
+    care_requests_open: requestsRes.count || 0,
+    bookings_active: bookingsRes.count || 0,
+    families: familiesRes.count || 0,
   };
 }
 
@@ -819,12 +822,13 @@ Deno.serve(async (req: Request) => {
       console.log(`[ai-agent] Executing confirmed action: ${confirmed_action.tool}`);
       const result = await executeTool(confirmed_action.tool, supabase, userId, role, confirmed_action.args);
       let reply = buildFallbackReply([{ name: confirmed_action.tool, result }]);
-      const safetyCheck = await checkContentSafety(reply);
+      // Safety + PII checks in parallel (was sequential)
+      const [safetyCheck, piiCheck] = await Promise.all([checkContentSafety(reply), detectPII(reply)]);
       if (!safetyCheck.isSafe) {
         reply = `Lo siento, no puedo proporcionar ese tipo de información médica específica. Te recomiendo consultar con un profesional de la salud o escribirnos a info@agtisa.com para orientación.`;
+      } else if (piiCheck.found) {
+        reply = piiCheck.cleaned;
       }
-      const piiCheck = await detectPII(reply);
-      if (piiCheck.found) reply = piiCheck.cleaned;
       if (userId) {
         const piiInput = await detectPII(message);
         const safeMessage = piiInput.found ? piiInput.cleaned : message;
@@ -1007,17 +1011,14 @@ BÚSQUEDA DE CONOCIMIENTO (ReAct):
     }
     reply = reply || 'No pude procesar tu consulta. Escribinos a info@agtisa.com';
 
-    // Post-response safety checks (Groq)
+    // Post-response safety checks (Groq) — run in parallel
     // 1. Content safety — block clinically dangerous advice
-    const safetyCheck = await checkContentSafety(reply);
+    // 2. PII detection — redact personal data from responses
+    const [safetyCheck, piiCheck] = await Promise.all([checkContentSafety(reply), detectPII(reply)]);
     if (!safetyCheck.isSafe) {
       console.log(`[ai-agent] Content safety blocked: ${safetyCheck.reason}`);
       reply = `Lo siento, no puedo proporcionar ese tipo de información médica específica. Te recomiendo consultar con un profesional de la salud o escribirnos a info@agtisa.com para orientación.`;
-    }
-
-    // 2. PII detection — redact personal data from responses
-    const piiCheck = await detectPII(reply);
-    if (piiCheck.found) {
+    } else if (piiCheck.found) {
       reply = piiCheck.cleaned;
       console.log(`[ai-agent] PII redacted from response`);
     }
