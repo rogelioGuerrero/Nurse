@@ -5,13 +5,15 @@
 
 import { type FC } from 'react';
 import { useApp } from '../context/AppContext';
-import AvailabilityCalendar from './AvailabilityCalendar';
+import { SHIFTS } from '../types';
 import {
   Star, Clock, ChevronLeft, MapPin, Award, ShieldCheck,
   Stethoscope, AlertCircle, Heart, CheckCircle2, BadgeCheck, FileText
 } from 'lucide-react';
 import { LegalDisclaimer } from './LegalDisclaimer';
 import { CSSPVerificationBadge } from './CSSPVerificationBadge';
+
+const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 
 export const NurseDetail: FC = () => {
   const {
@@ -101,7 +103,7 @@ export const NurseDetail: FC = () => {
                     Exp: {nurse.experience_years} años
                   </span>
                   <Award className="h-4.5 w-4.5 text-emerald-500 bg-emerald-50 rounded-full" />
-                  <span className="text-emerald-700 font-semibold uppercase tracking-wider text-[10px]">Identidad Identificada</span>
+                  <span className="text-emerald-700 font-semibold uppercase tracking-wider text-[10px]">Identidad verificada</span>
                 </div>
 
                 <div className="pt-3 border-t border-slate-100">
@@ -179,9 +181,6 @@ export const NurseDetail: FC = () => {
 
             </div>
 
-            {/* Availability Calendar */}
-            <AvailabilityCalendar nurseId={nurse.id} isEditable={false} />
-
             {/* Portfolio: completed services track record */}
             {(() => {
               const completedBookings = bookings.filter(b => b.nurse_id === nurse.id && b.status === 'completed');
@@ -229,8 +228,13 @@ export const NurseDetail: FC = () => {
                   <span className="text-xs font-semibold text-slate-500">/ turno</span>
                 </div>
                 <p className="mt-1.5 text-[10px] text-slate-500 leading-normal">
-                  <strong>Turnos disponibles:</strong> {nurse.available_shifts.map(s => s === 'day' ? 'Día' : s === 'night' ? 'Noche' : '24 horas').join(', ')}
+                  <strong>Turnos:</strong> {nurse.available_shifts.map(s => SHIFTS[s]?.label || s).join(', ')}
                 </p>
+                {nurse.available_days && nurse.available_days.length > 0 && (
+                  <p className="mt-1 text-[10px] text-slate-500 leading-normal">
+                    <strong>Días:</strong> {[...nurse.available_days].sort((a, b) => a - b).map(d => DAY_NAMES[d]).join(' · ')}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2.5">
