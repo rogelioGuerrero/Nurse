@@ -1,6 +1,6 @@
 /**
  * Detección de país por IP geolocation.
- * Usa ip-api.com (gratis, sin token, 45 req/min).
+ * Usa ipwho.is (gratis, sin token, soporta HTTPS).
  * Cachea en localStorage para no llamar la API cada vez.
  */
 
@@ -46,17 +46,17 @@ export async function detectCountry(): Promise<GeoResult | null> {
 
   detecting = (async () => {
     try {
-      const res = await fetch('https://ip-api.com/json/?fields=status,countryCode,country,city,lat,lon');
+      const res = await fetch('https://ipwho.is/');
       if (!res.ok) return null;
       const data = await res.json();
-      if (data.status !== 'success') return null;
+      if (data.success !== true) return null;
 
       const result: GeoResult = {
-        countryCode: data.countryCode,
+        countryCode: data.country_code,
         countryName: data.country,
         city: data.city || '',
-        lat: data.lat,
-        lon: data.lon,
+        lat: data.latitude,
+        lon: data.longitude,
       };
 
       cachedResult = result;
