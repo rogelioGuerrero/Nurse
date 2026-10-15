@@ -168,40 +168,30 @@ export const LandingPage: FC<LandingPageProps> = ({ onFamily, onNurse, onAdminAc
           </p>
           <div className="space-y-2.5 pt-2">
             {viewMode === 'nurse' ? (
-              <>
-                <button
-                  onClick={onNurse}
-                  className="w-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-2xl py-4 font-bold text-sm shadow-lg shadow-indigo-500/25 ring-1 ring-white/20 active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Stethoscope className="h-5 w-5" />
-                  Soy enfermera - Regístrate gratis
-                </button>
-                <button
-                  onClick={onFamily}
-                  className="w-full bg-white/60 backdrop-blur-md text-slate-700 border border-white/50 rounded-2xl py-3.5 font-bold text-sm shadow-md active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Search className="h-5 w-5 text-indigo-600" />
-                  Buscar enfermera para mi familia
-                </button>
-              </>
+              <button
+                onClick={onNurse}
+                className="w-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-2xl py-4 font-bold text-sm shadow-lg shadow-indigo-500/25 ring-1 ring-white/20 active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Stethoscope className="h-5 w-5" />
+                Soy enfermera - Regístrate gratis
+              </button>
             ) : (
-              <>
-                <button
-                  onClick={onFamily}
-                  className="w-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-2xl py-4 font-bold text-sm shadow-lg shadow-indigo-500/25 ring-1 ring-white/20 active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Search className="h-5 w-5" />
-                  Buscar enfermera para mi familia
-                </button>
-                <button
-                  onClick={onNurse}
-                  className="w-full bg-white/60 backdrop-blur-md text-slate-700 border border-white/50 rounded-2xl py-3.5 font-bold text-sm shadow-md active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Stethoscope className="h-5 w-5 text-indigo-600" />
-                  Soy enfermera - Regístrate gratis
-                </button>
-              </>
+              <button
+                onClick={onFamily}
+                className="w-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white rounded-2xl py-4 font-bold text-sm shadow-lg shadow-indigo-500/25 ring-1 ring-white/20 active:scale-[0.98] transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Search className="h-5 w-5" />
+                Buscar enfermera para mi familia
+              </button>
             )}
+            <button
+              onClick={() => setViewMode(viewMode === 'nurse' ? 'family' : 'nurse')}
+              className="w-full text-center text-[11px] font-semibold text-indigo-500 hover:text-indigo-600 hover:underline transition cursor-pointer"
+            >
+              {viewMode === 'nurse'
+                ? '¿Buscás cuidado para un familiar? →'
+                : '¿Sos enfermera? →'}
+            </button>
           </div>
         </div>
 

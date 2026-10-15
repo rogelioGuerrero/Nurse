@@ -14,7 +14,7 @@ import { getDistanceKm, USER_COORDS, requestUserLocation } from './lib/distance'
 import { 
   Stethoscope, 
   Star, Sparkles,
-  Heart, Users, ChevronRight, GraduationCap, Network, MapPinned, MessageCircle,
+  Heart, Users, ChevronRight, GraduationCap, Network, MapPinned, FileText,
   Search, Inbox, ClipboardList, ShieldCheck, User, LogOut, Lock, CheckCircle2, AlertCircle,
   Volume2
 } from 'lucide-react';
@@ -455,6 +455,13 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                 <p className="text-sm text-slate-300 leading-relaxed max-w-2xl">
                   Enfermeras profesionales verificadas para el cuidado de tus seres queridos. Filtra por cercanía, precio y especialidad.
                 </p>
+                <button
+                  onClick={() => setActiveTab('care-request')}
+                  className="bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition flex items-center gap-2 cursor-pointer"
+                >
+                  <FileText className="h-4 w-4" />
+                  Publicar solicitud de cuidado
+                </button>
               </div>
             </div>
 
@@ -487,6 +494,12 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                     <Users className="h-10 w-10 text-slate-300 mx-auto mb-3" />
                     <p className="text-slate-700 font-semibold">No se encontraron cuidadores con estos filtros.</p>
                     <p className="text-xs mt-1">Prueba relajando las tarifas o cambiando la especialidad consultada.</p>
+                    <button
+                      onClick={() => setActiveTab('care-request')}
+                      className="mt-4 text-xs font-bold text-indigo-600 hover:underline cursor-pointer"
+                    >
+                      O publica tu solicitud y recibe ofertas →
+                    </button>
                   </div>
                 ) : (
                   <div className="space-y-4" id="nurses-catalog-list">
@@ -567,18 +580,6 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
 
                           {/* Detail navigational arrow column */}
                           <div className="shrink-0 flex sm:flex-col justify-end items-end h-full gap-2 self-stretch pt-2 sm:pt-0">
-                            {profile.phone && (
-                              <a
-                                href={`https://wa.me/503${profile.phone.replace(/[^0-9]/g, '').replace(/^503/, '')}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-bold w-full sm:w-auto px-4 py-2 rounded-xl transition flex items-center justify-center gap-1 shadow-sm"
-                              >
-                                <MessageCircle className="h-3.5 w-3.5" />
-                                <span>WhatsApp</span>
-                              </a>
-                            )}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -723,9 +724,9 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
             {currentUser?.role !== 'nurse' ? (
               <>
                 <button
-                  onClick={() => { setSelectedNurseId(null); setActiveTab('care-request'); }}
+                  onClick={() => { setSelectedNurseId(null); setActiveTab('home'); }}
                   className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
-                    activeTab === 'care-request' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                    activeTab === 'home' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
                   <Search className="h-5 w-5" />
