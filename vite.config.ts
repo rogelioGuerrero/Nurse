@@ -9,10 +9,16 @@ export default defineConfig(() => {
       rollupOptions: {
         output: {
           manualChunks(id) {
-            if (id.includes('node_modules')) {
-              if (id.includes('@supabase')) return 'supabase-vendor';
-              if (id.includes('lucide-react')) return 'icons';
-              if (id.includes('node_modules/leaflet/')) return 'map-vendor';
+            const norm = id.replace(/\\/g, '/');
+            if (norm.includes('node_modules')) {
+              if (norm.includes('@supabase')) return 'supabase-vendor';
+              if (norm.includes('lucide-react')) return 'icons';
+              // react/react-dom must live in their own chunk: if shared CJS
+              // helpers land inside the lazy chunks, the entry ends up
+              // importing them and they get preloaded at boot.
+              if (norm.includes('/react-dom/') || norm.includes('/react/') || norm.includes('/scheduler/')) return 'react-vendor';
+              if (norm.includes('/leaflet/') || norm.includes('/react-leaflet/') || norm.includes('/@react-leaflet/')) return 'map-vendor';
+              if (norm.includes('react-markdown') || norm.includes('remark') || norm.includes('micromark') || norm.includes('unified')) return 'markdown-vendor';
             }
           },
         },

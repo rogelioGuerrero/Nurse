@@ -48,9 +48,9 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
   const [selectedMunicipalities, setSelectedMunicipalities] = useState<string[]>([]);
   const [showMunicipalities, setShowMunicipalities] = useState(false);
 
-  // Deteccion de pais por IP
-  const [country, setCountry] = useState<CountryCode | null>(null);
-  const [countryName, setCountryName] = useState<string>('');
+  // Deteccion de pais por IP (default SV; ipwho.is puede sobrescribirlo)
+  const [country, setCountry] = useState<CountryCode>('SV');
+  const [countryName, setCountryName] = useState<string>('El Salvador');
   const [showCountrySelector, setShowCountrySelector] = useState(false);
   const features: CountryFeatures = getFeatures(country);
 
@@ -518,10 +518,10 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
               <label className="block text-xs font-bold text-slate-500 uppercase tracking-wide">
                 Teléfono / WhatsApp *
               </label>
-              <div className="relative rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
-                <div className="absolute inset-y-0 left-3 flex items-center gap-1 text-slate-400">
-                  <Phone className="h-4 w-4" />
-                  <span className="text-xs font-bold text-slate-500">+{getDialConfig(country).dial}</span>
+              <div className="flex items-center rounded-xl overflow-hidden shadow-inner bg-slate-100/60 border border-slate-200">
+                <div className="flex items-center gap-1.5 pl-3 pr-2.5 py-2.5 bg-slate-200/60 border-r border-slate-200 text-slate-600 shrink-0 select-none">
+                  <Phone className="h-4 w-4 text-slate-400" />
+                  <span className="text-xs font-bold">+{getDialConfig(country).dial}</span>
                 </div>
                 <input
                   type="tel"
@@ -531,7 +531,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder={getDialConfig(country).placeholder}
-                  className="w-full bg-transparent pl-16 pr-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
+                  className="w-full bg-transparent px-3 py-2.5 outline-none font-medium text-slate-800 text-sm"
                 />
               </div>
               <p className="text-[10px] text-slate-400">Con este número iniciarás sesión y recibirás avisos de la plataforma.</p>

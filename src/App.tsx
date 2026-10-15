@@ -189,6 +189,7 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
   const [selectedSpecialization, setSelectedSpecialization] = useState<string>('');
   const [maxRate, setMaxRate] = useState<number>(40);
   const [sortBy, setSortBy] = useState<string>('distance');
+  const [homeView, setHomeView] = useState<'list' | 'map'>('list');
 
   // Auth states
   const [authMode, setAuthMode] = useState<'landing' | 'login' | 'register'>('landing');
@@ -320,13 +321,25 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
             </div>
           </div>
           {currentUser && (
-            <div className="flex items-center gap-2 bg-slate-100 rounded-full pl-1 pr-3 py-1">
-              <div className="w-7 h-7 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                {currentUser.full_name?.charAt(0).toUpperCase() || 'U'}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 bg-slate-100 rounded-full pl-1 pr-3 py-1">
+                <div className="w-7 h-7 bg-indigo-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                  {currentUser.full_name?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                <span className="text-xs font-medium text-slate-700">
+                  {currentUser.full_name?.split(' ')[0] || 'Usuario'}
+                </span>
               </div>
-              <span className="text-xs font-medium text-slate-700">
-                {currentUser.full_name?.split(' ')[0] || 'Usuario'}
-              </span>
+              {currentUser.role !== 'nurse' && (
+                <button
+                  onClick={async () => { await supabase.auth.signOut(); }}
+                  className="p-2 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                  title="Cerrar sesión"
+                  aria-label="Cerrar sesión"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -478,17 +491,28 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
               allSpecializations={allSpecializations}
             />
 
-            {/* Split Dual-Pane View: Caregiver list and custom interactive map */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              
-              {/* Caregiver list column (Left pane) */}
-              <div className="lg:col-span-7 space-y-4">
-                <div className="flex justify-between items-center bg-slate-100 p-2 rounded-xl">
-                  <span className="text-xs font-bold text-slate-600 uppercase tracking-widest pl-2">
-                    Resultados ({filteredNurses.length})
-                  </span>
-                </div>
+            {/* View toggle: Lista | Mapa (single-column container max-w-2xl) */}
+            <div className="bg-slate-100 p-1 rounded-xl grid grid-cols-2 gap-1" id="home-view-toggle">
+              <button
+                onClick={() => setHomeView('list')}
+                className={`py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  homeView === 'list' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Lista ({filteredNurses.length})
+              </button>
+              <button
+                onClick={() => setHomeView('map')}
+                className={`py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
+                  homeView === 'map' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                Mapa
+              </button>
+            </div>
 
+            {homeView === 'list' ? (
+              <div className="space-y-4">
                 {filteredNurses.length === 0 ? (
                   <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400 font-medium" id="search-results-empty">
                     <Users className="h-10 w-10 text-slate-300 mx-auto mb-3" />
@@ -513,7 +537,7 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                         <div
                           key={nurse.id}
                           onClick={() => handleInspectNurse(nurse.id)}
-                          className={`bg-white border rounded-2xl p-5 shadow-sm transition flex flex-col sm:flex-row gap-4 items-center sm:items-start cursor-pointer group ${
+                          className={`bg-white border rounded-2xl p-4 sm:p-5 shadow-sm transition flex flex-row gap-3 sm:gap-4 items-start cursor-pointer group ${
                             isSelected 
                               ? 'border-indigo-600 ring-1 ring-indigo-500' 
                               : 'border-slate-200 hover:border-slate-300'
@@ -525,7 +549,7 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                             <img 
                               src={profile.avatar_url} 
                               alt={profile.full_name} 
-                              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border border-slate-200 shadow-sm"
+                              className="w-14 h-14 sm:w-20 sm:h-20 rounded-2xl object-cover border border-slate-200 shadow-sm"
                               referrerPolicy="no-referrer"
                               loading="lazy"
                             />
@@ -536,24 +560,19 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                           </div>
 
                           {/* Profile information */}
-                          <div className="flex-1 space-y-2 text-center sm:text-left min-w-0">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                              <div>
-                                <h3 className="font-bold text-slate-900 font-serif italic text-base leading-snug group-hover:text-indigo-600 transition">
-                                  {profile.full_name}
-                                </h3>
-                                <p className="text-[10px] text-indigo-600 font-bold flex items-center justify-center sm:justify-start gap-1">
-                                  <GraduationCap className="h-3.5 w-3.5" />
-                                  Exp: {nurse.experience_years} años profesionales
-                                </p>
-                                <p className="text-[10px] text-slate-500 font-bold flex items-center justify-center sm:justify-start gap-1">
-                                  <MapPinned className="h-3.5 w-3.5 text-indigo-400" />
-                                  {(nurseDistances.get(nurse.id) ?? 0).toFixed(1)} km de ti
-                                </p>
-                              </div>
-                              <div className="text-slate-800 text-right shrink-0">
-                                <span className="text-indigo-600 font-black text-lg block">US$ {nurse.shift_rate}<span className="text-xs font-normal text-slate-400">/turno</span></span>
-                              </div>
+                          <div className="flex-1 space-y-1.5 text-left min-w-0">
+                            <div>
+                              <h3 className="font-bold text-slate-900 font-serif italic text-base leading-snug group-hover:text-indigo-600 transition line-clamp-2">
+                                {profile.full_name}
+                              </h3>
+                              <p className="text-[10px] text-indigo-600 font-bold flex items-center justify-start gap-1">
+                                <GraduationCap className="h-3.5 w-3.5" />
+                                Exp: {nurse.experience_years} años profesionales
+                              </p>
+                              <p className="text-[10px] text-slate-500 font-bold flex items-center justify-start gap-1">
+                                <MapPinned className="h-3.5 w-3.5 text-indigo-400" />
+                                {(nurseDistances.get(nurse.id) ?? 0).toFixed(1)} km de ti
+                              </p>
                             </div>
 
                             <p className="text-xs text-slate-500 overflow-hidden text-ellipsis line-clamp-2 leading-relaxed">
@@ -561,7 +580,7 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                             </p>
 
                             {/* Specialty badges mapping */}
-                            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 pt-1">
+                            <div className="flex flex-wrap items-center justify-start gap-1.5 pt-0.5">
                               {nurse.specialization.slice(0, 3).map((spec) => (
                                 <span 
                                   key={spec} 
@@ -578,14 +597,15 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                             </div>
                           </div>
 
-                          {/* Detail navigational arrow column */}
-                          <div className="shrink-0 flex sm:flex-col justify-end items-end h-full gap-2 self-stretch pt-2 sm:pt-0">
+                          {/* Price + detail action column */}
+                          <div className="shrink-0 flex flex-col items-end justify-between gap-2 self-stretch">
+                            <span className="text-indigo-600 font-black text-base sm:text-lg whitespace-nowrap">US$ {nurse.shift_rate}<span className="text-[10px] sm:text-xs font-normal text-slate-400">/turno</span></span>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleInspectNurse(nurse.id);
                               }}
-                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-800 text-xs font-bold w-full sm:w-auto px-4 py-2 rounded-xl transition flex items-center justify-center gap-1 shadow-sm"
+                              className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-800 text-xs font-bold px-3 sm:px-4 py-2 rounded-xl transition flex items-center justify-center gap-1 shadow-sm"
                               id={`btn-inspect-${nurse.id}`}
                             >
                               <span>Ver Perfil</span>
@@ -600,8 +620,8 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                 )}
               </div>
 
-              {/* Interactive custom coordinates map (Right pane) */}
-              <div className="lg:col-span-5 h-full lg:sticky lg:top-28">
+            ) : (
+              <div className="h-[65vh] min-h-[420px]">
                 <Suspense fallback={<LoadingSpinner />}>
                   <MapComponent
                     filteredNurses={filteredNurses}
@@ -609,8 +629,7 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                   />
                 </Suspense>
               </div>
-
-            </div>
+            )}
 
           </div>
         )}
@@ -726,7 +745,7 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                 <button
                   onClick={() => { setSelectedNurseId(null); setActiveTab('home'); }}
                   className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer ${
-                    activeTab === 'home' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
+                    activeTab === 'home' || activeTab === 'care-request' || activeTab === 'nurse-detail' ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
                   <Search className="h-5 w-5" />
@@ -772,13 +791,6 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
                 >
                   <Volume2 className="h-5 w-5" />
                   <span className="text-[9px] font-bold">Benni</span>
-                </button>
-                <button
-                  onClick={async () => { await supabase.auth.signOut(); }}
-                  className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition cursor-pointer text-slate-400 hover:text-rose-600"
-                >
-                  <LogOut className="h-5 w-5" />
-                  <span className="text-[9px] font-bold">Salir</span>
                 </button>
               </>
             ) : (
