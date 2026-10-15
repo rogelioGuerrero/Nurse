@@ -215,7 +215,8 @@ export const AppContextProvider: FC<{ children: ReactNode }> = ({ children }) =>
 
       const [demoRes, nursesRes, requestsRes, nurseRevRes, familyRevRes] = await Promise.all([
         // Demo user IDs to exclude demo data from all views (all roles)
-        supabase.from('profiles').select('id').eq('is_demo', true),
+        // SECURITY DEFINER RPC — non-admin users can't read other profiles rows.
+        supabase.rpc('demo_profile_ids'),
         // Nurses list is public to authenticated users (marketplace) — view masks PHI
         supabase.from('nurses_public').select('*'),
         requestsQuery,
