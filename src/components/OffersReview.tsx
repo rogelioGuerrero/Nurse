@@ -1405,6 +1405,8 @@ export const OffersReview: FC = () => {
 
             nursePhone={slotDetails.find(s => s.hasNurse && s.nurseProfile)?.nurseProfile?.phone}
 
+            nurseCountry={slotDetails.find(s => s.hasNurse && s.nurseProfile)?.nurseProfile?.country}
+
             wantsInvoice={myRequest.wants_invoice}
 
           />

@@ -2,6 +2,7 @@ import { type FC } from 'react';
 import { Receipt, X, Phone, MessageCircle, CreditCard, FileText, Building2 } from 'lucide-react';
 import { PLATFORM_SETTINGS } from '../data/platformSettings';
 import { PLATFORM_COMMISSION, IVA_RATE } from '../data/standardRates';
+import { buildWaLink } from '../lib/phoneAuth';
 
 interface SummarySlot {
   date: string;
@@ -17,6 +18,7 @@ interface PaymentSummaryProps {
   slots: SummarySlot[];
   totalPrice: number;
   nursePhone?: string;
+  nurseCountry?: string;
   wantsInvoice?: boolean;
   fiscalInvoicing?: boolean;
 }
@@ -29,11 +31,11 @@ function formatDate(dateStr: string): string {
   return `${DAY_NAMES[d.getDay()]}, ${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyName, slots, totalPrice, nursePhone, wantsInvoice, fiscalInvoicing = true }) => {
+export const PaymentSummary: FC<PaymentSummaryProps> = ({ open, onClose, familyName, slots, totalPrice, nursePhone, nurseCountry, wantsInvoice, fiscalInvoicing = true }) => {
   if (!open) return null;
 
   const nurseName = slots[0]?.nurseName || 'Enfermera';
-  const whatsappLink = nursePhone ? `https://wa.me/503${nursePhone.replace(/[^0-9]/g, '')}` : null;
+  const whatsappLink = buildWaLink(nursePhone, nurseCountry);
   const managementFee = PLATFORM_COMMISSION * (1 + IVA_RATE) * slots.length;
 
   return (

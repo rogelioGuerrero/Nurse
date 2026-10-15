@@ -11,8 +11,8 @@ interface Props {
   careRequests: CareRequest[];
   bookings: Booking[];
   waLoading: string | null;
-  handleFamilyWa: (reqId: string, familyName: string, patientName: string, offerCount: number, location: string, phone?: string) => void;
-  handleNurseWa: (offerId: string, nurseName: string, patientName: string, offeredRate: number, phone?: string) => void;
+  handleFamilyWa: (reqId: string, familyName: string, patientName: string, offerCount: number, location: string, phone?: string, country?: string) => void;
+  handleNurseWa: (offerId: string, nurseName: string, patientName: string, offeredRate: number, phone?: string, country?: string) => void;
   confirmPayment: (id: string) => void;
 }
 
@@ -54,7 +54,7 @@ export const NotificationsSection: FC<Props> = ({
                   </div>
                   {family?.phone ? (
                     <button
-                      onClick={() => handleFamilyWa(req.id, family?.full_name || '', req.patient_name, offers.length, req.location_name || '', family?.phone)}
+                      onClick={() => handleFamilyWa(req.id, family?.full_name || '', req.patient_name, offers.length, req.location_name || '', family?.phone, family?.country)}
                       disabled={waLoading === req.id}
                       className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-lg cursor-pointer disabled:opacity-60"
                     >
@@ -103,7 +103,7 @@ export const NotificationsSection: FC<Props> = ({
                   </div>
                   {nurseProfile?.phone ? (
                     <button
-                      onClick={() => handleNurseWa(offer.id, nurseProfile?.full_name || '', req?.patient_name || 'el paciente', offer.offered_rate, nurseProfile?.phone)}
+                      onClick={() => handleNurseWa(offer.id, nurseProfile?.full_name || '', req?.patient_name || 'el paciente', offer.offered_rate, nurseProfile?.phone, nurseProfile?.country)}
                       disabled={waLoading === offer.id}
                       className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-2 rounded-lg cursor-pointer disabled:opacity-60"
                     >

@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { MessageCircle, ShieldCheck, Users, FileText, Clock, MapPin, Phone, DollarSign, CheckCircle2, TrendingUp, RefreshCw, Loader2, Calendar, BarChart3, Mail, LayoutGrid, List, Mic, Wrench, AlertTriangle, Timer } from 'lucide-react';
 import { CSSPReviewPanel } from './CSSPReviewPanel';
 import { groqChat } from '../lib/groq';
+import { buildWaLink } from '../lib/phoneAuth';
 import { supabase } from '../lib/supabase';
 
 const SummarySection = lazy(() => import('./admin/SummarySection').then(m => ({ default: m.SummarySection })));
@@ -355,12 +356,8 @@ export const AdminPanel: FC = () => {
     setChatLoading(false);
   };
 
-  const waLink = (phone: string | undefined, message: string) => {
-    const cleanPhone = (phone || '').replace(/[^0-9]/g, '');
-    if (!cleanPhone) return null;
-    const fullPhone = cleanPhone.startsWith('503') ? cleanPhone : `503${cleanPhone}`;
-    return `https://wa.me/${fullPhone}?text=${encodeURIComponent(message)}`;
-  };
+  const waLink = (phone: string | undefined, message: string, country?: string) =>
+    buildWaLink(phone, country, message);
 
   const generateWaMessage = async (type: 'family' | 'nurse', data: {
     familyName?: string; patientName?: string; offerCount?: number; location?: string;
@@ -391,19 +388,19 @@ Avisale que ingrese a su cuenta con su número de teléfono para ver la ubicaci�
     }
   };
 
-  const handleFamilyWa = async (reqId: string, familyName: string, patientName: string, offerCount: number, location: string, phone?: string) => {
+  const handleFamilyWa = async (reqId: string, familyName: string, patientName: string, offerCount: number, location: string, phone?: string, country?: string) => {
     setWaLoading(reqId);
     const msg = await generateWaMessage('family', { familyName, patientName, offerCount, location });
     setWaLoading(null);
-    const wa = waLink(phone, msg);
+    const wa = waLink(phone, msg, country);
     if (wa) window.open(wa, '_blank');
   };
 
-  const handleNurseWa = async (offerId: string, nurseName: string, patientName: string, offeredRate: number, phone?: string) => {
+  const handleNurseWa = async (offerId: string, nurseName: string, patientName: string, offeredRate: number, phone?: string, country?: string) => {
     setWaLoading(offerId);
     const msg = await generateWaMessage('nurse', { nurseName, patientName, offeredRate });
     setWaLoading(null);
-    const wa = waLink(phone, msg);
+    const wa = waLink(phone, msg, country);
     if (wa) window.open(wa, '_blank');
   };
 

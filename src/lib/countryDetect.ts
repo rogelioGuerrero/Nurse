@@ -6,6 +6,9 @@
 
 export type CountryCode = string; // ISO 3166-1 alpha-2, ej: 'SV', 'MX', 'CO'
 
+/** Mercado por defecto cuando la geolocalización no resuelve. */
+export const DEFAULT_COUNTRY: CountryCode = 'SV';
+
 interface GeoResult {
   countryCode: CountryCode;
   countryName: string;
@@ -76,5 +79,5 @@ export async function detectCountry(): Promise<GeoResult | null> {
 }
 
 export function isElSalvador(country: CountryCode | undefined | null): boolean {
-  return country === 'SV';
+  return (country ?? DEFAULT_COUNTRY) === 'SV';
 }

@@ -160,7 +160,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
       const syntheticForPhone = buildSyntheticEmail(phoneCheck.localDigits, country);
       const { data: phoneTaken } = await supabase.rpc('is_phone_registered', {
         p_phone: phoneCheck.localDigits,
-        p_country: country || 'SV',
+        p_country: country,
       });
       if (phoneTaken === true) {
         setError('Este número de teléfono ya tiene una cuenta registrada. Inicia sesión.');
@@ -182,7 +182,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
             role: role === 'nurse' ? 'nurse' : 'user',
             phone: phoneCheck.localDigits,
             location_name: prefillLocation || (features.salvadoranDistricts ? `${locationName.trim()}, ${selectedMunicipalities.join(', ')}` : locationName.trim()),
-            country: country || 'SV'
+            country: country
           }
         }
       });
@@ -213,7 +213,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
           role: role === 'nurse' ? 'nurse' : 'user',
           phone: phoneCheck.localDigits,
           location_name: prefillLocation || (features.salvadoranDistricts ? `${locationName.trim()}, ${selectedMunicipalities.join(', ')}` : locationName.trim()),
-          country: country || 'SV'
+          country: country
         }, { onConflict: 'id' });
 
       if (profileError) {
@@ -321,7 +321,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
       if (!isEmailInput(loginEmail)) {
         const { data: resolved, error: rpcError } = await supabase.rpc('resolve_login_identifier', {
           p_identifier: loginEmail,
-          p_country: country || 'SV',
+          p_country: country,
         });
         loginEmail = (!rpcError && resolved) ? resolved : buildSyntheticEmail(loginEmail, country);
       }
@@ -408,7 +408,7 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
       if (!isEmailInput(resolvedEmail)) {
         const { data: resolved, error: rpcError } = await supabase.rpc('resolve_login_identifier', {
           p_identifier: resolvedEmail,
-          p_country: country || 'SV',
+          p_country: country,
         });
         resolvedEmail = (!rpcError && resolved) ? resolved : buildSyntheticEmail(resolvedEmail, country);
       }

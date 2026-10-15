@@ -1,4 +1,4 @@
-import type { CountryCode } from './countryDetect';
+import { DEFAULT_COUNTRY, type CountryCode } from './countryDetect';
 
 export const SYNTHETIC_EMAIL_DOMAIN = 'tel.biencuidar.com';
 
@@ -19,7 +19,7 @@ export const COUNTRY_DIAL_CODES: Record<string, { dial: string; minDigits: numbe
 };
 
 export function getDialConfig(country?: CountryCode | null) {
-  return COUNTRY_DIAL_CODES[country || 'SV'] || { dial: '503', minDigits: 8, maxDigits: 15, placeholder: '7000-1234' };
+  return COUNTRY_DIAL_CODES[country ?? DEFAULT_COUNTRY] ?? COUNTRY_DIAL_CODES[DEFAULT_COUNTRY];
 }
 
 export function stripPhoneDigits(raw: string): string {
@@ -58,7 +58,7 @@ export function validatePhoneInput(rawPhone: string, country?: CountryCode | nul
     };
   }
 
-  if ((country || 'SV') === 'SV' && !/^[267]/.test(localDigits)) {
+  if ((country ?? DEFAULT_COUNTRY) === 'SV' && !/^[267]/.test(localDigits)) {
     return {
       valid: false,
       message: 'En El Salvador el número debe iniciar con 6, 7 o 2',
@@ -87,4 +87,15 @@ export function isSyntheticEmail(email?: string | null): boolean {
 
 export function isEmailInput(identifier: string): boolean {
   return identifier.includes('@');
+}
+
+/**
+ * Construye un link wa.me normalizando el teléfono a E.164 según el país
+ * del perfil (profiles.phone guarda solo dígitos locales).
+ */
+export function buildWaLink(rawPhone: string | undefined | null, country?: CountryCode | null, message?: string): string | null {
+  const digits = stripPhoneDigits(rawPhone || '');
+  if (!digits) return null;
+  const e164 = normalizePhoneWithCountry(digits, country);
+  return `https://wa.me/${e164}${message ? `?text=${encodeURIComponent(message)}` : ''}`;
 }

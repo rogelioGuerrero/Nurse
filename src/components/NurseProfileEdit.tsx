@@ -13,6 +13,7 @@ import { CSSPVerificationBadge } from './CSSPVerificationBadge';
 import { validateCSSPRegistration } from '../lib/csspValidation';
 import { verifyCSSP } from '../lib/csspVerify';
 import { getFeatures, type CountryFeatures } from '../lib/features';
+import { getDialConfig } from '../lib/phoneAuth';
 
 const allSpecialtyTags = [
   'Geriatría', 'Demencia y Alzheimer', 'Inyecciones', 'Postoperatorio', 
@@ -292,7 +293,7 @@ export const NurseProfileEdit: FC = () => {
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+503 0000 0000"
+                  placeholder={`+${getDialConfig(currentUser?.country).dial} ${getDialConfig(currentUser?.country).placeholder}`}
                   className="w-full text-xs font-medium bg-slate-50 border border-slate-200 outline-none rounded-xl px-4 py-2.5 focus:bg-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition"
                   id="input-edit-phone"
                 />
