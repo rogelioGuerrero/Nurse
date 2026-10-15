@@ -16,9 +16,6 @@ import { ServiceContract } from './ServiceContract';
 
 import { PaymentSummary } from './PaymentSummary';
 
-import { LocationPicker } from './LocationPicker';
-
-
 
 const DAY_NAMES = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 

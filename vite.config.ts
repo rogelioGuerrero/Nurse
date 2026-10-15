@@ -8,11 +8,12 @@ export default defineConfig(() => {
     build: {
       rollupOptions: {
         output: {
-          manualChunks: {
-            'supabase-vendor': ['@supabase/supabase-js'],
-            'icons': ['lucide-react'],
-            'map-vendor': ['leaflet', 'react-leaflet'],
-            'markdown-vendor': ['react-markdown'],
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('@supabase')) return 'supabase-vendor';
+              if (id.includes('lucide-react')) return 'icons';
+              if (id.includes('node_modules/leaflet/')) return 'map-vendor';
+            }
           },
         },
       },
