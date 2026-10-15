@@ -61,10 +61,8 @@ export const AuthForm: FC<AuthFormProps> = ({ mode, role, onBack, onSuccess, pre
       setCountryName(cached.countryName);
     } else {
       detectCountry().then(result => {
-        if (result) {
-          setCountry(result.countryCode);
-          setCountryName(result.countryName);
-        }
+        setCountry(result?.countryCode ?? 'SV');
+        setCountryName(result?.countryName ?? 'El Salvador');
       });
     }
   }, []);

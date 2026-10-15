@@ -73,11 +73,11 @@ BEGIN
   END IF;
 
   -- Match against profiles.phone (stored either as local digits "7890-1234" or with country code "+503 7890-1234")
+  -- Demo profiles participate in resolution but real accounts win ties (ORDER BY is_demo ASC)
   SELECT p.email INTO v_found_email
   FROM public.profiles p
   WHERE public.phone_digits(p.phone) IN (v_local_digits, v_e164_digits)
-    AND COALESCE(p.is_demo, false) = false
-  ORDER BY p.created_at DESC
+  ORDER BY COALESCE(p.is_demo, false) ASC, p.created_at DESC
   LIMIT 1;
 
   IF v_found_email IS NOT NULL AND length(v_found_email) > 0 THEN
