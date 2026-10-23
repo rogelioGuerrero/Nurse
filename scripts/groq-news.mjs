@@ -25,6 +25,7 @@ import { writeFileSync, readFileSync, mkdirSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { fetchNewsBundle, formatBundleForPrompt, extractUrls } from "./news-fetch.mjs";
+import { loadEditorialEvidence } from "./editorial-evidence.mjs";
 
 // Cargar .env automáticamente si GROQ_API_KEY no está en el entorno
 function loadEnv() {
@@ -51,6 +52,8 @@ const GEMINI_VIDEO_PROMPT_FILE = "scripts/gemini-video-prompt.txt";
 // ── Supabase config (para memory del pipeline) ──
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || "https://zqgtkrqfyhcvgagjhbnv.supabase.co";
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || "";
+
+const LOCAL_EVIDENCE = loadEditorialEvidence();
 
 // ── Registrar artículo en Supabase content_history ──
 async function saveToContentHistory(topic, article, teaser, nextTopic) {
@@ -194,9 +197,12 @@ async function generateAngle(topic, recentLines = []) {
   const recent = recentLines.length
     ? `\nPosts recientes (NO repitas protagonistas, enfoques ni temas):\n${recentLines.join("\n")}\n`
     : "";
-  const prompt = `Eres el editor jefe de BienCuidar (plataforma salvadoreña que conecta familias con enfermeras verificadas para cuidado de adultos mayores en casa; cada visita queda documentada con un reporte para la familia).
+  const prompt = `Eres el editor jefe de BienCuidar (plataforma salvadoreña que conecta familias con enfermeras verificadas para cuidado de adultos mayores en casa; la enfermera puede registrar una bitácora para la familia al completar su reporte de visita).
 
 Define el ángulo editorial para el próximo post de Facebook sobre: "${topic}"
+
+CONTEXTO DOCUMENTAL VERIFICADO (úsalo solo si ayuda al tema; no lo presentes como noticia nueva):
+${LOCAL_EVIDENCE}
 ${recent}
 Responde EXACTAMENTE con estos 5 campos, uno por línea de encabezado (sin markdown):
 
@@ -309,13 +315,19 @@ const CTA_VARIANTS = [
   },
   {
     id: "bitacora-enfermeria",
-    text: "¿Sabés qué pasa cuando la enfermera visita a tu familiar? En BienCuidar, recibís un reporte claro después de cada visita: cómo estaba, qué se le hizo, y cómo quedó. Conocé más en https://biencuidar.agtisa.com",
+    text: "¿Necesitás apoyo para cuidar en casa? En BienCuidar publicás tu necesidad, recibís ofertas de enfermeras verificadas y elegís la que mejor se adapte a tu familia. Empezá en https://biencuidar.agtisa.com",
     keywords: ["enfermera", "enfermería", "cuidador", "cuidado", "visita", "atención", "profesional", "calidad", "transparencia", "confianza", "verificación", "registro", "supervisión"],
   },
 ];
 
 function pickCTA(topic) {
   const lower = topic.toLowerCase();
+  const familyCareTopic = ["cuidador", "cuidadora", "cuidado", "familia", "respiro", "enfermer", "sándwich", "sandwich", "sobrecarga", "padres mayores"].some((keyword) => lower.includes(keyword));
+  if (familyCareTopic) {
+    const marketplace = CTA_VARIANTS.find((v) => v.id === "bitacora-enfermeria");
+    console.log(`[CTA] Seleccionado: ${marketplace.id} (cuidado familiar) para tema "${topic.slice(0, 50)}"`);
+    return marketplace.text;
+  }
   let best = CTA_VARIANTS[0];
   let bestScore = 0;
   for (const v of CTA_VARIANTS) {
@@ -467,21 +479,27 @@ Respond ONLY with a JSON object (no markdown, no text before or after):
   // Síntesis: el LLM solo puede usar el material fetcheado — anti-humo por diseño
   search: `You are a research analyst preparing material for a healthcare Facebook post on: "{topic}".
 
-Below is REAL material fetched from the web (news articles, institutional pages, PubMed papers). Use ONLY facts present in this material. Prefer sources from trusted domains when present: {domains}.
+Below are two evidence layers: fetched web material and a locally checked 2025 BID-OCDE-AFD report. Use ONLY facts actually present in one of them. Keep the country, date, estimate/projection status and page of every local-report claim. Prefer fetched sources from trusted domains when present: {domains}.
 
 Rules:
-- Every statistic or claim must come from a numbered source below.
+- Every statistic or claim must come from a numbered fetched web source OR a fact with a page in LOCAL REPORT; preserve its source, geography and year.
 - Cite internally as (source name, year).
 - FORBIDDEN: inventing statistics, adding decimal precision not present in the material, or citing URLs not listed below.
+- The local report is not a web fetch. Its DOI is bibliographic metadata, NOT a fetched URL. In FUENTES list ONLY URLs copied from FETCHED MATERIAL, never the local DOI.
+- If you use the local report, label each selected fact as BID-OCDE-AFD (2025), with page and population; if unrelated, ignore it.
 - If the material is thin, state what is missing instead of inventing.
 
 Return:
 1) KEY DATA: bullet statistics with (source, year)
 2) 2-3 practical recommendations grounded in the material
 3) Latin America / El Salvador angle if present in the material
-4) FUENTES: the URLs of the sources you actually used, copied exactly as listed
+4) FUENTES: ONLY the URLs of fetched web sources you actually used, copied exactly as listed
+5) INFORME LOCAL USADO: selected claims with page, country and year (or "no aplica"); NO URLs here
 
 {feedback_section}
+
+LOCAL REPORT (not fetched; cite name and page, not DOI):
+{localEvidence}
 
 FETCHED MATERIAL:
 {material}`,
@@ -490,6 +508,9 @@ FETCHED MATERIAL:
 
 Datos de investigación (pueden estar en inglés o francés):
 {research}
+
+INFORME LOCAL VERIFICADO (úsalo solo si es pertinente; conserva alcance geográfico, año y carácter de estimación):
+{localEvidence}
 
 Redacta un post de Facebook en español sobre: {topic}
 
@@ -504,10 +525,13 @@ Reglas:
 - El post es UNA historia con UN mensaje. Si el gancho presenta un protagonista (nombre, conflicto), su historia debe RESOLVER dentro del post — no lo abandones a mitad de camino.
 - RELEVANCIA: cada dato de la investigación que incluyas debe servir directamente a la decisión de la AUDIENCIA definida en el ángulo. PROHIBIDO rellenar con datos clínicos tangenciales (marcadores biológicos, fisiología, protocolos institucionales, mecanismos de enfermedad) aunque sean ciertos. Si un dato no le ayuda al lector a actuar, no va.
 - Si los datos están en inglés, tradúcelos al español
-- NO inventes estadísticas. Solo usa las que aparecen en la investigación o en el ángulo editorial.
+- NO inventes estadísticas. Usa solo datos explícitos de la investigación o del informe local verificado; el ángulo editorial NO certifica cifras.
 - El gancho debe visibilizar el problema, no sensacionalizarlo
+- Un personaje inventado es un recurso narrativo, NUNCA un testimonio real; no le atribuyas una experiencia real con BienCuidar ni inventes resultados médicos.
+- Conecta el problema cotidiano con BienCuidar como intermediario: la familia publica su necesidad de cuidado en casa, recibe ofertas de enfermeras verificadas, compara perfiles y elige. No prometas enfermera inmediata ni reporte automático de cada visita.
+- Usa un dato solo cuando ayude a la familia a reconocer su situación y decidir; conserva el país/año del dato. Cita el informe como BID-OCDE-AFD (2025), sin insinuar respaldo institucional a BienCuidar.
 - MANTÉN el tono del ángulo editorial aunque haya feedback del revisor. El feedback corrige datos, no cambia el enfoque narrativo.
-- Si el ángulo editorial incluye datos específicos (ej: "70% no cotiza", "13% pensión"), ÚSALOS en el texto. No los omitas.
+- Si el ángulo editorial incluye cifras específicas, úsalas SOLO cuando estén corroboradas por la investigación o por el informe local verificado, con el país y año correctos; si no se confirman, omítelas sin abandonar el enfoque narrativo.
 - Menciona la fuente de forma natural en la oración ("según la OMS", "un estudio de Mayo Clinic"). NUNCA citas académicas con paréntesis "(Revista, año)", NUNCA DOIs, NUNCA "ibid.", NUNCA URLs en el texto — el único link permitido en todo el post es el del CTA.
 - UN SOLO CTA: el indicado abajo. No agregues otras frases comerciales, segundas llamadas a la acción ni más links.
 
@@ -521,12 +545,15 @@ Devuelve SOLO el texto.`,
 DATOS DE INVESTIGACIÓN:
 {research}
 
+INFORME LOCAL VERIFICADO (comparar alcance y página si se usa):
+{localEvidence}
+
 BORRADOR:
 {draft}
 
 Verifica:
 1. ¿Las estadísticas coinciden con la investigación? ¿Hay datos inventados?
-2. ¿Hay claims sin fuente? IMPORTANTE: un claim es aceptable si tiene referencia verificable (nombre de medio/publicación, institución académica o gubernamental). NO rechaces un dato solo porque no esté en la lista de fuentes autorizadas del buscador. The Lancet, Nature, Science, Reuters, BBC, NYT, INEGI, UN Women, Banco Mundial, CEPAL, OIT y publicaciones académicas peer-reviewed son fuentes válidas. Solo marca como "sin fuente" los datos que no tienen NINGUNA referencia identificable. EXCEPCIÓN: una cita con DOI o URL solo es válida si ese DOI/URL aparece literalmente en los DATOS DE INVESTIGACIÓN — un DOI citado que no esté ahí es inventado y va en "datos_inventados".
+2. ¿Hay datos o afirmaciones que NO aparezcan explícitamente en DATOS DE INVESTIGACIÓN o en INFORME LOCAL VERIFICADO, con el mismo país, año y alcance? Márcalos como no verificados aunque nombren a una institución conocida: citar un medio por su nombre no comprueba un dato. Un DOI o URL ausente de la investigación o del informe local es inventado.
 3. ¿El tono es apropiado para una página de salud profesional?
 4. ¿Hay errores médicos o información peligrosa?
 5. ¿El ángulo narrativo visibiliza el problema o lo sensacionaliza?
@@ -535,6 +562,8 @@ Verifica:
 8. RELEVANCIA: ¿cada dato incluido sirve a la decisión de la AUDIENCIA? Un dato verdadero pero tangente al tema del post (detalles clínicos, mecanismos fisiológicos, protocolos institucionales que no le importan a una familia) debe listarse en "correcciones" como "dato fuera de foco — eliminar".
 9. ARCO NARRATIVO: si el gancho presenta un protagonista, ¿su historia se resuelve en el post? Si queda abandonado o sin cierre, listar en "correcciones" como "protagonista sin resolución".
 10. FORMATO: ¿hay DOIs, URLs, citas con paréntesis académico "(Revista, año)" o "ibid."? Es formato prohibido — listar en "correcciones".
+11. ¿El post confunde una cifra regional con una salvadoreña, llama "generación sándwich" a alguien que solo trabaja y cuida a su madre, finge que un protagonista es un cliente real o promete llegada inmediata/reporte automático? Si ocurre, lista la corrección y pide REESCRIBIR.
+12. ¿El lector entiende que BienCuidar intermedia entre familias y enfermeras verificadas, qué puede hacer (publicar su necesidad y comparar ofertas) y cómo empezar, sin doble CTA ni presión por culpa o miedo? Si no, pide REESCRIBIR.
 
 Responde EXACTAMENTE como un objeto JSON válido (sin markdown, sin texto antes o después):
 {
@@ -574,6 +603,7 @@ Tu trabajo como editor:
 6. Si hay un protagonista en el gancho, su historia debe tener resolución dentro del post
 7. UN SOLO CTA: elimina cualquier otra llamada a la acción, segundo link o frase comercial duplicada
 8. Elimina citas académicas con paréntesis, DOIs, URLs e "ibid." — las fuentes se mencionan naturalmente en la oración
+9. Mantén explícito el papel de intermediario de BienCuidar y el paso que puede dar la familia; no agregues estadísticas, testimonios ni prestaciones que no estén en el borrador o la revisión.
 
 Mantén:
 - Sin markdown
@@ -746,6 +776,7 @@ async function agentSearch(feedback = null) {
     topic: TOPIC,
     domains: TRUSTED_DOMAINS.join(", "),
     feedback_section: feedbackSection,
+    localEvidence: LOCAL_EVIDENCE,
     material,
   }), { max_completion_tokens: 4000, reasoning_effort: "medium" });
 
@@ -776,7 +807,8 @@ async function agentSearch(feedback = null) {
 async function agentSearchBrowser(feedback = null) {
   console.log("[Agente 1/5-F] browser_search (fallback)...");
 
-  const searchPrompt = `Research the following topic for a healthcare Facebook post: "${TOPIC}". Find real statistics, data, and facts from authoritative health sources. PRIORITIZE sources from these trusted domains: ${TRUSTED_DOMAINS.join(", ")}. Return: 1) Key statistics with source URLs 2) 2-3 practical recommendations 3) Any relevant data for Latin America. Be concise.${feedback ? `\n\nADDITIONAL SEARCH NEEDED: ${feedback}` : ""}`;
+  let searchPrompt = `Research the following topic for a healthcare Facebook post: "${TOPIC}". Find real statistics, data, and facts from authoritative health sources. PRIORITIZE sources from these trusted domains: ${TRUSTED_DOMAINS.join(", ")}. Return: 1) Key statistics with source URLs 2) 2-3 practical recommendations 3) Any relevant data for Latin America. Be concise.${feedback ? `\n\nADDITIONAL SEARCH NEEDED: ${feedback}` : ""}`;
+  searchPrompt += `\n\nLOCALLY CHECKED REPORT (not a web result; keep country, year and page; do not pass its DOI off as a fetched URL):\n${LOCAL_EVIDENCE}`;
 
   const data = await callGroq("openai/gpt-oss-120b", searchPrompt, {
     tools: [{ type: "browser_search" }],
@@ -802,7 +834,7 @@ async function agentSearchBrowser(feedback = null) {
     console.log("");
   }
 
-  return research;
+  return `${research}\n\nINFORME LOCAL VERIFICADO (solo si es pertinente; nunca atribuir estadísticas regionales a El Salvador):\n${LOCAL_EVIDENCE}`;
 }
 
 // ── Agente 2: GPT-OSS 120B redacta el borrador con gancho narrativo ──
@@ -829,6 +861,7 @@ INSTRUCCIONES DE USO DEL ÁNGULO:
   const cta = pickCTA(TOPIC);
   const prompt = fillTemplate(PROMPTS.write, {
     research,
+    localEvidence: LOCAL_EVIDENCE,
     topic: TOPIC,
     angle,
     feedback_section: feedbackSection,
@@ -851,7 +884,7 @@ INSTRUCCIONES DE USO DEL ÁNGULO:
 async function agentReview(research, draft) {
   console.log("[Agente 3/5] GPT-OSS 120B verificando datos y ángulo...\n");
 
-  const prompt = fillTemplate(PROMPTS.review, { research, draft });
+  const prompt = fillTemplate(PROMPTS.review, { research, draft, localEvidence: LOCAL_EVIDENCE });
 
   const data = await callGroq("openai/gpt-oss-120b", prompt, {
     max_tokens: 4000,

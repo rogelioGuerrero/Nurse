@@ -27,6 +27,7 @@ import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 import { execSync } from "child_process";
 import { fetchGoogleNews } from "./news-fetch.mjs";
+import { loadEditorialEvidence } from "./editorial-evidence.mjs";
 
 // ── Cargar .env ──
 function loadEnv() {
@@ -53,6 +54,8 @@ const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const OUTPUT_FILE = "scripts/editorial-proposals.txt";
 const ANGLE_FILE = "scripts/editorial-angle.txt";
 const ARTICLES_DIR = "scripts/articles";
+
+const LOCAL_EVIDENCE = loadEditorialEvidence();
 
 // ── 4 dominios fijos (vigas maestras) ──
 // D1 (Innovación) eliminado: el buscador no encuentra suficiente material sobre care-tech
@@ -275,7 +278,7 @@ Descarta:
 - Datos sin fecha identificable (más viejos que 2025)
 - Datos de países desarrollados sin conexión a LatAm/SV (EXCEPCIÓN: modelos europeos de cuidado — Francia, Alemania, España, Suecia — que sirven como referentes avanzados. Conservarlos marcando "REFERENTE UE" en RELEVANCIA)
 - Promociones de productos específicos (no es publicidad)
-- Datos con fecha imposible (posterior a julio 2026)
+- Datos con fecha futura respecto a hoy (${new Date().toISOString().slice(0, 10)})
 
 Devuelve SOLO los 3 datos en este formato:
 
@@ -355,6 +358,9 @@ Los dominios activos son SOLO: D2, D3, D4, D6. NO existe D1 ni D5. NO inventes r
 
 ${digestsText}
 
+## INFORME LOCAL VERIFICADO (2025; fuente de contexto, no noticia de hoy)
+${LOCAL_EVIDENCE}
+
 ## ARTÍCULOS YA PUBLICADOS
 ${published.length > 0 ? published.join("\n") : "Ninguno aún"}
 
@@ -394,7 +400,11 @@ Criterios ESTRICTOS:
 - USA modelos europeos (Francia, Alemania, España, Suecia) como REFERENTES de hacia dónde debe transitar LatAm, NO como la realidad local. El contraste es poderoso: "Alemania tiene seguro de cuidado desde 1995, El Salvador ni lo discute"
 - TEMAS específicos: "el cuidador que no puede enfermarse" > "burnout del cuidador"
 - TONO BienCuidar: empático pero directo, no sensacionalista
-- ADVERTENCIA: los datos del scout NO están verificados. Las fechas pueden ser inexactas. El MoA (groq-news.mjs) hará la investigación real con fuentes autorizadas. El ángulo editorial que el humano escriba NO debe citar fechas específicas del scout — debe definir TONO y ENFOQUE, no datos. Los datos los aporta el MoA
+- ADVERTENCIA: los datos hallados por búsqueda del scout NO están verificados y sus fechas pueden ser inexactas. Excepción: los hechos de la ficha local BID-OCDE-AFD (2025) ya están comprobados con página; aun así, conserva su país, año y alcance. El MoA investigará los ganchos externos con fuentes autorizadas. El ángulo editorial define TONO y ENFOQUE, no certifica datos externos.
+
+- Cuando un hallazgo del informe local sea pertinente, atribúyelo a BID-OCDE-AFD (2025) y conserva país, año, página y si es estimación o proyección. No transformes cifras regionales en cifras de El Salvador.
+- El informe de 2025 NO es por sí mismo un gancho noticioso de 2026: si propones un post sobre él, el gancho actual debe venir de otro hecho fechado y comprobable; si no existe, no fuerces ese gancho.
+- Para familias, conecta la situación cotidiana con la opción de publicar una necesidad, comparar ofertas de enfermeras verificadas y elegir a través de BienCuidar, sin prometer disponibilidad ni resultados garantizados.
 
 ## FORMATO DE SALIDA
 

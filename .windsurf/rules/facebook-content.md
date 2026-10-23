@@ -28,7 +28,7 @@ Pick by keyword match (`pickCTA` in `groq-news.mjs`):
 - **generic** — costo, economía, profesión, política
 - **benni-recordatorios** — soledad, medicina, recordatorio, voz
 - **benni-emergencia** — síntoma, dolor, caída, emergencia, riesgo
-- **bitacora-enfermeria** — enfermera, cuidado, visita, transparencia, confianza
+- **bitacora-enfermeria** — prioritaria en temas de cuidado familiar; invita a publicar la necesidad, comparar ofertas y elegir una enfermera verificada
 
 ## Editorial Scout (A0)
 
@@ -74,6 +74,8 @@ node scripts/editorial-scout.mjs --select N
 - CTA: `https://biencuidar.agtisa.com`
 - Maximum 3 hashtags.
 - Do not invent statistics; only use verifiable sources.
+- Para temas de cuidado familiar, el post debe dejar claro que BienCuidar conecta a la familia con enfermeras verificadas: publica su necesidad, compara ofertas y elige. Un solo CTA práctico, sin culpa ni promesas de resultados.
+- Fuente editorial local: `docs/quien-cuida-BID-OCDE-ficha.md` (PDF en la misma carpeta). Es contexto de 2025, no una noticia de hoy; respetar país, año, estimaciones y páginas.
 
 ## Publishing Mechanics
 
