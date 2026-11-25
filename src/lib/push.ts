@@ -3,7 +3,7 @@
  * Uses VAPID for authentication and PushManager for browser subscription
  */
 
-import { supabase, supabaseUrl, supabaseAnonKey } from './supabase';
+import { supabase, supabaseUrl } from './supabase';
 
 // VAPID public key — safe to expose (private key is in Supabase secrets)
 const VAPID_PUBLIC_KEY = 'BHSjXVKB_zik6eRg3XDXSfFoRQ6XMVFtmSwnLvenr2S849IY9gfpVF-EfMwwdvl90yciW9dfev61SrSZCea0DuA';
@@ -108,11 +108,13 @@ export async function sendPushNotification(
   payload: { title: string; body: string; tag?: string }
 ): Promise<void> {
   try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return;
     await fetch(`${supabaseUrl}/functions/v1/send-push`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${supabaseAnonKey}`,
+        Authorization: `Bearer ${session.access_token}`,
       },
       body: JSON.stringify({
         user_id: userId,

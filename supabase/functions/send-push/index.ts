@@ -276,6 +276,23 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+    let authorized = !!token && token === supabaseKey;
+    if (!authorized && token) {
+      const { data } = await supabase.auth.getUser(token);
+      authorized = !!data?.user;
+    }
+    if (!authorized) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) },
+      });
+    }
+
     const { user_id, title, body, tag } = await req.json();
 
     if (!user_id || !title || !body) {
@@ -284,10 +301,6 @@ Deno.serve(async (req: Request) => {
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Get all push subscriptions for this user
     const { data: subscriptions, error } = await supabase
