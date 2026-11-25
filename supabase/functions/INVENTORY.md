@@ -27,3 +27,11 @@ Known gaps to fix (tracked in the management plan):
 1. Add secret-header auth to patient-wellness-check / patient-weekly-summary and update their cron jobs together.
 2. Protect or remove cv-review, groq-news, fb-insights, fb-post-metrics, fb-info: not referenced by `src/` (only by local scripts/CI; verify before removing). chat-summary IS used by `src/components/SupportChat.tsx` (keep; add rate limiting or JWT).
 3. Deployed versions of repo functions inline `_shared`; repo and prod can drift.
+
+## Cron secrets (Vault) — 2026-11-25
+pg_cron jobs 5, 6, 10, 11, 12 no longer embed secrets; they read them at run time from Supabase Vault:
+- `cron_secret` -> `x-cron-secret` (marketplace-cron, patient-wellness-check, patient-weekly-summary; same value as the CRON_SECRET edge secret)
+- `cssp_api_key` -> `x-api-key` (cssp-reminders)
+- `monitor_agent_bearer` -> Authorization bearer (monitor-agent)
+Pattern: `(SELECT decrypted_secret FROM vault.decrypted_secrets WHERE name = '<name>')`.
+To rotate: `select vault.update_secret(id, new_value) ...` AND update the matching edge secret. Never paste values in migrations.
