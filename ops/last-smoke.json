@@ -1,5 +1,5 @@
 {
-  "at": "2026-11-25T10:02:29.119Z",
+  "at": "2026-11-25T10:53:05.811Z",
   "allOk": true,
   "results": [
     {
@@ -78,6 +78,36 @@
       "name": "patient-token verify bad token -> 401 (public by design)",
       "expected": 401,
       "status": 401,
+      "ok": true
+    },
+    {
+      "name": "monitor-agent no-auth -> 401",
+      "expected": 401,
+      "status": 401,
+      "ok": true
+    },
+    {
+      "name": "monitor-agent bad bearer -> 401",
+      "expected": 401,
+      "status": 401,
+      "ok": true
+    },
+    {
+      "name": "cv-review retired -> 410",
+      "expected": 410,
+      "status": 410,
+      "ok": true
+    },
+    {
+      "name": "groq-news retired -> 410",
+      "expected": 410,
+      "status": 410,
+      "ok": true
+    },
+    {
+      "name": "fb-info retired -> 410",
+      "expected": 410,
+      "status": 410,
       "ok": true
     },
     {

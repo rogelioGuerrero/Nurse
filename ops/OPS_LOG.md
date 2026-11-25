@@ -19,6 +19,13 @@ Principles
 
 | H10 | 2026-11-25 | 3bbb363 | patient-token `issue` requires the family's JWT; benni-escalate and stt accept service role, user JWT or signed `x-patient-token`; frontend sends them | smoke 401 (see ops/last-smoke.json) | redeploy previous: benni-escalate/patient-token from 732fa24, stt from `ops/rollback/stt_v8_deployed_before_2026-11-25.ts` |
 
+| H11 | 2026-11-25 | 384bd62 | monitor-agent: requires cron secret/service key (cron job 12 now sends x-cron-secret from Vault); removed fix_verify_jwt tool; trigger_cron_now allowlist = marketplace-cron; admin push alerts resolve admin ids | smoke 401; on-demand job 12 run: LLM tried to trigger cssp-reminders -> "not allowed" -> admin alert sent | redeploy previous monitor-agent (git show 384bd62^:supabase/functions/monitor-agent/index.ts is the repo version; deployed v11 was an older compact build) |
+| H12 | 2026-11-25 | 384bd62 | cssp-reminders: `_health_check` body returns 200 without running (monitor-agent's daily probe used to run the full job) | deployed==repo (byte compare) | redeploy v27 from 384bd62^ |
+| H13 | 2026-11-25 | 384bd62 | cv-review, groq-news, fb-info retired (410 stubs; unauthenticated Groq/FB proxies, unused) | smoke 410 | `ops/rollback/<slug>.original.ts` |
+| H14 | 2026-11-25 | (this commit) | tsconfig excludes ops/rollback (Deno files broke CI tsc) | tsc exit 0 | n/a |
+
+Follow-ups: monitor-agent reports "CRON FAILURE: cssp-reminders" daily because it measures cssp_email_sent_at (emails sent) instead of job runs -> false alarm push to admin; switch it to cron.job_run_details/net._http_response. fb-insights & fb-post-metrics stay public on purpose (local scripts call them with the anon key; data is public page metrics). chat-summary stays open (used by anonymous SupportChat visitors).
+
 NOTE (H10): deployed `stt` v8 was OLDER than the repo (no prompt/temperature, no retries). v9 now deployed = repo version (+auth). Positive path (real transcription / escalation) cannot be tested without sending/real audio; watch Edge logs for stt/benni-escalate 5xx and 401 from real users after deploy (ops/queries.sql).
 
 Redeploy previous function version: `git show <commit-before>:supabase/functions/<slug>/index.ts` and deploy it with verify_jwt=false.

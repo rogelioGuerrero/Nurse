@@ -16,5 +16,5 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "exclude": ["supabase/functions/**"]
+  "exclude": ["supabase/functions/**", "ops/rollback/**"]
 }

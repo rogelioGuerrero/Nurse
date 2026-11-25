@@ -25,6 +25,11 @@ const checks = [
   ['stt bad patient-token -> 401', () => post('stt', { 'x-patient-token': 'a.b.c' }), 401],
   ['patient-token issue no-auth -> 401', () => post('patient-token', {}, JSON.stringify({ action: 'issue', family_user_id: '00000000-0000-0000-0000-000000000000' })), 401],
   ['patient-token verify bad token -> 401 (public by design)', () => post('patient-token', {}, JSON.stringify({ action: 'verify', token: 'YQ.1.sig' })), 401],
+  ['monitor-agent no-auth -> 401', () => post('monitor-agent'), 401],
+  ['monitor-agent bad bearer -> 401', () => post('monitor-agent', { Authorization: 'Bearer not-a-real-token' }), 401],
+  ['cv-review retired -> 410', () => post('cv-review'), 410],
+  ['groq-news retired -> 410', () => post('groq-news'), 410],
+  ['fb-info retired -> 410', () => post('fb-info'), 410],
   ['site landing -> 200', () => fetch(SITE), 200],
 ];
 
