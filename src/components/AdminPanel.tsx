@@ -296,6 +296,20 @@ export const AdminPanel: FC = () => {
     }
   };
 
+  const deleteSupportEmail = async (emailId: string) => {
+    try {
+      const { error } = await supabase
+        .from('support_emails')
+        .delete()
+        .eq('id', emailId);
+      if (!error) {
+        setSupportEmails(prev => prev.filter(e => e.id !== emailId));
+      }
+    } catch {
+      // silent
+    }
+  };
+
   const loadChatStats = async () => {
     setChatLoading(true);
     try {
@@ -559,6 +573,7 @@ Avisale que ingrese a su cuenta con su número de teléfono para ver la ubicaci�
             supportFilter={supportFilter}
             setSupportFilter={setSupportFilter}
             markEmailResolved={markEmailResolved}
+            deleteSupportEmail={deleteSupportEmail}
           />
         </Suspense>
       )}

@@ -1,5 +1,5 @@
 import { type FC } from 'react';
-import { Mail, Loader2 } from 'lucide-react';
+import { Mail, Loader2, Trash2 } from 'lucide-react';
 
 interface SupportEmail {
   id: string;
@@ -20,10 +20,11 @@ interface Props {
   supportFilter: 'needs_human' | 'all' | 'auto_replied';
   setSupportFilter: (f: 'needs_human' | 'all' | 'auto_replied') => void;
   markEmailResolved: (id: string) => void;
+  deleteSupportEmail: (id: string) => void;
 }
 
 export const SupportSection: FC<Props> = ({
-  supportLoading, supportEmails, supportFilter, setSupportFilter, markEmailResolved
+  supportLoading, supportEmails, supportFilter, setSupportFilter, markEmailResolved, deleteSupportEmail
 }) => (
   <div className="space-y-4">
     <div className="flex gap-2">
@@ -91,7 +92,16 @@ export const SupportSection: FC<Props> = ({
                   </div>
                   <p className="text-[10px] text-slate-400">De: {email.from_email} · {new Date(email.created_at).toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'short' })}</p>
                 </div>
-                <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full shrink-0 capitalize">{email.classification}</span>
+                <div className="flex items-center gap-1 shrink-0">
+                  <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full capitalize">{email.classification}</span>
+                  <button
+                    onClick={() => { if (window.confirm('¿Borrar este registro del panel? El correo original sigue en tu buzón de Hostinger.')) deleteSupportEmail(email.id); }}
+                    className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition cursor-pointer"
+                    title="Borrar registro del panel"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               </div>
               {email.body && (
                 <p className="text-[11px] text-slate-600 line-clamp-3">{email.body.substring(0, 300)}</p>
