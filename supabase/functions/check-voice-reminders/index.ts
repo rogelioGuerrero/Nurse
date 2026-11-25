@@ -121,6 +121,18 @@ Deno.serve(async (req: Request) => {
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseKey);
 
+  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  const isInternal = (!!token && token === supabaseKey) || (!!cronSecret && req.headers.get("x-cron-secret") === cronSecret);
+  let callerId: string | null = null;
+  if (!isInternal && token) {
+    const { data } = await supabase.auth.getUser(token);
+    callerId = data?.user?.id ?? null;
+  }
+  if (!isInternal && !callerId) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) } });
+  }
+
   try {
     const body = await req.json();
     const { mode, reminder_id, family_user_id } = body;
@@ -134,6 +146,9 @@ Deno.serve(async (req: Request) => {
         .single();
       if (error || !reminder) {
         return new Response(JSON.stringify({ error: "Recordatorio no encontrado" }), { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) } });
+      }
+      if (!isInternal && reminder.family_user_id !== callerId) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) } });
       }
 
       // Send push to family_user_id (demo) or patient_user_id (production)
@@ -188,6 +203,9 @@ Deno.serve(async (req: Request) => {
     }
 
     // === MODE: cron — check all active reminders that match current time ===
+    if (!isInternal) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) } });
+    }
     const now = new Date();
     // Business timezone is America/El_Salvador (UTC-6) — Deno servers run in UTC,
     // so toTimeString()/getDay() would compare the wrong hour/day.

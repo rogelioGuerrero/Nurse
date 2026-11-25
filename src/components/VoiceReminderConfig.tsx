@@ -305,7 +305,7 @@ export default function VoiceReminderConfig() {
       const res = await fetch(`${supabaseUrl}/functions/v1/check-voice-reminders`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token || supabaseAnonKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ mode: 'test', reminder_id: id }),
