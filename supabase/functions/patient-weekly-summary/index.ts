@@ -107,6 +107,11 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { headers: { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "POST, GET, OPTIONS" } });
   }
 
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  if (!cronSecret || req.headers.get("x-cron-secret") !== cronSecret) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+  }
+
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseKey);
@@ -139,7 +144,7 @@ Deno.serve(async (req: Request) => {
 
       // Count escalations + family requests this week
       const { count: escalationsCount } = await supabase
-        .from('companero_messages')
+        .from('benni_messages')
         .select('*', { count: 'exact', head: true })
         .eq('family_user_id', familyUserId)
         .eq('direction', 'patient_to_family')
@@ -148,7 +153,7 @@ Deno.serve(async (req: Request) => {
 
       // Count emergency button presses this week
       const { count: emergencyCount } = await supabase
-        .from('companero_messages')
+        .from('benni_messages')
         .select('*', { count: 'exact', head: true })
         .eq('family_user_id', familyUserId)
         .eq('direction', 'patient_to_family')
