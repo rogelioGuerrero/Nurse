@@ -27,6 +27,8 @@ Principles
 | H15 | 2026-11-25 | (this commit) | **accept_offer was broken in prod** (42703: bookings had no `shift` column; then 42804: text->enum status). Added bookings.shift, made start_time/end_time/hours nullable, cast status. | `ops/tests/accept_offer_flow.sql` (rolled back): stranger=Not authorized; invoice 25.65 pending_payment; direct 20.00 confirmed; 2-slot request open->matched | drop column/re-add NOT NULL (see migration comments) |
 | H16 | 2026-11-25 | (this commit) | monitor-agent cron health uses cssp_portal_status.last_checked_at (run stamp) instead of emails sent; voice-reminders miss is INFO | deployed==repo byte compare | redeploy v12 |
 
+| H17 | 2026-11-25 | (this commit) | Trigger normalizes care_requests.slots/patient_data when the app sends them double-encoded (JSON.stringify into jsonb); fixed existing rows | rolled-back txn: string input stored as array/object, accept_offer success, 0 string rows left | `DROP TRIGGER trg_normalize_care_requests ON public.care_requests;` |
+
 Follow-ups: monitor-agent reports "CRON FAILURE: cssp-reminders" daily because it measures cssp_email_sent_at (emails sent) instead of job runs -> false alarm push to admin; switch it to cron.job_run_details/net._http_response. fb-insights & fb-post-metrics stay public on purpose (local scripts call them with the anon key; data is public page metrics). chat-summary stays open (used by anonymous SupportChat visitors).
 
 NOTE (H10): deployed `stt` v8 was OLDER than the repo (no prompt/temperature, no retries). v9 now deployed = repo version (+auth). Positive path (real transcription / escalation) cannot be tested without sending/real audio; watch Edge logs for stt/benni-escalate 5xx and 401 from real users after deploy (ops/queries.sql).
