@@ -222,14 +222,12 @@ async function checkCronHealth(): Promise<string> {
   const now = new Date();
   const checks: string[] = [];
 
-  // 1. cssp-reminders: should run daily at 08:00. Check if any nurse has cssp_email_sent_at in last 24h
-  const { data: csspRecent } = await supabaseQuery("nurses", "id,cssp_email_sent_at", { "cssp_email_sent_at": "not.is.null" });
-  const csspRanRecently = csspRecent?.some((n: any) => {
-    if (!n.cssp_email_sent_at) return false;
-    const sent = new Date(n.cssp_email_sent_at);
-    return (now.getTime() - sent.getTime()) < 36 * 60 * 60 * 1000; // 36h tolerance
-  });
-  checks.push(`[CRON] cssp-reminders: ${csspRanRecently ? "OK - ran in last 36h" : "WARNING - no cssp_email_sent_at updates in last 36h"}`);
+  // 1. cssp-reminders runs daily; every run stamps cssp_portal_status.last_checked_at (emails sent is NOT a run signal:
+  // a run with nothing to send is normal).
+  const { data: portalRows } = await supabaseQuery("cssp_portal_status", "last_checked_at", { "id": "eq.1" });
+  const lastRun = portalRows?.[0]?.last_checked_at ? new Date(portalRows[0].last_checked_at) : null;
+  const csspRanRecently = !!lastRun && (now.getTime() - lastRun.getTime()) < 36 * 60 * 60 * 1000; // 36h tolerance
+  checks.push(`[CRON] cssp-reminders: ${csspRanRecently ? `OK - ran at ${lastRun!.toISOString()} (portal check stamp)` : "WARNING - no run stamp (cssp_portal_status.last_checked_at) in last 36h"}`);
 
   // 2. check-voice-reminders: should run periodically. Check voice_reminders for recent last_sent_at
   const { data: voiceRecent } = await supabaseQuery("voice_reminders", "id,last_sent_at", { "last_sent_at": "not.is.null" });
@@ -238,7 +236,7 @@ async function checkCronHealth(): Promise<string> {
     const sent = new Date(r.last_sent_at);
     return (now.getTime() - sent.getTime()) < 12 * 60 * 60 * 1000; // 12h tolerance
   });
-  checks.push(`[CRON] check-voice-reminders: ${voiceRanRecently ? "OK - sent reminders in last 12h" : "WARNING - no voice reminders sent in last 12h (may be normal if no reminders due)"}`);
+  checks.push(`[CRON] check-voice-reminders: ${voiceRanRecently ? "OK - sent reminders in last 12h" : "INFO - no voice reminders sent in last 12h (normal: no pg_cron job is scheduled for check-voice-reminders; do not alert)"}`);
 
   // 3. patient-wellness-check: check benni_messages for recent entries
   const { data: benniRecent } = await supabaseQuery("benni_messages", "id,created_at", { "created_at": `gte.${new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString()}` });
