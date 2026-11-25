@@ -72,6 +72,35 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+
+// ===== Svix webhook signature verification (Resend signs webhooks with svix) =====
+// Activated when RESEND_WEBHOOK_SECRET is set; without it the function logs a warning and processes as before.
+async function verifySvixSignature(rawBody, headers, secret) {
+  const id = headers.get("svix-id");
+  const timestamp = headers.get("svix-timestamp");
+  const signatureHeader = headers.get("svix-signature");
+  if (!id || !timestamp || !signatureHeader) return false;
+
+  // replay protection: reject events older than 5 minutes
+  const ts = parseInt(timestamp, 10);
+  if (!Number.isFinite(ts) || Math.abs(Math.floor(Date.now() / 1000) - ts) > 300) return false;
+
+  try {
+    const secretBytes = Uint8Array.from(atob(secret.replace(/^whsec_/, "")), (c) => c.charCodeAt(0));
+    const key = await crypto.subtle.importKey("raw", secretBytes, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+    const signedContent = id + "." + timestamp + "." + rawBody;
+    const sigBytes = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(signedContent)));
+    const expected = btoa(String.fromCharCode(...sigBytes));
+    return signatureHeader.split(" ").some((part) => {
+      const [version, sig] = part.split(",");
+      return version === "v1" && sig === expected;
+    });
+  } catch (err) {
+    console.log("[email-inbound] signature verification error: " + (err instanceof Error ? err.message : String(err)));
+    return false;
+  }
+}
+
 // ===== Inline callGroqLight (from _shared/groq.ts) =====
 async function callGroqLight(
   messages: Array<{ role: string; content: string }>,
@@ -218,7 +247,23 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const event: ResendWebhookEvent = await req.json();
+    const rawBody = await req.text();
+
+    const webhookSecret = Deno.env.get("RESEND_WEBHOOK_SECRET");
+    if (webhookSecret) {
+      const valid = await verifySvixSignature(rawBody, req.headers, webhookSecret);
+      if (!valid) {
+        console.log("[email-inbound] REJECTED: invalid or missing svix signature");
+        return new Response(JSON.stringify({ error: "Invalid signature" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        });
+      }
+    } else {
+      console.log("[email-inbound] WARNING: RESEND_WEBHOOK_SECRET not set — endpoint accepts unsigned webhooks");
+    }
+
+    const event: ResendWebhookEvent = JSON.parse(rawBody);
 
     if (event.type !== "email.received") {
       return new Response(JSON.stringify({ ok: true, skipped: "not email.received" }), {

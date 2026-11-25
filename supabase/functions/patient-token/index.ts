@@ -118,7 +118,15 @@ Deno.serve(async (req: Request) => {
       }
 
       const [encodedUserId, expStr, signature] = parts;
-      const familyUserId = base64urlDecode(encodedUserId);
+      let familyUserId: string;
+      try {
+        familyUserId = base64urlDecode(encodedUserId);
+      } catch {
+        return new Response(JSON.stringify({ error: "invalid_token_format" }), {
+          status: 401,
+          headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) },
+        });
+      }
       const exp = parseInt(expStr, 10);
 
       if (isNaN(exp) || Date.now() / 1000 > exp) {

@@ -38,6 +38,12 @@ Principles
 
 | H23 | 2026-11-25 | (this commit) | Permission matrix test `ops/tests/rls_matrix.sql` (anon, unrelated nurse, family, nurse, admin; escalation attempts) | 15/15 pass (rolled back) | n/a |
 
+| H24 | 2026-11-25 | (this commit) | email-inbound-handler: svix signature verification (active when RESEND_WEBHOOK_SECRET is set; warns in logs until then), plus pending Reply-To/htmlToText improvements | unsigned non-email event returns 200 skip; no user notified | redeploy previous version from git |
+| H25 | 2026-11-25 | (this commit) | patient-token: malformed base64 token returns 401 instead of 500 | live negative tests: malformed 401, garbage 401, missing 400 | redeploy v4 from git |
+| H26 | 2026-11-25 | (this commit) | send-push: relationship-based authorization (self/admin/offer-or-booking relation via _push_relationship_exists RPC); service role unchanged | RPC verified rolled-back (nurse-family both directions true, strangers false); negative tests 401/401, vapid-key 200 | DROP FUNCTION _push_relationship_exists + redeploy v20 |
+| H27 | 2026-11-25 | (this commit) | ai_cache: revoked all privileges from anon/authenticated (cached LLM responses may contain symptoms); daily prune of expired rows (all 17 were expired) | grants show only postgres+service_role; cron ai-cache-prune active | GRANT back per migration header; cron.unschedule |
+| PENDING-USER | | | Two dashboard actions only the owner can do: (1) Resend webhook signing secret -> set RESEND_WEBHOOK_SECRET in Supabase Edge Function secrets, (2) Supabase Auth -> enable leaked-password protection | | |
+
 Follow-ups: monitor-agent reports "CRON FAILURE: cssp-reminders" daily because it measures cssp_email_sent_at (emails sent) instead of job runs -> false alarm push to admin; switch it to cron.job_run_details/net._http_response. fb-insights & fb-post-metrics stay public on purpose (local scripts call them with the anon key; data is public page metrics). chat-summary stays open (used by anonymous SupportChat visitors).
 
 NOTE (H10): deployed `stt` v8 was OLDER than the repo (no prompt/temperature, no retries). v9 now deployed = repo version (+auth). Positive path (real transcription / escalation) cannot be tested without sending/real audio; watch Edge logs for stt/benni-escalate 5xx and 401 from real users after deploy (ops/queries.sql).

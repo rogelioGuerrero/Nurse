@@ -281,11 +281,13 @@ Deno.serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
-    let authorized = !!token && token === supabaseKey;
-    if (!authorized && token) {
+    const isServiceRole = !!token && token === supabaseKey;
+    let callerId: string | null = null;
+    if (!isServiceRole && token) {
       const { data } = await supabase.auth.getUser(token);
-      authorized = !!data?.user;
+      callerId = data?.user?.id ?? null;
     }
+    const authorized = isServiceRole || !!callerId;
     if (!authorized) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
@@ -300,6 +302,28 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({ error: "user_id, title y body son requeridos" }),
         { status: 400, headers: { "Content-Type": "application/json" } }
       );
+    }
+
+    // Relationship-based authorization for user-JWT callers: self, admin, or a real
+    // marketplace relationship (offer/booking in either direction). Service role unrestricted.
+    if (!isServiceRole && callerId !== user_id) {
+      const { data: callerProfile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", callerId)
+        .single();
+      if (callerProfile?.role !== "admin") {
+        const { data: rel } = await supabase.rpc("_push_relationship_exists", {
+          p_caller: callerId,
+          p_recipient: user_id,
+        });
+        if (!rel) {
+          return new Response(JSON.stringify({ error: "Forbidden: no relationship with recipient" }), {
+            status: 403,
+            headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) },
+          });
+        }
+      }
     }
 
     // Get all push subscriptions for this user
