@@ -19,6 +19,12 @@ const checks = [
   ['send-nurse-email bad-token -> 401', () => post('send-nurse-email', { Authorization: 'Bearer not-a-real-token' }), 401],
   ['check-voice-reminders no-auth -> 401', () => post('check-voice-reminders', {}, NO_SUCH_REMINDER), 401],
   ['check-voice-reminders bad-token -> 401', () => post('check-voice-reminders', { Authorization: 'Bearer nope' }, NO_SUCH_REMINDER), 401],
+  ['benni-escalate no-auth -> 401', () => post('benni-escalate'), 401],
+  ['benni-escalate bad patient-token -> 401', () => post('benni-escalate', { 'x-patient-token': 'a.b.c' }), 401],
+  ['stt no-auth -> 401', () => post('stt'), 401],
+  ['stt bad patient-token -> 401', () => post('stt', { 'x-patient-token': 'a.b.c' }), 401],
+  ['patient-token issue no-auth -> 401', () => post('patient-token', {}, JSON.stringify({ action: 'issue', family_user_id: '00000000-0000-0000-0000-000000000000' })), 401],
+  ['patient-token verify bad token -> 401 (public by design)', () => post('patient-token', {}, JSON.stringify({ action: 'verify', token: 'YQ.1.sig' })), 401],
   ['site landing -> 200', () => fetch(SITE), 200],
 ];
 

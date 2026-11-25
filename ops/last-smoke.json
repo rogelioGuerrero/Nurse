@@ -1,5 +1,5 @@
 {
-  "at": "2026-11-25T09:52:31.959Z",
+  "at": "2026-11-25T10:02:29.119Z",
   "allOk": true,
   "results": [
     {
@@ -40,6 +40,42 @@
     },
     {
       "name": "check-voice-reminders bad-token -> 401",
+      "expected": 401,
+      "status": 401,
+      "ok": true
+    },
+    {
+      "name": "benni-escalate no-auth -> 401",
+      "expected": 401,
+      "status": 401,
+      "ok": true
+    },
+    {
+      "name": "benni-escalate bad patient-token -> 401",
+      "expected": 401,
+      "status": 401,
+      "ok": true
+    },
+    {
+      "name": "stt no-auth -> 401",
+      "expected": 401,
+      "status": 401,
+      "ok": true
+    },
+    {
+      "name": "stt bad patient-token -> 401",
+      "expected": 401,
+      "status": 401,
+      "ok": true
+    },
+    {
+      "name": "patient-token issue no-auth -> 401",
+      "expected": 401,
+      "status": 401,
+      "ok": true
+    },
+    {
+      "name": "patient-token verify bad token -> 401 (public by design)",
       "expected": 401,
       "status": 401,
       "ok": true

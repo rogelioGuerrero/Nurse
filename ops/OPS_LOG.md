@@ -17,6 +17,10 @@ Principles
 | H8 | 2026-11-25 | (this commit) | guard_bookings v2: wants_invoice immutable; payment_status only by booking's nurse on direct-pay; pending_payment->confirmed admin-only | rolled-back txn cases A-D | `ops/rollback/H8_guard_bookings_v1.sql` |
 | H9 | 2026-11-25 | (this commit) | Admin SELECT/UPDATE policies on bookings (admin payment confirmation was a silent no-op) | rolled-back txn admin sees 6, update=1 row | `ops/rollback/H9_admin_bookings_policies.sql` |
 
+| H10 | 2026-11-25 | 3bbb363 | patient-token `issue` requires the family's JWT; benni-escalate and stt accept service role, user JWT or signed `x-patient-token`; frontend sends them | smoke 401 (see ops/last-smoke.json) | redeploy previous: benni-escalate/patient-token from 732fa24, stt from `ops/rollback/stt_v8_deployed_before_2026-11-25.ts` |
+
+NOTE (H10): deployed `stt` v8 was OLDER than the repo (no prompt/temperature, no retries). v9 now deployed = repo version (+auth). Positive path (real transcription / escalation) cannot be tested without sending/real audio; watch Edge logs for stt/benni-escalate 5xx and 401 from real users after deploy (ops/queries.sql).
+
 Redeploy previous function version: `git show <commit-before>:supabase/functions/<slug>/index.ts` and deploy it with verify_jwt=false.
 Commits before each function change: send-push/send-nurse-email -> ef66c76; check-voice-reminders -> f1d5d3b; wellness/weekly -> ef66c76.
 
