@@ -888,7 +888,7 @@ function PatientGate({ token }: { token: string }) {
 
   return (
     <Suspense fallback={<LoadingSpinner />}>
-      <PatientMode familyUserId={familyUserId} />
+      <PatientMode familyUserId={familyUserId} patientToken={token} />
     </Suspense>
   );
 }

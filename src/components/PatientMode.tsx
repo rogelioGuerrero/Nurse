@@ -10,7 +10,7 @@ interface ConversationTurn {
   text: string;
 }
 
-export default function PatientMode({ familyUserId }: { familyUserId: string }) {
+export default function PatientMode({ familyUserId, patientToken }: { familyUserId: string; patientToken?: string }) {
   const { showToast } = useToast();
   const [orbState, setOrbState] = useState<OrbState>('idle');
   const [isSupported, setIsSupported] = useState(true);
@@ -177,11 +177,12 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
     try {
       await supabase.functions.invoke('benni-escalate', {
         body: { family_user_id: familyUserId, question },
+        headers: patientToken ? { 'x-patient-token': patientToken } : undefined,
       });
     } catch (e) { console.error('Escalate error:', e); showToast('No se pudo enviar el mensaje a la familia. Intenta de nuevo.', 'error'); }
     isEscalatingRef.current = false;
     setIsEscalating(false);
-  }, [familyUserId]);
+  }, [familyUserId, patientToken]);
 
   // === Handle user message (shared by Whisper and Web Speech fallback) ===
   const handleUserMessage = useCallback((finalText: string) => {
@@ -261,6 +262,7 @@ export default function PatientMode({ familyUserId }: { familyUserId: string }) 
     silenceThresholdMs: 3000,
     minRecordingMs: 1500,
     prompt: conversationRef.current.slice(-4).map(t => t.text).join(' '),
+    patientToken,
   });
 
   // === Web Speech API fallback (used when Whisper fails) ===

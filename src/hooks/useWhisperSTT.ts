@@ -1,5 +1,5 @@
 import { useRef, useCallback, useState } from 'react';
-import { supabaseUrl, supabaseAnonKey } from '../lib/supabase';
+import { supabase, supabaseUrl, supabaseAnonKey } from '../lib/supabase';
 
 interface UseWhisperSTTOptions {
   onTranscript: (text: string) => void;
@@ -8,6 +8,7 @@ interface UseWhisperSTTOptions {
   minRecordingMs?: number;
   maxRecordingMs?: number;
   prompt?: string;
+  patientToken?: string;
 }
 
 interface UseWhisperSTTReturn {
@@ -37,6 +38,7 @@ export function useWhisperSTT({
   minRecordingMs = DEFAULT_MIN_RECORDING_MS,
   maxRecordingMs = DEFAULT_MAX_RECORDING_MS,
   prompt,
+  patientToken,
 }: UseWhisperSTTOptions): UseWhisperSTTReturn {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -57,11 +59,13 @@ export function useWhisperSTT({
   const onTranscriptRef = useRef(onTranscript);
   const onSilenceRef = useRef(onSilence);
   const promptRef = useRef(prompt);
+  const patientTokenRef = useRef(patientToken);
 
   // Keep refs updated without re-creating callbacks
   onTranscriptRef.current = onTranscript;
   onSilenceRef.current = onSilence;
   promptRef.current = prompt;
+  patientTokenRef.current = patientToken;
 
   const stopRecording = useCallback(() => {
     isRecordingRef.current = false;
@@ -104,11 +108,15 @@ export function useWhisperSTT({
         formData.append('prompt', promptRef.current);
       }
 
+      const accessToken = (await supabase.auth.getSession()).data.session?.access_token || supabaseAnonKey;
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${accessToken}`,
+        ...(patientTokenRef.current ? { 'x-patient-token': patientTokenRef.current } : {}),
+      };
+
       const res = await fetch(`${supabaseUrl}/functions/v1/stt`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${supabaseAnonKey}`,
-        },
+        headers,
         body: formData,
         signal: controller.signal,
       });

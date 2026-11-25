@@ -2,6 +2,7 @@
 // Patient token: issue and verify HMAC-signed tokens for patient mode access
 // Replaces insecure atob(familyUserId) with server-side signed tokens
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const TOKEN_SECRET = Deno.env.get("PATIENT_TOKEN_SECRET") || "";
 const TOKEN_TTL_DAYS = 30;
@@ -72,6 +73,20 @@ Deno.serve(async (req: Request) => {
       if (!family_user_id) {
         return new Response(JSON.stringify({ error: "family_user_id is required" }), {
           status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) },
+        });
+      }
+
+      const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+      let callerId: string | null = null;
+      if (bearer && bearer !== serviceKey) {
+        const { data } = await createClient(Deno.env.get("SUPABASE_URL")!, serviceKey).auth.getUser(bearer);
+        callerId = data?.user?.id ?? null;
+      }
+      if (!(bearer && bearer === serviceKey) && callerId !== family_user_id) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
           headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) },
         });
       }

@@ -6,8 +6,41 @@ const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, apikey, x-patient-token",
 };
+
+async function verifyPatientToken(token: string): Promise<string | null> {
+  const secret = Deno.env.get("PATIENT_TOKEN_SECRET");
+  if (!secret || !token) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [enc, expStr, sig] = parts;
+  let uid: string;
+  try {
+    const b64 = enc.replace(/-/g, "+").replace(/_/g, "/");
+    uid = atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4));
+  } catch { return null; }
+  const exp = parseInt(expStr, 10);
+  if (isNaN(exp) || Date.now() / 1000 > exp) return null;
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const raw = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${uid}.${exp}`)));
+  let bin = "";
+  for (const b of raw) bin += String.fromCharCode(b);
+  const expected = btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return expected === sig ? uid : null;
+}
+
+async function isAuthorized(req: Request): Promise<boolean> {
+  const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
+  if (bearer && bearer === serviceKey) return true;
+  if (bearer) {
+    const { createClient } = await import("jsr:@supabase/supabase-js@2");
+    const { data } = await createClient(Deno.env.get("SUPABASE_URL")!, serviceKey).auth.getUser(bearer);
+    if (data?.user?.id) return true;
+  }
+  return !!(await verifyPatientToken(req.headers.get("x-patient-token") || ""));
+}
 
 const GROQ_WHISPER_URL = "https://api.groq.com/openai/v1/audio/transcriptions";
 const GROQ_TIMEOUT_MS = 12_000;
@@ -21,6 +54,13 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "Method not allowed" }), {
       status: 405,
+      headers: { "Content-Type": "application/json", ...corsHeaders },
+    });
+  }
+
+  if (!(await isAuthorized(req))) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
       headers: { "Content-Type": "application/json", ...corsHeaders },
     });
   }

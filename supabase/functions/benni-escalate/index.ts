@@ -17,7 +17,7 @@ function corsHeaders(origin?: string) {
   return {
     "Access-Control-Allow-Origin": allowed,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "authorization, content-type, x-client-info, apikey",
+    "Access-Control-Allow-Headers": "authorization, content-type, x-client-info, apikey, x-patient-token",
   };
 }
 
@@ -106,6 +106,27 @@ async function sendPushToSubscription(sub: { endpoint: string; p256dh_key: strin
   } catch { return false; }
 }
 
+async function verifyPatientToken(token: string): Promise<string | null> {
+  const secret = Deno.env.get("PATIENT_TOKEN_SECRET");
+  if (!secret || !token) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [enc, expStr, sig] = parts;
+  let uid: string;
+  try {
+    const b64 = enc.replace(/-/g, "+").replace(/_/g, "/");
+    uid = atob(b64 + "=".repeat((4 - (b64.length % 4)) % 4));
+  } catch { return null; }
+  const exp = parseInt(expStr, 10);
+  if (isNaN(exp) || Date.now() / 1000 > exp) return null;
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const raw = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${uid}.${exp}`)));
+  let bin = "";
+  for (const b of raw) bin += String.fromCharCode(b);
+  const expected = btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  return expected === sig ? uid : null;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders(req.headers.get("Origin") || undefined) });
@@ -122,8 +143,33 @@ Deno.serve(async (req: Request) => {
   const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const supabase = createClient(supabaseUrl, supabaseKey);
 
+  const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  let callerFamilyId: string | null = null;
+  let tokenFamilyId: string | null = null;
+  const isService = !!bearer && bearer === supabaseKey;
+  if (!isService) {
+    if (bearer) {
+      const { data } = await supabase.auth.getUser(bearer);
+      callerFamilyId = data?.user?.id ?? null;
+    }
+    tokenFamilyId = await verifyPatientToken(req.headers.get("x-patient-token") || "");
+    if (!callerFamilyId && !tokenFamilyId) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) },
+      });
+    }
+  }
+
   try {
     const { family_user_id, patient_user_id, question, context } = await req.json();
+
+    if (!isService && family_user_id !== callerFamilyId && family_user_id !== tokenFamilyId) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json", ...corsHeaders(req.headers.get("Origin") || undefined) },
+      });
+    }
 
     if (!family_user_id || !question) {
       return new Response(JSON.stringify({ error: "family_user_id y question son requeridos" }), {
