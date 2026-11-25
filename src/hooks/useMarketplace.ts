@@ -63,11 +63,11 @@ export function useMarketplace({ currentUser, nurses, showToast, setBookings, se
       patient_condition: data.patient_condition,
       patient_age_range: data.patient_age_range || null,
       patient_gender: data.patient_gender || null,
-      patient_data: data.patient_data ? JSON.stringify(data.patient_data) : null,
+      patient_data: data.patient_data || null,
       nurse_summary: data.nurse_summary || null,
       urgency: data.urgency || null,
       specialization_needed: data.specialization_needed,
-      slots: JSON.stringify(data.slots),
+      slots: data.slots,
       location_name: data.location_name,
       lat: data.lat,
       lng: data.lng,
@@ -130,16 +130,17 @@ export function useMarketplace({ currentUser, nurses, showToast, setBookings, se
       patient_condition: newRequest.patient_condition,
       patient_age_range: newRequest.patient_age_range || null,
       patient_gender: newRequest.patient_gender || null,
-      patient_data: newRequest.patient_data ? JSON.stringify(newRequest.patient_data) : null,
+      patient_data: newRequest.patient_data || null,
       nurse_summary: newRequest.nurse_summary || null,
       urgency: newRequest.urgency || null,
       specialization_needed: newRequest.specialization_needed,
-      slots: JSON.stringify(newRequest.slots),
+      slots: newRequest.slots,
       location_name: newRequest.location_name,
       lat: newRequest.lat,
       lng: newRequest.lng,
       notes: newRequest.notes,
       wants_invoice: newRequest.wants_invoice,
+      expected_duration: newRequest.expected_duration || 'shifts',
       preferred_nurse_id: newRequest.preferred_nurse_id || null,
       status: 'open',
       response_deadline: newRequest.response_deadline,
@@ -320,7 +321,7 @@ export function useMarketplace({ currentUser, nurses, showToast, setBookings, se
           ...(request?.patient_data || { diagnosis: '', autonomy: '', allergies: '', medications: '', emergency_contact: '' }),
           emergency_contact: emergencyContact
         };
-        updateData.patient_data = JSON.stringify(patientData);
+        updateData.patient_data = patientData;
       }
       await supabase.from('care_requests').update(updateData).eq('id', requestId);
       // Single batch update via the bookings.request_id FK (no N+1, no name matching)
