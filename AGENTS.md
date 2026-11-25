@@ -93,6 +93,11 @@
 - `IVA_RATE = 13%` on commission only
 - `RETENTION_RATE = 10%` ISR on nurse rate
 
+## Ops / Production Hardening
+
+- Read `ops/OPS_LOG.md` (changes, verify, rollback), `ops/INCIDENTS.md` (failures), `ops/queries.sql` (diagnostics), `node ops/smoke.mjs` (safe smoke test).
+- NEVER invoke Edge Functions or cron commands that can notify real users (push/email). See `supabase/functions/INVENTORY.md`.
+
 ## See Also
 
 - `.devin/rules/*.md` for behavioral rules.

@@ -1,0 +1,54 @@
+{
+  "at": "2026-11-25T09:52:31.959Z",
+  "allOk": true,
+  "results": [
+    {
+      "name": "send-push no-auth -> 401",
+      "expected": 401,
+      "status": 401,
+      "ok": true
+    },
+    {
+      "name": "send-push bad-token -> 401",
+      "expected": 401,
+      "status": 401,
+      "ok": true
+    },
+    {
+      "name": "send-push GET /vapid-key -> 200 (public by design)",
+      "expected": 200,
+      "status": 200,
+      "ok": true
+    },
+    {
+      "name": "send-nurse-email no-auth -> 401",
+      "expected": 401,
+      "status": 401,
+      "ok": true
+    },
+    {
+      "name": "send-nurse-email bad-token -> 401",
+      "expected": 401,
+      "status": 401,
+      "ok": true
+    },
+    {
+      "name": "check-voice-reminders no-auth -> 401",
+      "expected": 401,
+      "status": 401,
+      "ok": true
+    },
+    {
+      "name": "check-voice-reminders bad-token -> 401",
+      "expected": 401,
+      "status": 401,
+      "ok": true
+    },
+    {
+      "name": "site landing -> 200",
+      "expected": 200,
+      "status": 200,
+      "ok": true
+    }
+  ]
+}
