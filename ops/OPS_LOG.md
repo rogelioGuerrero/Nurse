@@ -14,10 +14,12 @@ Principles
 | H5 | 2026-11-25 | (migration) | Policy "Admins can update nurses" | rolled-back txn admin=1 row, other nurse=0 | `ops/rollback/H5_admin_nurses_policy.sql` |
 | H6 | 2026-11-25 | 882e1df | *_public views read-only for anon/authenticated | select ok (54/47 rows), update -> insufficient_privilege | `ops/rollback/H6_views_grants.sql` |
 | H7 | 2026-11-25 | a514a28 | Cron jobs 5,6,10,11,12 read secrets from Vault | job 10 on-demand run -> 200 | see INVENTORY.md (rotate via vault.update_secret) |
+| H8 | 2026-11-25 | (this commit) | guard_bookings v2: wants_invoice immutable; payment_status only by booking's nurse on direct-pay; pending_payment->confirmed admin-only | rolled-back txn cases A-D | `ops/rollback/H8_guard_bookings_v1.sql` |
+| H9 | 2026-11-25 | (this commit) | Admin SELECT/UPDATE policies on bookings (admin payment confirmation was a silent no-op) | rolled-back txn admin sees 6, update=1 row | `ops/rollback/H9_admin_bookings_policies.sql` |
 
 Redeploy previous function version: `git show <commit-before>:supabase/functions/<slug>/index.ts` and deploy it with verify_jwt=false.
 Commits before each function change: send-push/send-nurse-email -> ef66c76; check-voice-reminders -> f1d5d3b; wellness/weekly -> ef66c76.
 
-Known residual risks (not yet fixed): payment_status editable by booking participants; benni-escalate & stt unauthenticated (patient mode uses patient-token);
+Known residual risks (not yet fixed): benni-escalate & stt unauthenticated (patient mode uses patient-token);
 email-inbound-handler lacks webhook signature check; is_phone_registered/resolve_login_identifier callable by anon (login by phone needs it; rate-limit is a product decision);
 old browser tabs (pre-H3/H4) fail silently on push/test until reload.
