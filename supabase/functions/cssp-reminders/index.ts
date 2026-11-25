@@ -363,6 +363,12 @@ Deno.serve(async (req: Request) => {
   try {
     let requestBody: any = {};
     try { requestBody = await req.json(); } catch {}
+    if (requestBody?._health_check === true) {
+      return new Response(JSON.stringify({ ok: true, health_check: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
     const isManualTrigger = requestBody?._manual_trigger === true;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;

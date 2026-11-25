@@ -5,6 +5,7 @@ import { CSSPReviewPanel } from './CSSPReviewPanel';
 import { groqChat } from '../lib/groq';
 import { buildWaLink } from '../lib/phoneAuth';
 import { supabase } from '../lib/supabase';
+import { PLATFORM_COMMISSION, IVA_RATE } from '../data/standardRates';
 
 const SummarySection = lazy(() => import('./admin/SummarySection').then(m => ({ default: m.SummarySection })));
 const NotificationsSection = lazy(() => import('./admin/NotificationsSection').then(m => ({ default: m.NotificationsSection })));
@@ -134,7 +135,7 @@ export const AdminPanel: FC = () => {
     return createdAt === today && p.role === 'user';
   });
   const cancelledToday = bookings.filter(b => b.status === 'cancelled' && b.check_out_at && new Date(b.check_out_at).toISOString().split('T')[0] === today);
-  const invoicedRevenue = completedToday.filter(b => b.wants_invoice).reduce((sum, b) => sum + 5.65, 0);
+  const invoicedRevenue = completedToday.filter(b => b.wants_invoice).reduce((sum, b) => sum + PLATFORM_COMMISSION * (1 + IVA_RATE), 0);
 
   const generateSummary = async () => {
     setSummaryLoading(true);

@@ -1,6 +1,7 @@
 import { type FC } from 'react';
 import { Users, FileText, DollarSign, CheckCircle2, Clock, MapPin, Phone, MessageCircle, Loader2 } from 'lucide-react';
 import type { Booking, CareRequest, CareOffer, Nurse, Profile } from '../../types';
+import { PLATFORM_COMMISSION, IVA_RATE } from '../../data/standardRates';
 
 interface Props {
   requestsWithOffers: CareRequest[];
@@ -138,7 +139,7 @@ export const NotificationsSection: FC<Props> = ({
               const nurse = nurseMap.get(b.nurse_id);
               const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
               const isrRetention = (b.total_price || 0) * 0.10;
-              const managementFee = 5.65;
+              const managementFee = PLATFORM_COMMISSION * (1 + IVA_RATE);
               const totalToTransfer = (b.total_price || 0) + managementFee;
               return (
                 <div key={b.id} className="px-4 py-3 flex items-center justify-between gap-3">
@@ -172,7 +173,7 @@ export const NotificationsSection: FC<Props> = ({
             <FileText className="h-4 w-4" />
             Facturas familiares ({completedInvoiced.length})
           </h3>
-          <p className="text-[10px] text-slate-500 mt-0.5">BienCuidar retiene ISR 10%, emite Factura a la familia y FSEE a la enfermera. Comisión: US$ 5.65 (gestión + IVA).</p>
+          <p className="text-[10px] text-slate-500 mt-0.5">BienCuidar retiene ISR 10%, emite Factura a la familia y FSEE a la enfermera. Comisión: US$ {(PLATFORM_COMMISSION * (1 + IVA_RATE)).toFixed(2)} (gestión + IVA).</p>
         </div>
         {completedInvoiced.length === 0 ? (
           <div className="p-6 text-center text-xs text-slate-400">Sin servicios con factura.</div>
@@ -183,7 +184,7 @@ export const NotificationsSection: FC<Props> = ({
               const nurse = nurseMap.get(b.nurse_id);
               const nurseProfile = nurse ? profileMap.get(nurse.user_id) : null;
               const serviceAmount = b.total_price || 0;
-              const managementFee = 5.65;
+              const managementFee = PLATFORM_COMMISSION * (1 + IVA_RATE);
               return (
                 <div key={b.id} className="px-4 py-3 flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">

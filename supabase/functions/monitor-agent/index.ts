@@ -145,22 +145,6 @@ const TOOLS = [
   {
     type: "function",
     function: {
-      name: "fix_verify_jwt",
-      description: "Fix a misconfigured edge function by updating its verify_jwt setting via Supabase Management API. Use when a cron-triggered function is returning 401 because verify_jwt is incorrectly set to true.",
-      parameters: {
-        type: "object",
-        properties: {
-          function_slug: { type: "string", description: "The edge function slug to fix" },
-          verify_jwt: { type: "boolean", description: "The correct verify_jwt value (false for cron/internal functions, true for app functions)" },
-          reason: { type: "string", description: "Why this fix is needed" }
-        },
-        required: ["function_slug", "verify_jwt", "reason"]
-      }
-    }
-  },
-  {
-    type: "function",
-    function: {
       name: "get_function_logs",
       description: "Fetch recent logs for a specific edge function to diagnose errors. Use when a function is returning 500 errors or is unreachable.",
       parameters: {
@@ -193,7 +177,7 @@ You receive a health report every 4 hours with system status data. Your job:
 
 AUTO-HEALING CAPABILITIES:
 - If a cron hasn't run, use trigger_cron_now to invoke it manually.
-- If a function returns 401 and it's a cron/internal function, use fix_verify_jwt to set verify_jwt=false.
+- If a function returns 401 and it's a cron/internal function, do NOT change any configuration: log_incident (critical) and send_admin_alert for a human to review.
 - If a function returns 500, use get_function_logs to investigate the error before alerting.
 - After auto-healing, log_incident with severity=warning and send_admin_email explaining what was fixed.
 - Only send_admin_alert (push) if auto-healing FAILED or the issue needs human intervention.
@@ -203,7 +187,7 @@ RULES:
 - Do NOT log incidents for normal operation.
 - If a cron ran but found nothing to do, that's NORMAL.
 - If a cron hasn't run in 2x its expected interval, try to auto-heal first (trigger_cron_now).
-- If a function returns 401, try fix_verify_jwt first. Only alert if the fix fails.
+- If a function returns 401, never attempt to fix it automatically; alert the admin.
 - Use send_admin_alert sparingly — only for things that need human intervention NOW.
 - Use log_incident for tracking — even warnings should be logged.
 - Use resolve_incident if you detect a previous issue is now resolved.
@@ -413,23 +397,25 @@ async function checkRecentErrors(): Promise<string> {
 
 async function sendAdminAlert(title: string, message: string): Promise<string> {
   try {
-    // Use send-push edge function to send push notification
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${SERVICE_KEY}`,
-      },
-      body: JSON.stringify({
-        title,
-        body: message,
-        target: "admin",
-      }),
-    });
-    if (res.ok) {
-      return `Push alert sent: ${title}`;
+    // send-push requires an explicit user_id: resolve admin profiles and notify only them
+    const { data: admins } = await supabaseQuery("profiles", "id", { role: "eq.admin" });
+    if (!admins || admins.length === 0) return `Push alert skipped: no admin profile found`;
+    let ok = 0;
+    for (const admin of admins) {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/send-push`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SERVICE_KEY}`,
+        },
+        body: JSON.stringify({ user_id: admin.id, title, body: message, tag: "monitor-alert" }),
+      });
+      if (res.ok) ok++;
     }
-    return `Push alert failed: ${res.status}`;
+    if (ok > 0) {
+      return `Push alert sent to ${ok} admin(s): ${title}`;
+    }
+    return `Push alert failed for all admins`;
   } catch (e: any) {
     return `Push alert error: ${e.message}`;
   }
@@ -515,7 +501,12 @@ async function resolveIncident(incidentType: string, note: string): Promise<stri
   }
 }
 
+const TRIGGER_ALLOWLIST = ["marketplace-cron"];
+
 async function triggerCronNow(functionName: string, reason: string): Promise<string> {
+  if (!TRIGGER_ALLOWLIST.includes(functionName)) {
+    return `Trigger ${functionName} not allowed (only: ${TRIGGER_ALLOWLIST.join(", ")}). Alert the admin instead.`;
+  }
   try {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
@@ -538,29 +529,6 @@ async function triggerCronNow(functionName: string, reason: string): Promise<str
     return `Trigger ${functionName} failed: ${res.status}`;
   } catch (e: any) {
     return `Trigger ${functionName} error: ${e.message}`;
-  }
-}
-
-async function fixVerifyJwt(functionSlug: string, verifyJwt: boolean, reason: string): Promise<string> {
-  if (!SUPABASE_ACCESS_TOKEN) {
-    return `Cannot fix verify_jwt: SUPABASE_ACCESS_TOKEN not configured. Manual fix needed.`;
-  }
-  try {
-    const res = await fetch(`${MANAGEMENT_API}/${PROJECT_REF}/functions/${functionSlug}`, {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${SUPABASE_ACCESS_TOKEN}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ verify_jwt: verifyJwt }),
-    });
-    if (res.ok) {
-      return `Fixed ${functionSlug}: verify_jwt set to ${verifyJwt}. Reason: ${reason}`;
-    }
-    const errText = await res.text();
-    return `Fix ${functionSlug} failed: ${res.status} ${errText.slice(0, 200)}`;
-  } catch (e: any) {
-    return `Fix ${functionSlug} error: ${e.message}`;
   }
 }
 
@@ -608,8 +576,6 @@ async function executeTool(toolCall: any): Promise<string> {
       return await resolveIncident(args.incident_type, args.note);
     case "trigger_cron_now":
       return await triggerCronNow(args.function_name, args.reason);
-    case "fix_verify_jwt":
-      return await fixVerifyJwt(args.function_slug, args.verify_jwt, args.reason);
     case "get_function_logs":
       return await getFunctionLogs(args.function_slug, args.limit || 20);
     default:
@@ -620,6 +586,12 @@ async function executeTool(toolCall: any): Promise<string> {
 // ===== MAIN =====
 
 Deno.serve(async (req: Request) => {
+  const bearer = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  const authorized = (!!CRON_SECRET && req.headers.get("x-cron-secret") === CRON_SECRET) || (!!bearer && bearer === SERVICE_KEY);
+  if (!authorized) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
+  }
+
   const startTime = Date.now();
   console.log("[monitor-agent] Starting health check...");
 
