@@ -36,6 +36,8 @@ Principles
 | H21 | 2026-11-25 | (this commit) | Browser error log: RPC log_client_error (rate limited 30/10min/IP, truncated, path without query/hash), table client_errors (admin read), prune 30d; frontend window/promise/ErrorBoundary hooks | rolled-back txn: stored truncated (500/2000/40), query stripped, anon cannot read, admin sees | DROP FUNCTION log_client_error; DROP TABLE client_errors; cron.unschedule |
 | H22 | 2026-11-25 | (this commit) | Docs: README refreshed, SETUP_INSTRUCTIONS no longer tells to put GROQ key in VITE_* (public), docs/PHI_POLICY.md | n/a (bundle scanned: no secrets) | git revert |
 
+| H23 | 2026-11-25 | (this commit) | Permission matrix test `ops/tests/rls_matrix.sql` (anon, unrelated nurse, family, nurse, admin; escalation attempts) | 15/15 pass (rolled back) | n/a |
+
 Follow-ups: monitor-agent reports "CRON FAILURE: cssp-reminders" daily because it measures cssp_email_sent_at (emails sent) instead of job runs -> false alarm push to admin; switch it to cron.job_run_details/net._http_response. fb-insights & fb-post-metrics stay public on purpose (local scripts call them with the anon key; data is public page metrics). chat-summary stays open (used by anonymous SupportChat visitors).
 
 NOTE (H10): deployed `stt` v8 was OLDER than the repo (no prompt/temperature, no retries). v9 now deployed = repo version (+auth). Positive path (real transcription / escalation) cannot be tested without sending/real audio; watch Edge logs for stt/benni-escalate 5xx and 401 from real users after deploy (ops/queries.sql).
