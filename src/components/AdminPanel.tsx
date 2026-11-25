@@ -436,99 +436,44 @@ Avisale que ingrese a su cuenta con su número de teléfono para ver la ubicaci�
 
   return (
     <div className="space-y-4">
-      {/* Section tabs */}
-      <div className="flex gap-2 bg-white border border-slate-200 rounded-xl p-1.5">
-        <button
-          onClick={() => setSection('summary')}
-          className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
-            section === 'summary' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <TrendingUp className="h-3.5 w-3.5 inline mr-1" />
-          Resumen
-        </button>
-        <button
-          onClick={() => setSection('notifications')}
-          className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
-            section === 'notifications' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <MessageCircle className="h-3.5 w-3.5 inline mr-1" />
-          Notificaciones
-          {(requestsWithOffers.length + acceptedOffers.length + pendingPayments.length) > 0 && (
-            <span className="ml-1 bg-red-500 text-white text-[8px] font-bold w-4 h-4 rounded-full inline-flex items-center justify-center">
-              {requestsWithOffers.length + acceptedOffers.length + pendingPayments.length}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setSection('packages')}
-          className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
-            section === 'packages' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Calendar className="h-3.5 w-3.5 inline mr-1" />
-          Asignaciones largas
-          {longTermRequests.length > 0 && (
-            <span className="ml-1 bg-emerald-500 text-white text-[8px] font-bold w-4 h-4 rounded-full inline-flex items-center justify-center">
-              {longTermRequests.length}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setSection('cssp')}
-          className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
-            section === 'cssp' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <ShieldCheck className="h-3.5 w-3.5 inline mr-1" />
-          CSSP
-          {pendingCSSP.length > 0 && (
-            <span className="ml-1 bg-amber-500 text-white text-[8px] font-bold w-4 h-4 rounded-full inline-flex items-center justify-center">
-              {pendingCSSP.length}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => setSection('nurses')}
-          className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
-            section === 'nurses' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Users className="h-3.5 w-3.5 inline mr-1" />
-          Enfermeras
-        </button>
-        <button
-          onClick={() => setSection('chat')}
-          className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
-            section === 'chat' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <BarChart3 className="h-3.5 w-3.5 inline mr-1" />
-          Chat
-        </button>
-        <button
-          onClick={() => setSection('support')}
-          className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
-            section === 'support' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Mail className="h-3.5 w-3.5 inline mr-1" />
-          Correo
-          {supportEmails.filter(e => e.needs_human).length > 0 && (
-            <span className="ml-1 bg-red-500 text-white text-[9px] rounded-full px-1.5 py-0.5">{supportEmails.filter(e => e.needs_human).length}</span>
-          )}
-        </button>
-        <button
-          onClick={() => setSection('benni')}
-          className={`flex-1 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer ${
-            section === 'benni' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Mic className="h-3.5 w-3.5 inline mr-1" />
-          Benni
-        </button>
-      </div>
+      {/* Section tabs: horizontally scrollable on mobile so all sections remain usable */}
+      {(() => {
+        const tabs: Array<{ id: typeof section; label: string; icon: typeof TrendingUp; badge?: number; badgeClass?: string }> = [
+          { id: 'summary', label: 'Resumen', icon: TrendingUp },
+          { id: 'notifications', label: 'Notificaciones', icon: MessageCircle, badge: requestsWithOffers.length + acceptedOffers.length + pendingPayments.length, badgeClass: 'bg-red-500' },
+          { id: 'packages', label: 'Asignaciones largas', icon: Calendar, badge: longTermRequests.length, badgeClass: 'bg-emerald-500' },
+          { id: 'cssp', label: 'CSSP', icon: ShieldCheck, badge: pendingCSSP.length, badgeClass: 'bg-amber-500' },
+          { id: 'nurses', label: 'Enfermeras', icon: Users },
+          { id: 'chat', label: 'Chat', icon: BarChart3 },
+          { id: 'support', label: 'Correo', icon: Mail, badge: supportEmails.filter(e => e.needs_human).length, badgeClass: 'bg-red-500' },
+          { id: 'benni', label: 'Benni', icon: Mic },
+        ];
+        return (
+          <div className="flex gap-2 bg-white border border-slate-200 rounded-xl p-1.5 overflow-x-auto" role="tablist" aria-label="Secciones del panel">
+            {tabs.map(t => {
+              const active = section === t.id;
+              const Icon = t.icon;
+              return (
+                <button
+                  key={t.id}
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => setSection(t.id)}
+                  className={`shrink-0 flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${active ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {t.label}
+                  {(t.badge ?? 0) > 0 && (
+                    <span className={`ml-1 ${t.badgeClass} text-white text-[8px] font-bold min-w-4 h-4 px-1 rounded-full inline-flex items-center justify-center`}>
+                      {t.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {section === 'summary' && (
         <Suspense fallback={<SectionSpinner />}>
