@@ -1,22 +1,14 @@
 # Instrucciones de Configuración
 
-## 1. Configurar API Key de Groq en Netlify
+## 1. Claves (NUNCA en el frontend)
 
-### Opción A: A través del Dashboard
-1. Ir a https://app.netlify.com/
-2. Seleccionar el proyecto `localnurse`
-3. Ir a Site settings → Environment variables
-4. Hacer clic en "Add a variable"
-5. Key: `VITE_GROQ_API_KEY`
-6. Value: (tu API key de Groq)
-7. Hacer clic en "Save"
-8. Trigger redeploy
+La clave de Groq y cualquier otro secreto viven solo como secretos de Supabase (Edge Functions), jamas como variable `VITE_*` de Netlify: todo lo que empieza con `VITE_` queda publicado en el JavaScript del navegador.
 
-### Opción B: A través de CLI (si está instalada)
 ```bash
-netlify env:set VITE_GROQ_API_KEY (tu-api-key)
-netlify deploy --prod
+supabase secrets set GROQ_API_KEY=<tu-clave>   # o Dashboard > Edge Functions > Secrets
 ```
+
+El frontend solo necesita `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` (publicas por diseno).
 
 ## 2. Verificar Despliegue
 

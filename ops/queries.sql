@@ -20,3 +20,6 @@ select created_at, severity, source, left(message,160) from monitor_incidents or
 -- Edge function 401/403/500 by function (Supabase logs, ClickHouse via query_logs):
 -- select log_attributes['request.path'] path, log_attributes['response.status_code'] status, count(*) n, max(timestamp) last_at
 -- from logs where source='function_edge_logs' and timestamp > now() - interval 2 hour group by path, status order by n desc
+
+-- Browser errors captured by log_client_error (admin only via RLS; run as admin or service role). Most frequent first:
+select left(message,120) msg, path, source, count(*) n, max(created_at) last_at from client_errors where created_at > now() - interval '7 days' group by 1,2,3 order by n desc limit 20;

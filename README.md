@@ -30,12 +30,20 @@ Plataforma marketplace para conectar familias con enfermeras profesionales de cu
 
 1. Instalar dependencias:
    `npm install`
-2. Copiar `.env.example` a `.env.local` y configurar las claves:
+2. Copiar `.env.example` a `.env` (o `.env.local`) y configurar las claves:
    - `VITE_SUPABASE_URL` - URL del proyecto Supabase
    - `VITE_SUPABASE_ANON_KEY` - clave anon de Supabase
 3. Ejecutar:
    `npm run dev`
 4. Abrir http://localhost:3000
+
+## Calidad y operacion
+
+- `npm test`: pruebas de precios (incluye paridad con la funcion SQL `accept_offer` y deteccion de comisiones hardcodeadas).
+- CI (GitHub Actions): typecheck, tests y build en cada PR.
+- Produccion se opera con `ops/`: `OPS_LOG.md` (cambios, verificacion, reversion), `INCIDENTS.md`, `queries.sql`, `smoke.mjs` (prueba segura sin credenciales), `AUTH_STANDARD.md` (como se autentica cada Edge Function) y `tests/` (pruebas SQL que se revierten solas).
+- NUNCA invocar Edge Functions ni crons que notifiquen a usuarios reales para probar. Ver `supabase/functions/INVENTORY.md`.
+- Politica de datos de salud: `docs/PHI_POLICY.md`.
 
 ## Despliegue
 
@@ -53,12 +61,14 @@ src/
   components/    Componentes UI (LandingPage, CareRequestForm, NurseInbox, etc.)
   context/       AppContext - estado global, realtime y persistencia
   data/          Datos estaticos (districts, platformSettings)
-  hooks/         Hooks custom (useWhisperSTT)
+  hooks/         Hooks de dominio (useBookings, useMarketplace, useReviews, useAvailability, useWhisperSTT)
   lib/           Configuracion de Supabase
   types.ts       Interfaces TypeScript del dominio
 supabase/
   functions/     Edge Functions (ai-agent, ai-chat, benni-chat, triage-request,
                  fb-publish, fb-story, rag-ingest, verify-cssp, email-inbound-handler)
-  migrations/    Esquemas SQL (triage, RAG pgvector)
-scripts/         Scripts locales (groq-news.mjs, editorial-scout.mjs, fb-post.mjs)
+  migrations/    Migraciones SQL (timestamp YYYYMMDDHHMMSS); baseline/ = foto de referencia del esquema de produccion (no aplicar)
+scripts/         Herramientas locales de contenido para Facebook (groq-news.mjs, editorial-scout.mjs, fb-post.mjs)
+ops/             Operacion de produccion (log de cambios, smoke test, diagnosticos, reversiones)
+tests/           Pruebas (pricing.test.ts, editorial-evidence.test.mjs)
 ```

@@ -12,7 +12,11 @@ if (!('randomUUID' in crypto) || typeof crypto.randomUUID !== 'function') {
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
+import { logClientError } from './lib/errorLog';
 import './index.css';
+
+window.addEventListener('error', (e) => logClientError(e.error ?? e.message, 'window'));
+window.addEventListener('unhandledrejection', (e) => logClientError(e.reason, 'promise'));
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
