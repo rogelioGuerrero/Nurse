@@ -47,6 +47,7 @@ export const AdminPanel: FC = () => {
     auto_replied: boolean;
     auto_reply_body: string | null;
     needs_human: boolean;
+    sender_registered: boolean;
     created_at: string;
   }>>([]);
   const [supportLoading, setSupportLoading] = useState(false);
@@ -269,7 +270,7 @@ export const AdminPanel: FC = () => {
     try {
       const { data, error } = await supabase
         .from('support_emails')
-        .select('id, from_email, subject, body, classification, auto_replied, auto_reply_body, needs_human, created_at')
+        .select('id, from_email, subject, body, classification, auto_replied, auto_reply_body, needs_human, sender_registered, created_at')
         .order('created_at', { ascending: false })
         .limit(50);
       if (!error && data) {

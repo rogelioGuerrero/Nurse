@@ -291,24 +291,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // 1. Verificar si el remitente está registrado en BienCuidar (case-insensitive)
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("id, email, full_name, role")
-      .ilike("email", from)
-      .single();
-
-    if (!profile) {
-      console.log(`[email-inbound] Sender not registered: ${from} — discarding`);
-      return new Response(JSON.stringify({ ok: true, action: "discarded", reason: "not_registered" }), {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
-    }
-
-    console.log(`[email-inbound] Registered user: ${profile.full_name} (${profile.role})`);
-
-    // 2. Obtener contenido del correo
+    // 1. Obtener contenido del correo
     const emailContent = await getEmailContent(email_id);
     const bodyText = emailContent.text || stripHtml(emailContent.html);
 
@@ -320,7 +303,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // 3. Clasificar el correo
+    // 2. Clasificar el correo
     const classification = await classifyEmail(from, subject, bodyText);
     console.log(`[email-inbound] Classification: ${classification.category} — ${classification.reason}`);
 
@@ -337,7 +320,43 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // 4. Es una consulta legítima — llamar al ai-agent
+    // 3. Verificar si el remitente está registrado en BienCuidar (case-insensitive)
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("id, email, full_name, role")
+      .ilike("email", from)
+      .single();
+
+    // 3b. Remitente NO registrado: no auto-responder, escalar al admin para atención manual
+    if (!profile) {
+      console.log(`[email-inbound] Sender not registered: ${from} — escalating to admin`);
+      const { error: insertError } = await supabase
+        .from("support_emails")
+        .insert({
+          from_email: from,
+          to_email: "info@agtisa.com",
+          subject: subject || "(sin asunto)",
+          body: bodyText,
+          classification: classification.category,
+          is_biencuidar: true,
+          auto_replied: false,
+          auto_reply_body: null,
+          needs_human: true,
+          sender_registered: false,
+          resend_email_id: email_id,
+        });
+      if (insertError) {
+        console.log(`[email-inbound] Failed to save escalated email: ${insertError.message}`);
+      }
+      return new Response(JSON.stringify({ ok: true, action: "escalated", reason: "not_registered" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json", ...corsHeaders },
+      });
+    }
+
+    console.log(`[email-inbound] Registered user: ${profile.full_name} (${profile.role})`);
+
+    // 4. Es una consulta legítima de usuario registrado — llamar al ai-agent
     const reply = await callAiAgent(profile.email, bodyText, subject);
     console.log(`[email-inbound] ai-agent reply: ${reply.slice(0, 100)}`);
 
@@ -345,8 +364,9 @@ Deno.serve(async (req: Request) => {
     const sent = await sendReply(from, subject, reply);
 
     // 6. Guardar en support_emails para el dashboard de admin
-    // Marcar como needs_human=true si la respuesta incluye el fallback (indica que el AI no pudo resolver)
-    const needsHuman = !sent || reply.includes("info@agtisa.com");
+    // Marcar como needs_human=true si el envío falló o si la respuesta es el texto de fallback
+    // (ambos fallbacks empiezan con "Gracias por escribir a BienCuidar.")
+    const needsHuman = !sent || reply.startsWith("Gracias por escribir a BienCuidar.");
     const { error: insertError } = await supabase
       .from("support_emails")
       .insert({
@@ -359,6 +379,7 @@ Deno.serve(async (req: Request) => {
         auto_replied: sent,
         auto_reply_body: sent ? reply : null,
         needs_human: needsHuman,
+        sender_registered: true,
         resend_email_id: email_id,
       });
     if (insertError) {

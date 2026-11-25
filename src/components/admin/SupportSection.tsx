@@ -10,6 +10,7 @@ interface SupportEmail {
   auto_replied: boolean;
   auto_reply_body: string | null;
   needs_human: boolean;
+  sender_registered?: boolean;
   created_at: string;
 }
 
@@ -83,6 +84,9 @@ export const SupportSection: FC<Props> = ({
                     )}
                     {email.auto_replied && (
                       <span className="bg-emerald-100 text-emerald-600 text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0">Auto-respondido</span>
+                    )}
+                    {email.sender_registered === false && (
+                      <span className="bg-amber-100 text-amber-700 text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0">No registrado</span>
                     )}
                   </div>
                   <p className="text-[10px] text-slate-400">De: {email.from_email} · {new Date(email.created_at).toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'short' })}</p>
