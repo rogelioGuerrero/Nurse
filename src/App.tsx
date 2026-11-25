@@ -352,24 +352,12 @@ function MarketplaceApp({ initialTab }: { initialTab?: string }) {
               <ShieldCheck className="h-3.5 w-3.5" />
               Panel de Administración
             </span>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => { setActiveTab('admin-panel'); }}
-                className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
-                  activeTab === 'admin-panel'
-                    ? 'bg-white text-indigo-900'
-                    : 'bg-indigo-800 hover:bg-indigo-700 text-white'
-                }`}
-              >
-                Panel
-              </button>
-              <button
-                onClick={async () => { await supabase.auth.signOut(); }}
-                className="px-3 py-1.5 rounded-lg font-bold transition cursor-pointer bg-rose-600 hover:bg-rose-500 text-white"
-              >
-                Salir
-              </button>
-            </div>
+            <button
+              onClick={async () => { await supabase.auth.signOut(); }}
+              className="px-3 py-1.5 rounded-lg font-bold transition cursor-pointer bg-rose-600 hover:bg-rose-500 text-white"
+            >
+              Salir
+            </button>
           </div>
         </div>
       )}

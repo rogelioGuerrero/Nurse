@@ -1,6 +1,6 @@
 ﻿import { useState, useMemo, useEffect, lazy, Suspense, type FC } from 'react';
 import { useApp } from '../context/AppContext';
-import { MessageCircle, ShieldCheck, Users, FileText, Clock, MapPin, Phone, DollarSign, CheckCircle2, TrendingUp, RefreshCw, Loader2, Calendar, BarChart3, Mail, LayoutGrid, List, Mic, Wrench, AlertTriangle, Timer } from 'lucide-react';
+import { MessageCircle, ShieldCheck, Users, FileText, Clock, MapPin, Phone, DollarSign, CheckCircle2, TrendingUp, RefreshCw, Loader2, Calendar, BarChart3, Mail, LayoutGrid, List, Mic, Wrench, AlertTriangle, Timer, ChevronDown } from 'lucide-react';
 import { CSSPReviewPanel } from './CSSPReviewPanel';
 import { groqChat } from '../lib/groq';
 import { buildWaLink } from '../lib/phoneAuth';
@@ -24,6 +24,7 @@ const SectionSpinner = () => (
 export const AdminPanel: FC = () => {
   const { currentUser, careRequests, careOffers, profiles, nurses, bookings, confirmPayment } = useApp();
   const [section, setSection] = useState<'summary' | 'notifications' | 'cssp' | 'packages' | 'nurses' | 'chat' | 'support' | 'benni'>('summary');
+  const [sectionMenuOpen, setSectionMenuOpen] = useState(false);
   const [dailySummary, setDailySummary] = useState('');
   const [summaryLoading, setSummaryLoading] = useState(false);
   const [summaryDate, setSummaryDate] = useState('');
@@ -451,7 +452,7 @@ Avisale que ingrese a su cuenta con su número de teléfono para ver la ubicaci�
 
   return (
     <div className="space-y-4">
-      {/* Section tabs: horizontally scrollable on mobile so all sections remain usable */}
+      {/* Section selector: compact dropdown instead of a scrollable tab strip */}
       {(() => {
         const tabs: Array<{ id: typeof section; label: string; icon: typeof TrendingUp; badge?: number; badgeClass?: string }> = [
           { id: 'summary', label: 'Resumen', icon: TrendingUp },
@@ -463,29 +464,62 @@ Avisale que ingrese a su cuenta con su número de teléfono para ver la ubicaci�
           { id: 'support', label: 'Correo', icon: Mail, badge: supportEmails.filter(e => e.needs_human).length, badgeClass: 'bg-red-500' },
           { id: 'benni', label: 'Benni', icon: Mic },
         ];
+        const current = tabs.find(t => t.id === section) ?? tabs[0];
+        const CurrentIcon = current.icon;
+        const totalBadges = tabs.reduce((acc, t) => acc + (t.badge ?? 0), 0);
         return (
-          <div className="flex gap-2 bg-white border border-slate-200 rounded-xl p-1.5 overflow-x-auto" role="tablist" aria-label="Secciones del panel">
-            {tabs.map(t => {
-              const active = section === t.id;
-              const Icon = t.icon;
-              return (
-                <button
-                  key={t.id}
-                  role="tab"
-                  aria-selected={active}
-                  onClick={() => setSection(t.id)}
-                  className={`shrink-0 flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-bold transition cursor-pointer whitespace-nowrap ${active ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {t.label}
-                  {(t.badge ?? 0) > 0 && (
-                    <span className={`ml-1 ${t.badgeClass} text-white text-[8px] font-bold min-w-4 h-4 px-1 rounded-full inline-flex items-center justify-center`}>
-                      {t.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+          <div className="relative">
+            <button
+              onClick={() => setSectionMenuOpen(o => !o)}
+              aria-expanded={sectionMenuOpen}
+              aria-haspopup="menu"
+              className="w-full flex items-center justify-between gap-2 bg-white border border-slate-200 rounded-xl px-4 py-3 cursor-pointer hover:border-indigo-300 transition"
+            >
+              <span className="flex items-center gap-2 text-sm font-bold text-slate-800">
+                <CurrentIcon className="h-4 w-4 text-indigo-600" />
+                {current.label}
+                {(current.badge ?? 0) > 0 && (
+                  <span className={`${current.badgeClass} text-white text-[9px] font-bold min-w-5 h-5 px-1.5 rounded-full inline-flex items-center justify-center`}>
+                    {current.badge}
+                  </span>
+                )}
+              </span>
+              <span className="flex items-center gap-2">
+                {totalBadges > 0 && sectionMenuOpen === false && (
+                  <span className="bg-red-500 text-white text-[9px] font-bold min-w-5 h-5 px-1.5 rounded-full inline-flex items-center justify-center">
+                    {totalBadges}
+                  </span>
+                )}
+                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform ${sectionMenuOpen ? 'rotate-180' : ''}`} />
+              </span>
+            </button>
+            {sectionMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setSectionMenuOpen(false)} />
+                <div role="menu" className="absolute z-20 top-full mt-1 left-0 right-0 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+                  {tabs.map(t => {
+                    const active = section === t.id;
+                    const Icon = t.icon;
+                    return (
+                      <button
+                        key={t.id}
+                        role="menuitem"
+                        onClick={() => { setSection(t.id); setSectionMenuOpen(false); }}
+                        className={`w-full flex items-center gap-2.5 px-4 py-3 text-sm font-bold transition cursor-pointer ${active ? 'bg-indigo-50 text-indigo-700' : 'text-slate-700 hover:bg-slate-50'}`}
+                      >
+                        <Icon className={`h-4 w-4 ${active ? 'text-indigo-600' : 'text-slate-400'}`} />
+                        {t.label}
+                        {(t.badge ?? 0) > 0 && (
+                          <span className={`ml-auto ${t.badgeClass} text-white text-[9px] font-bold min-w-5 h-5 px-1.5 rounded-full inline-flex items-center justify-center`}>
+                            {t.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
         );
       })()}
